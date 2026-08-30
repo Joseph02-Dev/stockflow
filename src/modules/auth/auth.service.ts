@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'node:crypto';
@@ -9,6 +9,7 @@ import { hashToken } from './token-hash.util.js';
 import type { RegisterDto } from './dto/register.dto.js';
 import type { LoginDto } from './dto/login.dto.js';
 import type { LogoutDto } from './dto/logout.dto.js';
+import type { AcceptInviteDto } from './dto/accept-invite.dto.js';
 
 export interface AuthResult {
   accessToken: string;
@@ -105,6 +106,46 @@ export class AuthService {
     }
 
     return { message: 'Déconnexion réussie.' };
+  }
+
+  /**
+   * AUTH-003 (suite) — Acceptation d'une invitation.
+   * La personne invitée choisit son nom et son mot de passe ; l'entreprise
+   * et le rôle proviennent exclusivement de l'invitation (jamais du corps
+   * de la requête), pour éviter qu'un utilisateur ne s'auto-attribue un
+   * rôle ou une entreprise différente de celle prévue par l'Admin.
+   */
+  async acceptInvite(dto: AcceptInviteDto): Promise<AuthResult> {
+    const tokenHash = hashToken(dto.token);
+    const invitation = await this.prisma.invitation.findUnique({ where: { tokenHash } });
+
+    if (!invitation || invitation.acceptedAt || invitation.expiresAt < new Date()) {
+      throw new NotFoundException("Invitation invalide, déjà utilisée, ou expirée.");
+    }
+
+    const emailDejaUtilise = await this.prisma.utilisateur.findUnique({ where: { email: invitation.email } });
+    if (emailDejaUtilise) {
+      throw new ConflictException('Un compte existe déjà avec cette adresse email.');
+    }
+
+    const passwordHash = await argon2.hash(dto.password);
+
+    const { entreprise, utilisateur } = await this.prisma.$transaction(async (tx) => {
+      const utilisateur = await tx.utilisateur.create({
+        data: {
+          entrepriseId: invitation.entrepriseId,
+          email: invitation.email,
+          nom: dto.nom,
+          passwordHash,
+          role: invitation.role,
+        },
+      });
+      await tx.invitation.update({ where: { id: invitation.id }, data: { acceptedAt: new Date() } });
+      const entreprise = await tx.entreprise.findUniqueOrThrow({ where: { id: invitation.entrepriseId } });
+      return { entreprise, utilisateur };
+    });
+
+    return this.construireReponseAuth(utilisateur, entreprise);
   }
 
   private async construireReponseAuth(

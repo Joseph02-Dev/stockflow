@@ -37,12 +37,13 @@ model Entreprise {
   nom       String
   createdAt DateTime @default(now()) @map("created_at")
 
-  utilisateurs  Utilisateur[]
-  emplacements  Emplacement[]
-  produits      Produit[]
-  fournisseurs  Fournisseur[]
-  mouvements    Mouvement[]
-  alertes       Alerte[]
+  utilisateurs Utilisateur[]
+  emplacements Emplacement[]
+  produits     Produit[]
+  fournisseurs Fournisseur[]
+  mouvements   Mouvement[]
+  alertes      Alerte[]
+  invitations  Invitation[]
 
   @@map("entreprise")
 }
@@ -56,12 +57,36 @@ model Utilisateur {
   role         Role
   createdAt    DateTime @default(now()) @map("created_at")
 
-  entreprise    Entreprise     @relation(fields: [entrepriseId], references: [id])
-  mouvements    Mouvement[]
-  refreshTokens RefreshToken[]
+  entreprise          Entreprise     @relation(fields: [entrepriseId], references: [id])
+  mouvements          Mouvement[]
+  refreshTokens       RefreshToken[]
+  invitationsEnvoyees Invitation[]
 
   @@index([entrepriseId])
   @@map("utilisateur")
+}
+
+// AUTH-003 — Invitation d'un utilisateur par un Admin.
+// Aucun Utilisateur n'est créé tant que l'invitation n'est pas acceptée
+// (l'email et le rôle sont réservés, mais le nom et le mot de passe sont
+// choisis par la personne invitée lors de l'acceptation).
+model Invitation {
+  id           String    @id @default(uuid())
+  entrepriseId String    @map("entreprise_id")
+  email        String
+  role         Role
+  tokenHash    String    @unique @map("token_hash")
+  invitedById  String    @map("invited_by_id")
+  expiresAt    DateTime  @map("expires_at")
+  acceptedAt   DateTime? @map("accepted_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  entreprise Entreprise  @relation(fields: [entrepriseId], references: [id])
+  invitedBy  Utilisateur @relation(fields: [invitedById], references: [id])
+
+  @@index([entrepriseId])
+  @@index([email])
+  @@map("invitation")
 }
 
 // Permet la révocation réelle côté serveur (AUTH-002 — déconnexion).

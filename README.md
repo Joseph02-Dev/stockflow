@@ -61,9 +61,11 @@ npm run start:dev
 - [x] TECH-002 — Connexion PostgreSQL (Prisma) + migration initiale
 - [x] TECH-003 — Middleware multi-tenant (extraction entreprise_id depuis le JWT)
 - [x] TECH-004 — Guard de rôles
+- [x] TECH-005 — Service d'email (transport dev, avancé plus tôt que prévu pour AUTH-003)
 - [x] AUTH-001-BE — Inscription (création entreprise + admin)
 - [x] AUTH-002 — Connexion / déconnexion
-- [ ] AUTH-001-FE, AUTH-003, AUTH-004... — voir le backlog
+- [x] AUTH-003 — Invitation d'un utilisateur par un Admin
+- [ ] AUTH-001-FE, AUTH-004-FE... — voir le backlog
 
 ## API disponible
 
@@ -72,6 +74,12 @@ npm run start:dev
 | POST | `/auth/register` | Public | Crée une entreprise + son premier utilisateur (Admin) |
 | POST | `/auth/login` | Public | Connexion, retourne access + refresh token |
 | POST | `/auth/logout` | Authentifié | Révoque le refresh token fourni (déconnexion côté serveur) |
+| POST | `/users` | Admin | Invite un utilisateur (email + rôle), envoie un email avec un jeton |
+| POST | `/auth/accept-invite` | Public | Accepte une invitation (nom + mot de passe), crée le compte, connecte automatiquement |
+
+## Service d'email
+
+`EMAIL_SERVICE` (token DI) est une abstraction — actuellement implémentée par `DevEmailService` (`EMAIL_PROVIDER=dev`), qui journalise les emails sans les envoyer réellement. Un vrai fournisseur (Resend, SendGrid...) sera branché avant la mise en production, sans changer le code métier.
 
 ## Contexte multi-tenant
 

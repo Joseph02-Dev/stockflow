@@ -6,6 +6,7 @@ import { AuthService, type AuthResult } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { LogoutDto } from './dto/logout.dto.js';
+import { AcceptInviteDto } from './dto/accept-invite.dto.js';
 
 @Controller('auth')
 export class AuthController {
@@ -23,6 +24,13 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto): Promise<AuthResult> {
     return this.authService.login(dto);
+  }
+
+  @Public()
+  @Post('accept-invite')
+  @HttpCode(HttpStatus.CREATED)
+  acceptInvite(@Body() dto: AcceptInviteDto): Promise<AuthResult> {
+    return this.authService.acceptInvite(dto);
   }
 
   // Route protégée (pas de @Public()) : nécessite un access token valide

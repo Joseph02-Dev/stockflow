@@ -15,11 +15,13 @@ import { JwtConfigModule } from './config/jwt.module.js';
 import { TenantContextModule } from './common/context/tenant-context.module.js';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
+import { EmailModule } from './common/email/email.module.js';
 
 @Module({
   imports: [
     JwtConfigModule,
     TenantContextModule,
+    EmailModule,
     PrismaModule,
     AuthModule,
     EntrepriseModule,
