@@ -5,6 +5,8 @@ import { InscriptionPage } from '@/features/auth/InscriptionPage';
 import { InvitationPage } from '@/features/auth/InvitationPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { ProduitsPage } from '@/features/produits/ProduitsPage';
+import { FournisseursPage } from '@/features/fournisseurs/FournisseursPage';
+import { FournisseurDetailPage } from '@/features/fournisseurs/FournisseurDetailPage';
 import { ParametresPage } from '@/features/parametres/ParametresPage';
 import { useSession } from '@/lib/useSession';
 
@@ -51,6 +53,8 @@ export function App() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/produits" element={<ProduitsPage />} />
+          <Route path="/fournisseurs" element={<FournisseursPage />} />
+          <Route path="/fournisseurs/:id" element={<FournisseurDetailPage />} />
           <Route element={<RouteAdmin />}>
             <Route path="/parametres" element={<ParametresPage />} />
           </Route>
