@@ -26,10 +26,14 @@ describe('Fournisseurs (FOUR-001, FOUR-002) — intégration réelle, base Postg
       await prisma.fournisseurProduit.deleteMany({
         where: { fournisseur: { entrepriseId: { in: entrepriseIds } } },
       });
+      await prisma.alerte.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
+      await prisma.mouvement.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
+      await prisma.stock.deleteMany({ where: { produit: { entrepriseId: { in: entrepriseIds } } } });
       await prisma.refreshToken.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
       await prisma.utilisateur.deleteMany({ where: { email: { in: emailsCrees } } });
       await prisma.fournisseur.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
       await prisma.produit.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
+      await prisma.emplacement.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
       await prisma.entreprise.deleteMany({ where: { id: { in: entrepriseIds } } });
       emailsCrees.length = 0;
     }
@@ -177,6 +181,93 @@ describe('Fournisseurs (FOUR-001, FOUR-002) — intégration réelle, base Postg
 
     const tentative = await request(app.getHttpServer())
       .get(`/fournisseurs/${fournisseurDeB.body.id}`)
+      .set('Authorization', `Bearer ${accessTokenA}`);
+
+    expect(tentative.status).toBe(404);
+  });
+
+  // FOUR-003 — Historique des réceptions
+
+  it("l'historique des réceptions liste les entrées de stock du fournisseur", async () => {
+    const accessToken = await creerAdmin();
+    const fournisseur = await request(app.getHttpServer())
+      .post('/fournisseurs')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ nom: 'Fournisseur Réceptions' });
+    const produit = await request(app.getHttpServer())
+      .post('/produits')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ nom: 'Produit Réception' });
+    const emplacement = await request(app.getHttpServer())
+      .post('/emplacements')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ nom: 'Entrepôt Réception' });
+
+    await request(app.getHttpServer())
+      .post('/mouvements/entree')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        produitId: produit.body.id,
+        emplacementId: emplacement.body.id,
+        quantite: 25,
+        fournisseurId: fournisseur.body.id,
+      });
+
+    const response = await request(app.getHttpServer())
+      .get(`/fournisseurs/${fournisseur.body.id}/receptions`)
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveLength(1);
+    expect(response.body[0].quantite).toBe(25);
+    expect(response.body[0].type).toBe('ENTREE');
+    expect(response.body[0].produit.nom).toBe('Produit Réception');
+  });
+
+  it("l'historique exclut les entrées non rattachées à ce fournisseur et les sorties", async () => {
+    const accessToken = await creerAdmin();
+    const fournisseur = await request(app.getHttpServer())
+      .post('/fournisseurs')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ nom: 'Fournisseur Filtré' });
+    const produit = await request(app.getHttpServer())
+      .post('/produits')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ nom: 'Produit Filtré' });
+    const emplacement = await request(app.getHttpServer())
+      .post('/emplacements')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ nom: 'Entrepôt Filtré' });
+
+    // Entrée SANS fournisseur : ne doit pas apparaître.
+    await request(app.getHttpServer())
+      .post('/mouvements/entree')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ produitId: produit.body.id, emplacementId: emplacement.body.id, quantite: 100 });
+    // Sortie : ne doit jamais apparaître dans les réceptions.
+    await request(app.getHttpServer())
+      .post('/mouvements/sortie')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ produitId: produit.body.id, emplacementId: emplacement.body.id, quantite: 5 });
+
+    const response = await request(app.getHttpServer())
+      .get(`/fournisseurs/${fournisseur.body.id}/receptions`)
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveLength(0);
+  });
+
+  it("rejette avec 404 l'historique des réceptions d'un fournisseur d'une autre entreprise", async () => {
+    const accessTokenA = await creerAdmin();
+    const accessTokenB = await creerAdmin();
+    const fournisseurDeB = await request(app.getHttpServer())
+      .post('/fournisseurs')
+      .set('Authorization', `Bearer ${accessTokenB}`)
+      .send({ nom: 'Fournisseur B Réceptions' });
+
+    const tentative = await request(app.getHttpServer())
+      .get(`/fournisseurs/${fournisseurDeB.body.id}/receptions`)
       .set('Authorization', `Bearer ${accessTokenA}`);
 
     expect(tentative.status).toBe(404);

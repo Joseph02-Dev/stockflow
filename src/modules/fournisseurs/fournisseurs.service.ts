@@ -66,6 +66,21 @@ export class FournisseursService {
     return associations.map((a) => a.produit);
   }
 
+  /**
+   * FOUR-003 — Historique des réceptions.
+   * Une réception est un mouvement d'ENTREE rattaché à ce fournisseur.
+   * Les sorties ne sont jamais liées à un fournisseur, elles sont donc
+   * naturellement exclues par le filtre sur le type.
+   */
+  async listerReceptions(entrepriseId: string, fournisseurId: string) {
+    await this.trouverOuEchouer(entrepriseId, fournisseurId);
+    return this.prisma.mouvement.findMany({
+      where: { entrepriseId, fournisseurId, type: 'ENTREE' },
+      include: { produit: true, emplacement: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   private async trouverOuEchouer(entrepriseId: string, fournisseurId: string) {
     const fournisseur = await this.prisma.fournisseur.findUnique({ where: { id: fournisseurId } });
     if (!fournisseur || fournisseur.entrepriseId !== entrepriseId) {

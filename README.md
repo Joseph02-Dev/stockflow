@@ -75,8 +75,8 @@ npm run start:dev
 - [x] MVT-002 — Sortie de stock (+ déclenchement automatique des alertes)
 - [x] MVT-003 — Historique des mouvements
 - [x] MVT-004 — Stock par emplacement
-- [ ] FOUR-003 (historique des réceptions) — peut maintenant être implémenté (dépendance MVT-001 satisfaite)
-- [ ] **Sprint 3 (Cœur métier) en grande partie terminé**
+- [x] FOUR-003 — Historique des réceptions par fournisseur
+- [ ] **Sprint 3 (Cœur métier) terminé** — passage au Sprint 4 (Alertes : ALERT-003 affichage, ALERT-004 email)
 
 ## API disponible
 
@@ -102,6 +102,7 @@ npm run start:dev
 | POST | `/fournisseurs` | Authentifié | Crée une fiche fournisseur |
 | PATCH | `/fournisseurs/:id` | Authentifié | Modifie une fiche fournisseur |
 | GET | `/fournisseurs/:id/produits` | Authentifié | Liste les produits associés |
+| GET | `/fournisseurs/:id/receptions` | Authentifié | Historique des réceptions (entrées de stock du fournisseur) |
 | POST | `/fournisseurs/:id/produits` | Authentifié | Associe un produit |
 | DELETE | `/fournisseurs/:id/produits/:produitId` | Authentifié | Dissocie un produit |
 | POST | `/mouvements/entree` | Authentifié | Enregistre une entrée de stock |

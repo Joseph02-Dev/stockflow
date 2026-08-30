@@ -34,6 +34,11 @@ export class FournisseursController {
     return this.fournisseursService.listerProduitsAssocies(entrepriseId, id);
   }
 
+  @Get(':id/receptions')
+  listerReceptions(@CurrentTenant() entrepriseId: string, @Param('id') id: string) {
+    return this.fournisseursService.listerReceptions(entrepriseId, id);
+  }
+
   @Post(':id/produits')
   associerProduit(
     @CurrentTenant() entrepriseId: string,
