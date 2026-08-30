@@ -69,7 +69,10 @@ npm run start:dev
 - [x] ENT-002 — Création d'emplacement
 - [x] ENT-003 — Modification / archivage d'emplacement
 - [x] PROD-001 à PROD-004 — Produits (création, modification, recherche/filtre, archivage)
-- [ ] **Sprint 2 (Catalogue) en cours** — Fournisseurs à venir
+- [x] FOUR-001 — Fiche fournisseur (création, modification)
+- [x] FOUR-002 — Association / dissociation de produits à un fournisseur
+- [ ] FOUR-003 (historique des réceptions) — en attente de MVT-001 (Sprint 3)
+- [ ] **Sprint 2 (Catalogue) terminé** — passage au Sprint 3 (Mouvements de stock)
 
 ## API disponible
 
@@ -90,6 +93,13 @@ npm run start:dev
 | POST | `/produits` | Authentifié | Crée un produit |
 | PATCH | `/produits/:id` | Authentifié | Modifie un produit |
 | PATCH | `/produits/:id/archive` | Authentifié | Archive un produit (jamais de suppression physique) |
+| GET | `/fournisseurs` | Authentifié | Liste les fournisseurs |
+| GET | `/fournisseurs/:id` | Authentifié | Détail d'un fournisseur |
+| POST | `/fournisseurs` | Authentifié | Crée une fiche fournisseur |
+| PATCH | `/fournisseurs/:id` | Authentifié | Modifie une fiche fournisseur |
+| GET | `/fournisseurs/:id/produits` | Authentifié | Liste les produits associés |
+| POST | `/fournisseurs/:id/produits` | Authentifié | Associe un produit |
+| DELETE | `/fournisseurs/:id/produits/:produitId` | Authentifié | Dissocie un produit |
 
 ## Service d'email
 
