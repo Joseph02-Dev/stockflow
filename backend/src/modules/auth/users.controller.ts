@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -9,6 +9,12 @@ import { InviteUserDto } from './dto/invite-user.dto.js';
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Roles('ADMIN')
+  @Get()
+  lister(@CurrentTenant() entrepriseId: string) {
+    return this.usersService.lister(entrepriseId);
+  }
 
   @Roles('ADMIN')
   @Post()

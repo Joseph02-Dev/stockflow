@@ -15,6 +15,19 @@ export class UsersService {
   ) {}
 
   /**
+   * AUTH-003 — Liste les utilisateurs de l'entreprise.
+   * `select` explicite : le hash du mot de passe ne doit JAMAIS sortir du
+   * serveur, même par inadvertance lors d'un ajout de champ au modèle.
+   */
+  async lister(entrepriseId: string) {
+    return this.prisma.utilisateur.findMany({
+      where: { entrepriseId },
+      select: { id: true, email: true, nom: true, role: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  /**
    * AUTH-003 — Un Admin invite un nouvel utilisateur par email + rôle.
    * Aucun Utilisateur n'est créé immédiatement : l'invitation est stockée,
    * un email est envoyé avec un jeton à usage unique, et c'est la personne

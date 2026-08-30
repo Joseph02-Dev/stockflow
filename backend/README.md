@@ -95,6 +95,7 @@ npm run start:dev
 | POST | `/auth/register` | Public | Crée une entreprise + son premier utilisateur (Admin) |
 | POST | `/auth/login` | Public | Connexion, retourne access + refresh token |
 | POST | `/auth/logout` | Authentifié | Révoque le refresh token fourni (déconnexion côté serveur) |
+| GET | `/users` | Admin | Liste les utilisateurs de l’entreprise (sans le hash du mot de passe) |
 | POST | `/users` | Admin | Invite un utilisateur (email + rôle), envoie un email avec un jeton |
 | POST | `/auth/accept-invite` | Public | Accepte une invitation (nom + mot de passe), crée le compte, connecte automatiquement |
 | GET | `/entreprise` | Authentifié | Consulte les informations de l'entreprise |

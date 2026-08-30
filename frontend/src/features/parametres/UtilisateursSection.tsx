@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,9 +11,16 @@ import { Select } from '@/components/ui/Select';
 import { Alert } from '@/components/ui/Alert';
 import { Modal } from '@/components/ui/Modal';
 import { Card } from '@/components/patterns/Page';
-import { EmptyState } from '@/components/patterns/States';
+import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { useSession } from '@/lib/useSession';
 import { Badge } from '@/components/ui/Badge';
+
+interface UtilisateurListe {
+  id: string;
+  email: string;
+  nom: string;
+  role: 'ADMIN' | 'GESTIONNAIRE';
+}
 
 const schema = z.object({
   email: z.string().min(1, 'L’email est requis.').email('Adresse email invalide.'),
@@ -24,9 +31,15 @@ type Formulaire = z.infer<typeof schema>;
 
 export function UtilisateursSection() {
   const session = useSession();
+  const queryClient = useQueryClient();
   const [modaleOuverte, setModaleOuverte] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [succes, setSucces] = useState<string | null>(null);
+
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['utilisateurs'],
+    queryFn: async () => (await api.get<UtilisateurListe[]>('/users')).data,
+  });
 
   const { register, handleSubmit, reset, formState } = useForm<Formulaire>({
     resolver: zodResolver(schema),
@@ -40,6 +53,9 @@ export function UtilisateursSection() {
       setSucces(`Une invitation a été envoyée à ${valeurs.email}.`);
       setModaleOuverte(false);
       reset({ email: '', role: 'GESTIONNAIRE' });
+      // La personne n'apparaîtra dans la liste qu'après acceptation, mais
+      // on rafraîchit au cas où elle aurait accepté entre-temps.
+      queryClient.invalidateQueries({ queryKey: ['utilisateurs'] });
     },
     onError: (err) => setErreur(messageErreur(err, 'L’invitation a échoué.')),
   });
@@ -63,20 +79,28 @@ export function UtilisateursSection() {
       {erreur && !modaleOuverte && <Alert variant="error">{erreur}</Alert>}
 
       <Card>
-        {/* Le backend n'expose pas encore de route de listing des
-            utilisateurs : seul l'utilisateur courant peut être affiché.
-            La liste complète arrivera avec la route GET /users. */}
-        {session ? (
+        {isLoading ? (
+          <LoadingState />
+        ) : isError ? (
+          <ErrorState message={messageErreur(error)} onRetry={() => refetch()} />
+        ) : data && data.length > 0 ? (
           <ul className="divide-y divide-border-subtle">
-            <li className="flex items-center justify-between gap-4 px-4 py-3">
-              <div className="min-w-0">
-                <p className="truncate font-medium text-text-primary">{session.utilisateur.nom}</p>
-                <p className="truncate text-sm text-text-secondary">{session.utilisateur.email}</p>
-              </div>
-              <Badge variant={session.utilisateur.role === 'ADMIN' ? 'info' : 'neutral'}>
-                {session.utilisateur.role === 'ADMIN' ? 'Administrateur' : 'Gestionnaire'}
-              </Badge>
-            </li>
+            {data.map((utilisateur) => (
+              <li key={utilisateur.id} className="flex items-center justify-between gap-4 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-text-primary">
+                    {utilisateur.nom}
+                    {utilisateur.id === session?.utilisateur.id && (
+                      <span className="ml-2 text-sm font-normal text-text-secondary">(vous)</span>
+                    )}
+                  </p>
+                  <p className="truncate text-sm text-text-secondary">{utilisateur.email}</p>
+                </div>
+                <Badge variant={utilisateur.role === 'ADMIN' ? 'info' : 'neutral'}>
+                  {utilisateur.role === 'ADMIN' ? 'Administrateur' : 'Gestionnaire'}
+                </Badge>
+              </li>
+            ))}
           </ul>
         ) : (
           <EmptyState titre="Aucun utilisateur" />

@@ -189,4 +189,84 @@ describe("Flux d'invitation AUTH-003 (intégration réelle, base PostgreSQL)", (
 
     expect(response.status).toBe(401);
   });
+
+  // AUTH-003 — Listing des utilisateurs
+
+  it("un Admin peut lister les utilisateurs de son entreprise", async () => {
+    const { accessToken, emailAdmin } = await creerAdmin();
+
+    const response = await request(app.getHttpServer())
+      .get('/users')
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveLength(1);
+    expect(response.body[0]).toMatchObject({ email: emailAdmin, role: 'ADMIN' });
+  });
+
+  it("le hash du mot de passe n'est JAMAIS exposé dans la liste des utilisateurs", async () => {
+    const { accessToken } = await creerAdmin();
+
+    const response = await request(app.getHttpServer())
+      .get('/users')
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    expect(JSON.stringify(response.body)).not.toContain('passwordHash');
+    expect(response.body[0].passwordHash).toBeUndefined();
+  });
+
+  it("la liste reflète les utilisateurs ayant accepté une invitation", async () => {
+    const { accessToken } = await creerAdmin();
+    const emailInvite = `test-invite-liste-${Date.now()}@stockflow.dev`;
+    emailsCrees.push(emailInvite);
+
+    await request(app.getHttpServer())
+      .post('/users')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ email: emailInvite, role: 'GESTIONNAIRE' });
+    const [emailEnvoye] = devEmail.getSentEmails();
+    const token = emailEnvoye.body.match(/Jeton d'invitation : ([a-f0-9]+)/)?.[1];
+    await request(app.getHttpServer())
+      .post('/auth/accept-invite')
+      .send({ token, nom: 'Nouveau Gestionnaire', password: 'motdepasse-solide-123' });
+
+    const response = await request(app.getHttpServer())
+      .get('/users')
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    expect(response.body).toHaveLength(2);
+    expect(response.body.map((u: { role: string }) => u.role)).toContain('GESTIONNAIRE');
+  });
+
+  it('rejette avec 403 le listing demandé par un Gestionnaire', async () => {
+    const { accessToken: accessTokenAdmin } = await creerAdmin();
+    const emailGestionnaire = `test-liste-gest-${Date.now()}@stockflow.dev`;
+    emailsCrees.push(emailGestionnaire);
+    await request(app.getHttpServer())
+      .post('/users')
+      .set('Authorization', `Bearer ${accessTokenAdmin}`)
+      .send({ email: emailGestionnaire, role: 'GESTIONNAIRE' });
+    const [emailEnvoye] = devEmail.getSentEmails();
+    const token = emailEnvoye.body.match(/Jeton d'invitation : ([a-f0-9]+)/)?.[1];
+    const acceptation = await request(app.getHttpServer())
+      .post('/auth/accept-invite')
+      .send({ token, nom: 'Gestionnaire Liste', password: 'motdepasse-solide-123' });
+
+    const response = await request(app.getHttpServer())
+      .get('/users')
+      .set('Authorization', `Bearer ${acceptation.body.accessToken}`);
+
+    expect(response.status).toBe(403);
+  });
+
+  it("une entreprise ne voit jamais les utilisateurs d'une autre (isolation multi-tenant)", async () => {
+    const { accessToken: tokenA } = await creerAdmin();
+    await creerAdmin(); // entreprise B, avec son propre admin
+
+    const response = await request(app.getHttpServer())
+      .get('/users')
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(response.body).toHaveLength(1);
+  });
 });
