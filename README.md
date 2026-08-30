@@ -79,7 +79,14 @@ npm run start:dev
 - [x] ALERT-001, ALERT-002 — Seuils et détection automatique (implémentés dans MVT-001/MVT-002)
 - [x] ALERT-003 — Consultation des alertes
 - [x] ALERT-004 — Notification par email
-- [ ] **Sprint 4 (Alertes) terminé** — passage au Sprint 5 (Dashboard : DASH-001, DASH-002)
+- [x] DASH-001 — Vue d'ensemble du stock
+- [x] DASH-002 — Produits en alerte
+- [x] **MVP backend terminé** — 90 tests d'intégration, tous les tickets backend du MVP livrés
+
+### Reste à faire hors backend
+- Tickets frontend (React) : AUTH-001-FE, AUTH-004-FE, MVT-001-FE, MVT-002-FE, ALERT-004-FE
+- TECH-006 à TECH-009 : CI/CD, monitoring, tests d'isolation multi-tenant dédiés
+- Remplacement du transport email `dev` par un fournisseur réel avant la mise en production
 
 ## API disponible
 
@@ -113,6 +120,7 @@ npm run start:dev
 | GET | `/mouvements?produit_id=&emplacement_id=` | Authentifié | Historique des mouvements |
 | GET | `/stock?produit_id=&emplacement_id=` | Authentifié | Stock actuel par emplacement |
 | GET | `/alertes?statut=ACTIVE\|RESOLUE` | Authentifié | Liste les alertes (actives par défaut) |
+| GET | `/dashboard/overview` | Authentifié | KPI agrégés + produits actuellement en alerte |
 
 ## Logique d'alertes
 
