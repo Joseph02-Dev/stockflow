@@ -71,8 +71,12 @@ npm run start:dev
 - [x] PROD-001 à PROD-004 — Produits (création, modification, recherche/filtre, archivage)
 - [x] FOUR-001 — Fiche fournisseur (création, modification)
 - [x] FOUR-002 — Association / dissociation de produits à un fournisseur
-- [ ] FOUR-003 (historique des réceptions) — en attente de MVT-001 (Sprint 3)
-- [ ] **Sprint 2 (Catalogue) terminé** — passage au Sprint 3 (Mouvements de stock)
+- [x] MVT-001 — Entrée de stock (+ résolution automatique des alertes)
+- [x] MVT-002 — Sortie de stock (+ déclenchement automatique des alertes)
+- [x] MVT-003 — Historique des mouvements
+- [x] MVT-004 — Stock par emplacement
+- [ ] FOUR-003 (historique des réceptions) — peut maintenant être implémenté (dépendance MVT-001 satisfaite)
+- [ ] **Sprint 3 (Cœur métier) en grande partie terminé**
 
 ## API disponible
 
@@ -100,6 +104,16 @@ npm run start:dev
 | GET | `/fournisseurs/:id/produits` | Authentifié | Liste les produits associés |
 | POST | `/fournisseurs/:id/produits` | Authentifié | Associe un produit |
 | DELETE | `/fournisseurs/:id/produits/:produitId` | Authentifié | Dissocie un produit |
+| POST | `/mouvements/entree` | Authentifié | Enregistre une entrée de stock |
+| POST | `/mouvements/sortie` | Authentifié | Enregistre une sortie de stock (409 si stock insuffisant) |
+| GET | `/mouvements?produit_id=&emplacement_id=` | Authentifié | Historique des mouvements |
+| GET | `/stock?produit_id=&emplacement_id=` | Authentifié | Stock actuel par emplacement |
+
+## Logique d'alertes (anticipée dans MVT-001/MVT-002)
+
+- Une **sortie** qui fait passer le stock total sous le seuil du produit déclenche une alerte (`STOCK_FAIBLE` ou `RUPTURE` si le stock atteint 0).
+- Une **entrée** qui fait remonter le stock total au-dessus du seuil **résout automatiquement** l'alerte active (décision validée en audit Lead Developer).
+- Toute cette logique est **transactionnelle** avec la mise à jour du stock et la création du mouvement : jamais d'incohérence entre `stock`, `mouvement` et `alerte`.
 
 ## Service d'email
 
