@@ -34,9 +34,17 @@ export function App() {
     <Routes>
       <Route element={<RoutePublique />}>
         <Route path="/connexion" element={<ConnexionPage />} />
-        <Route path="/inscription" element={<InscriptionPage />} />
         <Route path="/invitation" element={<InvitationPage />} />
       </Route>
+
+      {/*
+        L'inscription est volontairement hors de RoutePublique : elle
+        enregistre la session dès l'étape 1 (nécessaire pour créer le
+        premier emplacement à l'étape 2). Un garde de redirection ici
+        éjecterait l'utilisateur vers le dashboard au milieu du parcours.
+        La page gère elle-même le cas d'un utilisateur déjà connecté.
+      */}
+      <Route path="/inscription" element={<InscriptionPage />} />
 
       <Route element={<RouteProtegee />}>
         <Route element={<AppLayout />}>

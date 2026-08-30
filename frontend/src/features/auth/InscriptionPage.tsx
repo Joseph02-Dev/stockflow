@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { api, messageErreur } from '@/lib/api';
-import { setSession } from '@/lib/session';
+import { getSession, setSession } from '@/lib/session';
 import type { Session } from '@/lib/session';
 
 const schemaCompte = z.object({
@@ -30,6 +30,12 @@ export function InscriptionPage() {
   const navigate = useNavigate();
   const [etape, setEtape] = useState<1 | 2>(1);
   const [erreur, setErreur] = useState<string | null>(null);
+
+  // Évalué une seule fois au montage : un utilisateur déjà connecté n'a
+  // rien à faire ici et repart vers le dashboard. En revanche, la session
+  // créée à l'étape 1 ne doit PAS déclencher cette redirection, sinon le
+  // parcours serait interrompu avant l'étape 2.
+  const [dejaConnecteAuMontage] = useState(() => getSession() !== null);
 
   const formCompte = useForm<FormulaireCompte>({ resolver: zodResolver(schemaCompte) });
   const formEmplacement = useForm<FormulaireEmplacement>({ resolver: zodResolver(schemaEmplacement) });
@@ -56,6 +62,10 @@ export function InscriptionPage() {
     } catch (error) {
       setErreur(messageErreur(error, 'La création de l’emplacement a échoué.'));
     }
+  }
+
+  if (dejaConnecteAuMontage) {
+    return <Navigate to="/" replace />;
   }
 
   if (etape === 2) {
