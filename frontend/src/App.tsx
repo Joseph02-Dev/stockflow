@@ -4,6 +4,7 @@ import { ConnexionPage } from '@/features/auth/ConnexionPage';
 import { InscriptionPage } from '@/features/auth/InscriptionPage';
 import { InvitationPage } from '@/features/auth/InvitationPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
+import { ProduitsPage } from '@/features/produits/ProduitsPage';
 import { ParametresPage } from '@/features/parametres/ParametresPage';
 import { useSession } from '@/lib/useSession';
 
@@ -49,6 +50,7 @@ export function App() {
       <Route element={<RouteProtegee />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/produits" element={<ProduitsPage />} />
           <Route element={<RouteAdmin />}>
             <Route path="/parametres" element={<ParametresPage />} />
           </Route>
