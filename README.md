@@ -62,13 +62,16 @@ npm run start:dev
 - [x] TECH-003 — Middleware multi-tenant (extraction entreprise_id depuis le JWT)
 - [x] TECH-004 — Guard de rôles
 - [x] AUTH-001-BE — Inscription (création entreprise + admin)
-- [ ] AUTH-001-FE, AUTH-002, AUTH-003, AUTH-004... — voir le backlog
+- [x] AUTH-002 — Connexion / déconnexion
+- [ ] AUTH-001-FE, AUTH-003, AUTH-004... — voir le backlog
 
 ## API disponible
 
 | Méthode | Route | Accès | Description |
 |---|---|---|---|
 | POST | `/auth/register` | Public | Crée une entreprise + son premier utilisateur (Admin) |
+| POST | `/auth/login` | Public | Connexion, retourne access + refresh token |
+| POST | `/auth/logout` | Authentifié | Révoque le refresh token fourni (déconnexion côté serveur) |
 
 ## Contexte multi-tenant
 

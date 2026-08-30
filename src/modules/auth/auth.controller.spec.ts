@@ -24,7 +24,9 @@ describe('POST /auth/register (intégration réelle, base PostgreSQL)', () => {
     // rester idempotent (rejouable sans collision d'email unique).
     if (emailsCrees.length > 0) {
       const utilisateurs = await prisma.utilisateur.findMany({ where: { email: { in: emailsCrees } } });
+      const utilisateurIds = utilisateurs.map((u) => u.id);
       const entrepriseIds = utilisateurs.map((u) => u.entrepriseId);
+      await prisma.refreshToken.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
       await prisma.utilisateur.deleteMany({ where: { email: { in: emailsCrees } } });
       await prisma.entreprise.deleteMany({ where: { id: { in: entrepriseIds } } });
       emailsCrees.length = 0;
