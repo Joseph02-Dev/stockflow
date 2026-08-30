@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
   Boxes,
@@ -26,6 +27,15 @@ const liens = [
 export function AppLayout() {
   const session = useSession();
   const navigate = useNavigate();
+
+  // Compteur d'alertes actives affiché en pastille sur l'entrée « Alertes ».
+  // Partage la même clé de cache que la page Alertes : un mouvement de
+  // stock qui invalide ['alertes'] met donc aussi la pastille à jour.
+  const alertesActives = useQuery({
+    queryKey: ['alertes', 'ACTIVE'],
+    queryFn: async () => (await api.get<unknown[]>('/alertes?statut=ACTIVE')).data,
+  });
+  const nombreAlertes = alertesActives.data?.length ?? 0;
 
   async function seDeconnecter() {
     const courante = getSession();
@@ -74,7 +84,15 @@ export function AppLayout() {
               }
             >
               <Icone className="size-5" aria-hidden="true" />
-              {libelle}
+              <span className="flex-1">{libelle}</span>
+              {to === '/alertes' && nombreAlertes > 0 && (
+                <span
+                  className="inline-flex min-w-5 items-center justify-center rounded-full bg-error px-1.5 py-0.5 text-xs font-semibold text-white"
+                  aria-label={`${nombreAlertes} alerte${nombreAlertes > 1 ? 's' : ''} active${nombreAlertes > 1 ? 's' : ''}`}
+                >
+                  {nombreAlertes}
+                </span>
+              )}
             </NavLink>
           ))}
 
