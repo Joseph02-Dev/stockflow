@@ -68,7 +68,8 @@ npm run start:dev
 - [x] ENT-001 — Configuration de l'entreprise
 - [x] ENT-002 — Création d'emplacement
 - [x] ENT-003 — Modification / archivage d'emplacement
-- [ ] **Sprint 1 (Fondations) terminé** — passage au Sprint 2 (Catalogue : Produits, Fournisseurs)
+- [x] PROD-001 à PROD-004 — Produits (création, modification, recherche/filtre, archivage)
+- [ ] **Sprint 2 (Catalogue) en cours** — Fournisseurs à venir
 
 ## API disponible
 
@@ -85,6 +86,10 @@ npm run start:dev
 | POST | `/emplacements` | Admin | Crée un emplacement |
 | PATCH | `/emplacements/:id` | Admin | Modifie un emplacement |
 | PATCH | `/emplacements/:id/archive` | Admin | Archive un emplacement (jamais de suppression physique) |
+| GET | `/produits?search=&archive=` | Authentifié | Liste/recherche les produits (actifs par défaut) |
+| POST | `/produits` | Authentifié | Crée un produit |
+| PATCH | `/produits/:id` | Authentifié | Modifie un produit |
+| PATCH | `/produits/:id/archive` | Authentifié | Archive un produit (jamais de suppression physique) |
 
 ## Service d'email
 
