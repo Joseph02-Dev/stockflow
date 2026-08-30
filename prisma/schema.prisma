@@ -1,0 +1,184 @@
+// Schéma Prisma — StockFlow
+// Reflète strictement le modèle de données validé en phase Architecture,
+// avec les 3 ajustements validés en audit Lead Developer (résolution auto
+// des alertes sur entrée + archivage des emplacements au lieu de suppression).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  GESTIONNAIRE
+}
+
+enum TypeMouvement {
+  ENTREE
+  SORTIE
+}
+
+enum TypeAlerte {
+  STOCK_FAIBLE
+  RUPTURE
+}
+
+enum StatutAlerte {
+  ACTIVE
+  RESOLUE
+}
+
+model Entreprise {
+  id        String   @id @default(uuid())
+  nom       String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  utilisateurs  Utilisateur[]
+  emplacements  Emplacement[]
+  produits      Produit[]
+  fournisseurs  Fournisseur[]
+  mouvements    Mouvement[]
+  alertes       Alerte[]
+
+  @@map("entreprise")
+}
+
+model Utilisateur {
+  id           String   @id @default(uuid())
+  entrepriseId String   @map("entreprise_id")
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  entreprise Entreprise  @relation(fields: [entrepriseId], references: [id])
+  mouvements Mouvement[]
+
+  @@index([entrepriseId])
+  @@map("utilisateur")
+}
+
+model Emplacement {
+  id           String   @id @default(uuid())
+  entrepriseId String   @map("entreprise_id")
+  nom          String
+  adresse      String?
+  // Archivage plutôt que suppression physique — décision validée en audit
+  // Lead Developer, pour préserver l'intégrité des mouvements historiques
+  // qui référencent obligatoirement un emplacement.
+  archive      Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  entreprise Entreprise  @relation(fields: [entrepriseId], references: [id])
+  stocks     Stock[]
+  mouvements Mouvement[]
+
+  @@index([entrepriseId])
+  @@map("emplacement")
+}
+
+model Produit {
+  id           String   @id @default(uuid())
+  entrepriseId String   @map("entreprise_id")
+  nom          String
+  reference    String?
+  seuilAlerte  Int      @default(0) @map("seuil_alerte")
+  archive      Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  entreprise           Entreprise           @relation(fields: [entrepriseId], references: [id])
+  stocks               Stock[]
+  mouvements           Mouvement[]
+  alertes              Alerte[]
+  fournisseursAssocies FournisseurProduit[]
+
+  @@index([entrepriseId, nom])
+  @@map("produit")
+}
+
+model Fournisseur {
+  id           String   @id @default(uuid())
+  entrepriseId String   @map("entreprise_id")
+  nom          String
+  emailContact String?  @map("email_contact")
+  telephone    String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  entreprise       Entreprise           @relation(fields: [entrepriseId], references: [id])
+  produitsAssocies FournisseurProduit[]
+  mouvements       Mouvement[]
+
+  @@index([entrepriseId])
+  @@map("fournisseur")
+}
+
+model FournisseurProduit {
+  fournisseurId String @map("fournisseur_id")
+  produitId     String @map("produit_id")
+
+  fournisseur Fournisseur @relation(fields: [fournisseurId], references: [id])
+  produit     Produit     @relation(fields: [produitId], references: [id])
+
+  @@id([fournisseurId, produitId])
+  @@map("fournisseur_produit")
+}
+
+// État courant du stock, maintenu à chaque mouvement (voir justification
+// dans la documentation d'architecture : évite un recalcul par somme à
+// chaque lecture).
+model Stock {
+  produitId     String @map("produit_id")
+  emplacementId String @map("emplacement_id")
+  quantite      Int    @default(0)
+
+  produit     Produit     @relation(fields: [produitId], references: [id])
+  emplacement Emplacement @relation(fields: [emplacementId], references: [id])
+
+  @@id([produitId, emplacementId])
+  @@map("stock")
+}
+
+// Mouvements immuables : jamais modifiés ni supprimés après création
+// (traçabilité — voir règles d'intégrité de l'architecture validée).
+model Mouvement {
+  id            String        @id @default(uuid())
+  entrepriseId  String        @map("entreprise_id")
+  produitId     String        @map("produit_id")
+  emplacementId String        @map("emplacement_id")
+  type          TypeMouvement
+  quantite      Int
+  fournisseurId String?       @map("fournisseur_id")
+  utilisateurId String        @map("utilisateur_id")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  entreprise  Entreprise   @relation(fields: [entrepriseId], references: [id])
+  produit     Produit      @relation(fields: [produitId], references: [id])
+  emplacement Emplacement  @relation(fields: [emplacementId], references: [id])
+  fournisseur Fournisseur? @relation(fields: [fournisseurId], references: [id])
+  utilisateur Utilisateur  @relation(fields: [utilisateurId], references: [id])
+
+  @@index([produitId, createdAt])
+  @@index([entrepriseId, createdAt])
+  @@map("mouvement")
+}
+
+model Alerte {
+  id                      String       @id @default(uuid())
+  entrepriseId            String       @map("entreprise_id")
+  produitId               String       @map("produit_id")
+  type                    TypeAlerte
+  statut                  StatutAlerte @default(ACTIVE)
+  quantiteAuDeclenchement Int          @map("quantite_au_declenchement")
+  createdAt               DateTime     @default(now()) @map("created_at")
+  resolvedAt              DateTime?    @map("resolved_at")
+
+  entreprise Entreprise @relation(fields: [entrepriseId], references: [id])
+  produit    Produit    @relation(fields: [produitId], references: [id])
+
+  @@index([entrepriseId, statut])
+  @@map("alerte")
+}
