@@ -51,6 +51,7 @@ model Utilisateur {
   id           String   @id @default(uuid())
   entrepriseId String   @map("entreprise_id")
   email        String   @unique
+  nom          String
   passwordHash String   @map("password_hash")
   role         Role
   createdAt    DateTime @default(now()) @map("created_at")

@@ -61,7 +61,14 @@ npm run start:dev
 - [x] TECH-002 — Connexion PostgreSQL (Prisma) + migration initiale
 - [x] TECH-003 — Middleware multi-tenant (extraction entreprise_id depuis le JWT)
 - [x] TECH-004 — Guard de rôles
-- [ ] Fondation technique terminée — passage aux tickets fonctionnels (AUTH-*)
+- [x] AUTH-001-BE — Inscription (création entreprise + admin)
+- [ ] AUTH-001-FE, AUTH-002, AUTH-003, AUTH-004... — voir le backlog
+
+## API disponible
+
+| Méthode | Route | Accès | Description |
+|---|---|---|---|
+| POST | `/auth/register` | Public | Crée une entreprise + son premier utilisateur (Admin) |
 
 ## Contexte multi-tenant
 
