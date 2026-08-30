@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import ms from 'ms';
 import type { StringValue } from 'ms';
@@ -24,6 +24,39 @@ export class UsersService {
       where: { entrepriseId },
       select: { id: true, email: true, nom: true, role: true, createdAt: true },
       orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  /**
+   * AUTH-004 — Modifie le rôle d'un utilisateur de l'entreprise.
+   *
+   * Garde-fou important : on refuse de rétrograder le DERNIER Admin.
+   * Sans cette vérification, une entreprise pourrait se retrouver
+   * définitivement sans administrateur, donc dans l'incapacité de gérer
+   * ses utilisateurs, ses emplacements ou ses paramètres — sans aucun
+   * moyen de récupérer l'accès depuis l'application.
+   */
+  async modifierRole(entrepriseId: string, utilisateurId: string, nouveauRole: 'ADMIN' | 'GESTIONNAIRE') {
+    const utilisateur = await this.prisma.utilisateur.findUnique({ where: { id: utilisateurId } });
+    if (!utilisateur || utilisateur.entrepriseId !== entrepriseId) {
+      throw new NotFoundException('Utilisateur introuvable.');
+    }
+
+    if (utilisateur.role === 'ADMIN' && nouveauRole !== 'ADMIN') {
+      const nombreAdmins = await this.prisma.utilisateur.count({
+        where: { entrepriseId, role: 'ADMIN' },
+      });
+      if (nombreAdmins <= 1) {
+        throw new ConflictException(
+          'Impossible de rétrograder le dernier administrateur : l’entreprise doit toujours en compter au moins un.',
+        );
+      }
+    }
+
+    return this.prisma.utilisateur.update({
+      where: { id: utilisateurId },
+      data: { role: nouveauRole },
+      select: { id: true, email: true, nom: true, role: true, createdAt: true },
     });
   }
 

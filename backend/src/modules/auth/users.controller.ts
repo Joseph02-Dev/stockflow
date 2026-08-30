@@ -1,10 +1,11 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { RequestContext } from '../../common/context/tenant-context.service.js';
 import { UsersService } from './users.service.js';
 import { InviteUserDto } from './dto/invite-user.dto.js';
+import { UpdateRoleDto } from './dto/update-role.dto.js';
 
 @Controller('users')
 export class UsersController {
@@ -14,6 +15,16 @@ export class UsersController {
   @Get()
   lister(@CurrentTenant() entrepriseId: string) {
     return this.usersService.lister(entrepriseId);
+  }
+
+  @Roles('ADMIN')
+  @Patch(':id/role')
+  modifierRole(
+    @CurrentTenant() entrepriseId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateRoleDto,
+  ) {
+    return this.usersService.modifierRole(entrepriseId, id, dto.role);
   }
 
   @Roles('ADMIN')

@@ -97,6 +97,7 @@ npm run start:dev
 | POST | `/auth/logout` | Authentifié | Révoque le refresh token fourni (déconnexion côté serveur) |
 | GET | `/users` | Admin | Liste les utilisateurs de l’entreprise (sans le hash du mot de passe) |
 | POST | `/users` | Admin | Invite un utilisateur (email + rôle), envoie un email avec un jeton |
+| PATCH | `/users/:id/role` | Admin | Modifie le rôle d’un utilisateur (refuse de rétrograder le dernier Admin) |
 | POST | `/auth/accept-invite` | Public | Accepte une invitation (nom + mot de passe), crée le compte, connecte automatiquement |
 | GET | `/entreprise` | Authentifié | Consulte les informations de l'entreprise |
 | PATCH | `/entreprise` | Admin | Modifie le nom de l'entreprise |

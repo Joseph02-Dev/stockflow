@@ -13,6 +13,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Card } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { useSession } from '@/lib/useSession';
+import { getSession, setSession } from '@/lib/session';
 import { Badge } from '@/components/ui/Badge';
 
 interface UtilisateurListe {
@@ -60,6 +61,24 @@ export function UtilisateursSection() {
     onError: (err) => setErreur(messageErreur(err, 'L’invitation a échoué.')),
   });
 
+  const changerRole = useMutation({
+    mutationFn: async ({ id, role }: { id: string; role: 'ADMIN' | 'GESTIONNAIRE' }) =>
+      api.patch(`/users/${id}/role`, { role }),
+    onSuccess: (_reponse, variables) => {
+      setErreur(null);
+      queryClient.invalidateQueries({ queryKey: ['utilisateurs'] });
+
+      // Si l'Admin a modifié son propre rôle, la session locale doit
+      // suivre — sinon l'interface continuerait d'afficher les options
+      // réservées à l'Admin jusqu'à la prochaine connexion.
+      const session = getSession();
+      if (session && session.utilisateur.id === variables.id) {
+        setSession({ ...session, utilisateur: { ...session.utilisateur, role: variables.role } });
+      }
+    },
+    onError: (err) => setErreur(messageErreur(err, 'La modification du rôle a échoué.')),
+  });
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
@@ -96,9 +115,27 @@ export function UtilisateursSection() {
                   </p>
                   <p className="truncate text-sm text-text-secondary">{utilisateur.email}</p>
                 </div>
-                <Badge variant={utilisateur.role === 'ADMIN' ? 'info' : 'neutral'}>
-                  {utilisateur.role === 'ADMIN' ? 'Administrateur' : 'Gestionnaire'}
-                </Badge>
+
+                <div className="flex shrink-0 items-center gap-3">
+                  <Badge variant={utilisateur.role === 'ADMIN' ? 'info' : 'neutral'}>
+                    {utilisateur.role === 'ADMIN' ? 'Administrateur' : 'Gestionnaire'}
+                  </Badge>
+                  <select
+                    aria-label={`Rôle de ${utilisateur.nom}`}
+                    value={utilisateur.role}
+                    disabled={changerRole.isPending}
+                    onChange={(event) =>
+                      changerRole.mutate({
+                        id: utilisateur.id,
+                        role: event.target.value as 'ADMIN' | 'GESTIONNAIRE',
+                      })
+                    }
+                    className="rounded-(--radius-button) border border-border-subtle bg-surface px-2 py-1 text-sm text-text-primary disabled:opacity-50"
+                  >
+                    <option value="GESTIONNAIRE">Gestionnaire</option>
+                    <option value="ADMIN">Administrateur</option>
+                  </select>
+                </div>
               </li>
             ))}
           </ul>

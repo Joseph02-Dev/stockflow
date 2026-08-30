@@ -269,4 +269,113 @@ describe("Flux d'invitation AUTH-003 (intégration réelle, base PostgreSQL)", (
 
     expect(response.body).toHaveLength(1);
   });
+
+  // AUTH-004 — Modification du rôle
+
+  /** Crée un Gestionnaire actif dans l'entreprise de l'admin donné. */
+  async function creerGestionnaire(accessTokenAdmin: string, suffixe: string) {
+    const email = `test-role-${suffixe}-${Date.now()}-${Math.random().toString(36).slice(2)}@stockflow.dev`;
+    emailsCrees.push(email);
+    devEmail.clear();
+    await request(app.getHttpServer())
+      .post('/users')
+      .set('Authorization', `Bearer ${accessTokenAdmin}`)
+      .send({ email, role: 'GESTIONNAIRE' });
+    const [emailEnvoye] = devEmail.getSentEmails();
+    const token = emailEnvoye.body.match(/Jeton d'invitation : ([a-f0-9]+)/)?.[1];
+    const acceptation = await request(app.getHttpServer())
+      .post('/auth/accept-invite')
+      .send({ token, nom: 'Gestionnaire Role', password: 'motdepasse-solide-123' });
+    return { id: acceptation.body.utilisateur.id as string, accessToken: acceptation.body.accessToken as string };
+  }
+
+  it('un Admin peut promouvoir un Gestionnaire en Admin', async () => {
+    const { accessToken } = await creerAdmin();
+    const gestionnaire = await creerGestionnaire(accessToken, 'promo');
+
+    const response = await request(app.getHttpServer())
+      .patch(`/users/${gestionnaire.id}/role`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ role: 'ADMIN' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.role).toBe('ADMIN');
+    expect(response.body.passwordHash).toBeUndefined();
+  });
+
+  it("refuse avec 409 de rétrograder le dernier administrateur (l'entreprise resterait sans admin)", async () => {
+    const { accessToken } = await creerAdmin();
+    const liste = await request(app.getHttpServer())
+      .get('/users')
+      .set('Authorization', `Bearer ${accessToken}`);
+    const adminId = liste.body[0].id;
+
+    const response = await request(app.getHttpServer())
+      .patch(`/users/${adminId}/role`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ role: 'GESTIONNAIRE' });
+
+    expect(response.status).toBe(409);
+
+    // Le rôle doit être resté inchangé malgré la tentative.
+    const apres = await prisma.utilisateur.findUniqueOrThrow({ where: { id: adminId } });
+    expect(apres.role).toBe('ADMIN');
+  });
+
+  it("autorise la rétrogradation d'un Admin dès qu'un second Admin existe", async () => {
+    const { accessToken } = await creerAdmin();
+    const gestionnaire = await creerGestionnaire(accessToken, 'second');
+    // Promotion : l'entreprise compte désormais 2 Admins.
+    await request(app.getHttpServer())
+      .patch(`/users/${gestionnaire.id}/role`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ role: 'ADMIN' });
+
+    const response = await request(app.getHttpServer())
+      .patch(`/users/${gestionnaire.id}/role`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ role: 'GESTIONNAIRE' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.role).toBe('GESTIONNAIRE');
+  });
+
+  it('rejette avec 403 une modification de rôle tentée par un Gestionnaire', async () => {
+    const { accessToken } = await creerAdmin();
+    const gestionnaire = await creerGestionnaire(accessToken, 'interdit');
+
+    const response = await request(app.getHttpServer())
+      .patch(`/users/${gestionnaire.id}/role`)
+      .set('Authorization', `Bearer ${gestionnaire.accessToken}`)
+      .send({ role: 'ADMIN' });
+
+    expect(response.status).toBe(403);
+  });
+
+  it("rejette avec 404 la modification du rôle d'un utilisateur d'une autre entreprise", async () => {
+    const { accessToken: tokenA } = await creerAdmin();
+    const { accessToken: tokenB } = await creerAdmin();
+    const listeB = await request(app.getHttpServer())
+      .get('/users')
+      .set('Authorization', `Bearer ${tokenB}`);
+
+    const response = await request(app.getHttpServer())
+      .patch(`/users/${listeB.body[0].id}/role`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ role: 'GESTIONNAIRE' });
+
+    expect(response.status).toBe(404);
+  });
+
+  it('rejette avec 400 un rôle invalide', async () => {
+    const { accessToken } = await creerAdmin();
+    const gestionnaire = await creerGestionnaire(accessToken, 'invalide');
+
+    const response = await request(app.getHttpServer())
+      .patch(`/users/${gestionnaire.id}/role`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ role: 'SUPER_ADMIN' });
+
+    expect(response.status).toBe(400);
+  });
 });
