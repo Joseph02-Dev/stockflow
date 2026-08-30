@@ -65,7 +65,10 @@ npm run start:dev
 - [x] AUTH-001-BE — Inscription (création entreprise + admin)
 - [x] AUTH-002 — Connexion / déconnexion
 - [x] AUTH-003 — Invitation d'un utilisateur par un Admin
-- [ ] AUTH-001-FE, AUTH-004-FE... — voir le backlog
+- [x] ENT-001 — Configuration de l'entreprise
+- [x] ENT-002 — Création d'emplacement
+- [x] ENT-003 — Modification / archivage d'emplacement
+- [ ] **Sprint 1 (Fondations) terminé** — passage au Sprint 2 (Catalogue : Produits, Fournisseurs)
 
 ## API disponible
 
@@ -76,6 +79,12 @@ npm run start:dev
 | POST | `/auth/logout` | Authentifié | Révoque le refresh token fourni (déconnexion côté serveur) |
 | POST | `/users` | Admin | Invite un utilisateur (email + rôle), envoie un email avec un jeton |
 | POST | `/auth/accept-invite` | Public | Accepte une invitation (nom + mot de passe), crée le compte, connecte automatiquement |
+| GET | `/entreprise` | Authentifié | Consulte les informations de l'entreprise |
+| PATCH | `/entreprise` | Admin | Modifie le nom de l'entreprise |
+| GET | `/emplacements?archive=` | Authentifié | Liste les emplacements (actifs par défaut) |
+| POST | `/emplacements` | Admin | Crée un emplacement |
+| PATCH | `/emplacements/:id` | Admin | Modifie un emplacement |
+| PATCH | `/emplacements/:id/archive` | Admin | Archive un emplacement (jamais de suppression physique) |
 
 ## Service d'email
 
