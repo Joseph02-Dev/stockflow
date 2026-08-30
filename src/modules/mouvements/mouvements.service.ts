@@ -1,11 +1,15 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
+import { AlerteNotificationService } from '../alertes/alerte-notification.service.js';
 import type { EntreeStockDto } from './dto/entree-stock.dto.js';
 import type { SortieStockDto } from './dto/sortie-stock.dto.js';
 
 @Injectable()
 export class MouvementsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly alerteNotification: AlerteNotificationService,
+  ) {}
 
   /**
    * MVT-001 — Entrée de stock.
@@ -67,7 +71,7 @@ export class MouvementsService {
   async sortie(entrepriseId: string, utilisateurId: string, dto: SortieStockDto) {
     await this.verifierProduitEtEmplacement(entrepriseId, dto.produitId, dto.emplacementId);
 
-    return this.prisma.$transaction(async (tx) => {
+    const resultat = await this.prisma.$transaction(async (tx) => {
       const stockActuel = await tx.stock.findUnique({
         where: { produitId_emplacementId: { produitId: dto.produitId, emplacementId: dto.emplacementId } },
       });
@@ -94,6 +98,8 @@ export class MouvementsService {
 
       const stockTotal = await this.stockTotalProduit(tx, dto.produitId);
       const produit = await tx.produit.findUniqueOrThrow({ where: { id: dto.produitId } });
+      let alerteANotifier: { type: 'STOCK_FAIBLE' | 'RUPTURE'; produitNom: string; quantite: number } | null =
+        null;
 
       if (stockTotal < produit.seuilAlerte || stockTotal === 0) {
         const typeAlerte = stockTotal === 0 ? 'RUPTURE' : 'STOCK_FAIBLE';
@@ -102,11 +108,15 @@ export class MouvementsService {
         });
 
         if (alerteActive) {
+          // Alerte déjà active : on ne notifie à nouveau que si sa gravité
+          // change (passage de STOCK_FAIBLE à RUPTURE), pour éviter de
+          // spammer les utilisateurs à chaque sortie.
           if (alerteActive.type !== typeAlerte) {
             await tx.alerte.update({
               where: { id: alerteActive.id },
               data: { type: typeAlerte, quantiteAuDeclenchement: stockTotal },
             });
+            alerteANotifier = { type: typeAlerte, produitNom: produit.nom, quantite: stockTotal };
           }
         } else {
           await tx.alerte.create({
@@ -117,11 +127,25 @@ export class MouvementsService {
               quantiteAuDeclenchement: stockTotal,
             },
           });
+          alerteANotifier = { type: typeAlerte, produitNom: produit.nom, quantite: stockTotal };
         }
       }
 
-      return mouvement;
+      return { mouvement, alerteANotifier };
     });
+
+    // ALERT-004 — Notification envoyée APRÈS le commit de la transaction :
+    // un échec d'email ne doit jamais annuler un mouvement déjà validé.
+    if (resultat.alerteANotifier) {
+      await this.alerteNotification.notifierAlerte(
+        entrepriseId,
+        resultat.alerteANotifier.produitNom,
+        resultat.alerteANotifier.type,
+        resultat.alerteANotifier.quantite,
+      );
+    }
+
+    return resultat.mouvement;
   }
 
   /** MVT-003 — Historique des mouvements, filtrable. */

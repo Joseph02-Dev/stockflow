@@ -76,7 +76,10 @@ npm run start:dev
 - [x] MVT-003 — Historique des mouvements
 - [x] MVT-004 — Stock par emplacement
 - [x] FOUR-003 — Historique des réceptions par fournisseur
-- [ ] **Sprint 3 (Cœur métier) terminé** — passage au Sprint 4 (Alertes : ALERT-003 affichage, ALERT-004 email)
+- [x] ALERT-001, ALERT-002 — Seuils et détection automatique (implémentés dans MVT-001/MVT-002)
+- [x] ALERT-003 — Consultation des alertes
+- [x] ALERT-004 — Notification par email
+- [ ] **Sprint 4 (Alertes) terminé** — passage au Sprint 5 (Dashboard : DASH-001, DASH-002)
 
 ## API disponible
 
@@ -109,12 +112,14 @@ npm run start:dev
 | POST | `/mouvements/sortie` | Authentifié | Enregistre une sortie de stock (409 si stock insuffisant) |
 | GET | `/mouvements?produit_id=&emplacement_id=` | Authentifié | Historique des mouvements |
 | GET | `/stock?produit_id=&emplacement_id=` | Authentifié | Stock actuel par emplacement |
+| GET | `/alertes?statut=ACTIVE\|RESOLUE` | Authentifié | Liste les alertes (actives par défaut) |
 
-## Logique d'alertes (anticipée dans MVT-001/MVT-002)
+## Logique d'alertes
 
 - Une **sortie** qui fait passer le stock total sous le seuil du produit déclenche une alerte (`STOCK_FAIBLE` ou `RUPTURE` si le stock atteint 0).
 - Une **entrée** qui fait remonter le stock total au-dessus du seuil **résout automatiquement** l'alerte active (décision validée en audit Lead Developer).
-- Toute cette logique est **transactionnelle** avec la mise à jour du stock et la création du mouvement : jamais d'incohérence entre `stock`, `mouvement` et `alerte`.
+- Le déclenchement/la résolution sont **transactionnels** avec la mise à jour du stock et la création du mouvement : jamais d'incohérence entre `stock`, `mouvement` et `alerte`.
+- **Notification email (ALERT-004)** : envoyée à tous les utilisateurs de l'entreprise, **après le commit** de la transaction — un échec d'envoi ne peut jamais annuler un mouvement de stock déjà validé. Un nouvel email n'est envoyé que si la gravité change (`STOCK_FAIBLE` → `RUPTURE`), jamais à chaque sortie.
 
 ## Service d'email
 
