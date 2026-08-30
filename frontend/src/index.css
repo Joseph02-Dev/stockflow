@@ -1,0 +1,50 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens StockFlow — reprennent exactement les foundations
+ * validées en phase UX/UI (couleurs, typographie, rayons, ombres).
+ * Toute l'application doit consommer ces tokens, jamais des valeurs
+ * arbitraires.
+ */
+@theme {
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-secondary: #0f172a;
+  --color-accent: #7c3aed;
+
+  --color-background: #f8fafc;
+  --color-surface: #ffffff;
+  --color-border-subtle: #e2e8f0;
+
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #64748b;
+
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+  --color-info: #0284c7;
+
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+
+  --radius-button: 6px;
+  --radius-card: 8px;
+  --radius-modal: 12px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+}
+
+/* Focus visible cohérent sur toute l'application (accessibilité). */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
