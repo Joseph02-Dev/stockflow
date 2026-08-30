@@ -60,8 +60,8 @@ npm run start:dev
 - [x] TECH-001 — Structure modulaire initialisée
 - [x] TECH-002 — Connexion PostgreSQL (Prisma) + migration initiale
 - [x] TECH-003 — Middleware multi-tenant (extraction entreprise_id depuis le JWT)
-- [ ] TECH-004 — Guard de rôles
-- [ ] Voir le backlog produit et technique pour la suite
+- [x] TECH-004 — Guard de rôles
+- [ ] Fondation technique terminée — passage aux tickets fonctionnels (AUTH-*)
 
 ## Contexte multi-tenant
 
@@ -70,6 +70,24 @@ npm run start:dev
 - dans `TenantContextService` (AsyncLocalStorage), injectable dans n'importe quel service pour filtrer systématiquement les requêtes Prisma par `entrepriseId`.
 
 **Règle absolue** : `entrepriseId` ne provient jamais d'une donnée envoyée par le client (body, query, params) — toujours de ce contexte.
+
+## Contrôle d'accès
+
+`RolesGuard` (appliqué globalement) protège toutes les routes par défaut :
+- `@Public()` → route accessible sans authentification (ex. connexion, inscription).
+- Sans `@Public()` → authentification valide requise (401 sinon).
+- `@Roles('ADMIN')` (ou plusieurs rôles) → restreint en plus l'accès à ces rôles (403 sinon).
+
+Exemple :
+```ts
+@Public()
+@Post('login')
+login() { ... }
+
+@Roles('ADMIN')
+@Post('utilisateurs')
+inviterUtilisateur() { ... }
+```
 
 ## Base de données
 
