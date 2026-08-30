@@ -59,9 +59,17 @@ npm run start:dev
 
 - [x] TECH-001 — Structure modulaire initialisée
 - [x] TECH-002 — Connexion PostgreSQL (Prisma) + migration initiale
-- [ ] TECH-003 — Middleware multi-tenant
+- [x] TECH-003 — Middleware multi-tenant (extraction entreprise_id depuis le JWT)
 - [ ] TECH-004 — Guard de rôles
 - [ ] Voir le backlog produit et technique pour la suite
+
+## Contexte multi-tenant
+
+`TenantContextMiddleware` (appliqué à toutes les routes) décode le JWT présent dans l'en-tête `Authorization: Bearer <token>` et dépose `{ entrepriseId, utilisateurId, role }` :
+- dans `req.tenantContext` (accessible via les décorateurs `@CurrentTenant()` et `@CurrentUser()`) ;
+- dans `TenantContextService` (AsyncLocalStorage), injectable dans n'importe quel service pour filtrer systématiquement les requêtes Prisma par `entrepriseId`.
+
+**Règle absolue** : `entrepriseId` ne provient jamais d'une donnée envoyée par le client (body, query, params) — toujours de ce contexte.
 
 ## Base de données
 

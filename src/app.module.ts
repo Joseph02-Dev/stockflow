@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AuthModule } from './modules/auth/auth.module.js';
@@ -10,10 +10,31 @@ import { MouvementsModule } from './modules/mouvements/mouvements.module.js';
 import { AlertesModule } from './modules/alertes/alertes.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { PrismaModule } from './config/prisma.module.js';
+import { JwtConfigModule } from './config/jwt.module.js';
+import { TenantContextModule } from './common/context/tenant-context.module.js';
+import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware.js';
 
 @Module({
-  imports: [PrismaModule, AuthModule, EntrepriseModule, EmplacementsModule, ProduitsModule, FournisseursModule, MouvementsModule, AlertesModule, DashboardModule],
+  imports: [
+    JwtConfigModule,
+    TenantContextModule,
+    PrismaModule,
+    AuthModule,
+    EntrepriseModule,
+    EmplacementsModule,
+    ProduitsModule,
+    FournisseursModule,
+    MouvementsModule,
+    AlertesModule,
+    DashboardModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Appliqué à toutes les routes : le middleware lui-même décide de ne
+    // rien faire en l'absence de token (cf. TenantContextMiddleware).
+    consumer.apply(TenantContextMiddleware).forRoutes('*');
+  }
+}
