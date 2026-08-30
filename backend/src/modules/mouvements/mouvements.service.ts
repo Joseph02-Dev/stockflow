@@ -152,6 +152,16 @@ export class MouvementsService {
   async listerMouvements(entrepriseId: string, filtres: { produitId?: string; emplacementId?: string }) {
     return this.prisma.mouvement.findMany({
       where: { entrepriseId, produitId: filtres.produitId, emplacementId: filtres.emplacementId },
+      // Les noms sont indispensables à l'affichage de l'historique : sans
+      // eux, l'interface ne pourrait montrer que des identifiants bruts.
+      // `select` explicite sur l'utilisateur pour ne jamais exposer son
+      // hash de mot de passe.
+      include: {
+        produit: { select: { id: true, nom: true, reference: true } },
+        emplacement: { select: { id: true, nom: true } },
+        utilisateur: { select: { id: true, nom: true } },
+        fournisseur: { select: { id: true, nom: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }

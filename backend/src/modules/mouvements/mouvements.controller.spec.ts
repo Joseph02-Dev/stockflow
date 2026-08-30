@@ -244,8 +244,26 @@ describe('Mouvements de stock (MVT-001 à MVT-004) — intégration réelle, bas
     expect(response.status).toBe(400);
   });
 
-  it("l'historique des mouvements est filtrable par produit", async () => {
+  it("l'historique inclut les noms du produit, de l'emplacement et de l'utilisateur, sans donnée sensible", async () => {
     const { accessToken, produitId, emplacementId } = await creerContexte();
+    await request(app.getHttpServer())
+      .post('/mouvements/entree')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ produitId, emplacementId, quantite: 10 });
+
+    const response = await request(app.getHttpServer())
+      .get('/mouvements')
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body[0].produit.nom).toBe('Produit Test');
+    expect(response.body[0].emplacement.nom).toBe('Entrepôt Test');
+    expect(response.body[0].utilisateur.nom).toBe('Admin Mouvements');
+    // L'utilisateur est inclus : son hash ne doit jamais suivre.
+    expect(JSON.stringify(response.body)).not.toContain('passwordHash');
+  });
+
+  it("l'historique des mouvements est filtrable par produit", async () => {    const { accessToken, produitId, emplacementId } = await creerContexte();
     await request(app.getHttpServer())
       .post('/mouvements/entree')
       .set('Authorization', `Bearer ${accessToken}`)
