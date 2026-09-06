@@ -2,7 +2,13 @@ import axios from 'axios';
 import type { AxiosError } from 'axios';
 import { getAccessToken, clearSession } from './session';
 
-export const api = axios.create({ baseURL: '/api' });
+// En développement local, /api est redirigé vers le backend par le proxy
+// Vite (voir vite.config.ts) — ce proxy n'existe pas une fois le site
+// construit et hébergé. En production, VITE_API_URL doit pointer vers
+// l'URL publique complète du backend déployé.
+const baseURL = import.meta.env.VITE_API_URL ?? '/api';
+
+export const api = axios.create({ baseURL });
 
 api.interceptors.request.use((config) => {
   const token = getAccessToken();

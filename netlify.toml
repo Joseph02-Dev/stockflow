@@ -1,0 +1,13 @@
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "frontend/dist"
+
+# Sans cette règle, toute route gérée par React Router côté client
+# (ex. /connexion, /produits) renvoie une 404 : ces chemins n'existent pas
+# comme fichiers réels sur le serveur, seul index.html doit répondre et
+# laisser React Router prendre la main dans le navigateur.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
