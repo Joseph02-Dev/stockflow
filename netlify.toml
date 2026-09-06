@@ -3,6 +3,13 @@
   command = "npm run build"
   publish = "frontend/dist"
 
+[build.environment]
+  # Vite 8 exige Node ^20.19.0 ou >=22.12.0. Sans cette variable, Netlify
+  # utilise sa version par défaut (plus ancienne), et le build échoue au
+  # moment de tsc/vite avec un code de sortie générique, sans message
+  # explicite pointant vers la cause réelle.
+  NODE_VERSION = "22.12.0"
+
 # Sans cette règle, toute route gérée par React Router côté client
 # (ex. /connexion, /produits) renvoie une 404 : ces chemins n'existent pas
 # comme fichiers réels sur le serveur, seul index.html doit répondre et
