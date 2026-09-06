@@ -208,30 +208,46 @@ export function FournisseurDetailPage() {
             ) : receptions.isError ? (
               <ErrorState message={messageErreur(receptions.error)} onRetry={() => receptions.refetch()} />
             ) : receptions.data && receptions.data.length > 0 ? (
-              <table className="w-full text-sm">
-                <thead className="border-b border-border-subtle bg-background text-left">
-                  <tr>
-                    <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Date</th>
-                    <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Produit</th>
-                    <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Emplacement</th>
-                    <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Quantité</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-subtle">
-                  {receptions.data.map((reception) => (
-                    <tr key={reception.id}>
-                      <td className="px-4 py-3 text-text-secondary">
-                        {new Date(reception.createdAt).toLocaleDateString('fr-FR')}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-text-primary">{reception.produit.nom}</td>
-                      <td className="px-4 py-3 text-text-secondary">{reception.emplacement.nom}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant="success">+{reception.quantite}</Badge>
-                      </td>
+              <>
+                <table className="hidden w-full text-sm md:table">
+                  <thead className="border-b border-border-subtle bg-background text-left">
+                    <tr>
+                      <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Date</th>
+                      <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Produit</th>
+                      <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Emplacement</th>
+                      <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Quantité</th>
                     </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-subtle">
+                    {receptions.data.map((reception) => (
+                      <tr key={reception.id}>
+                        <td className="px-4 py-3 text-text-secondary">
+                          {new Date(reception.createdAt).toLocaleDateString('fr-FR')}
+                        </td>
+                        <td className="px-4 py-3 font-medium text-text-primary">{reception.produit.nom}</td>
+                        <td className="px-4 py-3 text-text-secondary">{reception.emplacement.nom}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant="success">+{reception.quantite}</Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <ul className="divide-y divide-border-subtle md:hidden">
+                  {receptions.data.map((reception) => (
+                    <li key={reception.id} className="flex items-center justify-between gap-2 px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-text-primary">{reception.produit.nom}</p>
+                        <p className="truncate text-sm text-text-secondary">
+                          {reception.emplacement.nom} · {new Date(reception.createdAt).toLocaleDateString('fr-FR')}
+                        </p>
+                      </div>
+                      <Badge variant="success">+{reception.quantite}</Badge>
+                    </li>
                   ))}
-                </tbody>
-              </table>
+                </ul>
+              </>
             ) : (
               <EmptyState
                 titre="Aucune réception"

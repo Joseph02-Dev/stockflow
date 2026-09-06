@@ -139,7 +139,7 @@ export function StockPage() {
             ) : stock.isError ? (
               <ErrorState message={messageErreur(stock.error)} onRetry={() => stock.refetch()} />
             ) : stock.data && stock.data.length > 0 ? (
-              <table className="w-full text-sm">
+              <table className="hidden w-full text-sm md:table">
                 <thead className="border-b border-border-subtle bg-background text-left">
                   <tr>
                     <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Produit</th>
@@ -178,6 +178,27 @@ export function StockPage() {
                 action={<Button onClick={() => setModaleOuverte(true)}>Enregistrer un mouvement</Button>}
               />
             )}
+            {stock.data && stock.data.length > 0 && (
+              <ul className="divide-y divide-border-subtle md:hidden">
+                {stock.data.map((ligne) => {
+                  const statut = statutStock(ligne.quantite, ligne.produit.seuilAlerte);
+                  return (
+                    <li
+                      key={`${ligne.produitId}-${ligne.emplacementId}`}
+                      className="flex items-center justify-between gap-2 px-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-text-primary">{ligne.produit.nom}</p>
+                        <p className="truncate text-sm text-text-secondary">
+                          {ligne.emplacement.nom} · {ligne.quantite}
+                        </p>
+                      </div>
+                      <Badge variant={statut.variante}>{statut.libelle}</Badge>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </Card>
         )}
 
@@ -188,7 +209,7 @@ export function StockPage() {
             ) : mouvements.isError ? (
               <ErrorState message={messageErreur(mouvements.error)} onRetry={() => mouvements.refetch()} />
             ) : mouvements.data && mouvements.data.length > 0 ? (
-              <table className="w-full text-sm">
+              <table className="hidden w-full text-sm md:table">
                 <thead className="border-b border-border-subtle bg-background text-left">
                   <tr>
                     <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Date</th>
@@ -239,6 +260,35 @@ export function StockPage() {
                 description="L’historique se remplira au fil de vos entrées et sorties de stock."
                 action={<Button onClick={() => setModaleOuverte(true)}>Enregistrer un mouvement</Button>}
               />
+            )}
+            {mouvements.data && mouvements.data.length > 0 && (
+              <ul className="divide-y divide-border-subtle md:hidden">
+                {mouvements.data.map((mouvement) => (
+                  <li key={mouvement.id} className="flex flex-col gap-1 px-4 py-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-text-primary">{mouvement.produit.nom}</span>
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-1 text-sm font-medium',
+                          mouvement.type === 'ENTREE' ? 'text-success' : 'text-warning',
+                        )}
+                      >
+                        {mouvement.type === 'ENTREE' ? (
+                          <ArrowDownToLine className="size-4" aria-hidden="true" />
+                        ) : (
+                          <ArrowUpFromLine className="size-4" aria-hidden="true" />
+                        )}
+                        {mouvement.type === 'ENTREE' ? '+' : '−'}
+                        {mouvement.quantite}
+                      </span>
+                    </div>
+                    <p className="text-sm text-text-secondary">
+                      {mouvement.emplacement.nom} · {new Date(mouvement.createdAt).toLocaleDateString('fr-FR')} ·{' '}
+                      {mouvement.utilisateur.nom}
+                    </p>
+                  </li>
+                ))}
+              </ul>
             )}
           </Card>
         )}

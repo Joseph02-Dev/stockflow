@@ -155,7 +155,8 @@ export function ProduitsPage() {
         ) : isError ? (
           <ErrorState message={messageErreur(error)} onRetry={() => refetch()} />
         ) : data && data.length > 0 ? (
-          <table className="w-full text-sm">
+          <>
+          <table className="hidden w-full text-sm md:table">
             <thead className="border-b border-border-subtle bg-background text-left">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Nom</th>
@@ -196,6 +197,40 @@ export function ProduitsPage() {
               ))}
             </tbody>
           </table>
+
+          {/* Cartes empilées sous md : un tableau ne se lit pas sur un
+              écran étroit, conformément à la spécification UX validée. */}
+          <ul className="divide-y divide-border-subtle md:hidden">
+            {data.map((produit) => (
+              <li key={produit.id} className="flex flex-col gap-2 px-4 py-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-text-primary">{produit.nom}</p>
+                    {produit.reference && (
+                      <p className="truncate text-sm text-text-secondary">{produit.reference}</p>
+                    )}
+                  </div>
+                  {produit.archive && <Badge variant="neutral">Archivé</Badge>}
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm text-text-secondary">Seuil d’alerte : {produit.seuilAlerte}</span>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" onClick={() => ouvrirEdition(produit)}>
+                      <Pencil className="size-4" aria-hidden="true" />
+                      Modifier
+                    </Button>
+                    {!produit.archive && (
+                      <Button variant="ghost" onClick={() => setAArchiver(produit)}>
+                        <Archive className="size-4" aria-hidden="true" />
+                        Archiver
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+          </>
         ) : rechercheActive ? (
           // État distinct de l'état vide global : une recherche sans
           // résultat n'appelle pas la même action.

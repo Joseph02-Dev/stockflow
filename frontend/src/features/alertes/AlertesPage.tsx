@@ -70,47 +70,72 @@ export function AlertesPage() {
           ) : isError ? (
             <ErrorState message={messageErreur(error)} onRetry={() => refetch()} />
           ) : data && data.length > 0 ? (
-            <table className="w-full text-sm">
-              <thead className="border-b border-border-subtle bg-background text-left">
-                <tr>
-                  <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Produit</th>
-                  <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Type</th>
-                  <th scope="col" className="px-4 py-3 font-medium text-text-secondary">
-                    Stock au déclenchement
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium text-text-secondary">
-                    {statut === 'ACTIVE' ? 'Déclenchée le' : 'Résolue le'}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-subtle">
+            <>
+              <table className="hidden w-full text-sm md:table">
+                <thead className="border-b border-border-subtle bg-background text-left">
+                  <tr>
+                    <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Produit</th>
+                    <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Type</th>
+                    <th scope="col" className="px-4 py-3 font-medium text-text-secondary">
+                      Stock au déclenchement
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-medium text-text-secondary">
+                      {statut === 'ACTIVE' ? 'Déclenchée le' : 'Résolue le'}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-subtle">
+                  {data.map((alerte) => (
+                    <tr key={alerte.id}>
+                      <td className="px-4 py-3">
+                        <span className="font-medium text-text-primary">{alerte.produit.nom}</span>
+                        {alerte.produit.reference && (
+                          <span className="ml-2 text-xs text-text-secondary">
+                            {alerte.produit.reference}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant={alerte.type === 'RUPTURE' ? 'error' : 'warning'}>
+                          {alerte.type === 'RUPTURE' ? 'Rupture' : 'Stock faible'}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-text-secondary">
+                        {alerte.quantiteAuDeclenchement} · seuil {alerte.produit.seuilAlerte}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-text-secondary">
+                        {new Date(
+                          statut === 'ACTIVE' ? alerte.createdAt : (alerte.resolvedAt ?? alerte.createdAt),
+                        ).toLocaleDateString('fr-FR')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Cartes empilées sous md, conformément à la spécification
+                  UX validée — un tableau ne se lit pas sur un écran étroit. */}
+              <ul className="divide-y divide-border-subtle md:hidden">
                 {data.map((alerte) => (
-                  <tr key={alerte.id}>
-                    <td className="px-4 py-3">
-                      <span className="font-medium text-text-primary">{alerte.produit.nom}</span>
-                      {alerte.produit.reference && (
-                        <span className="ml-2 text-xs text-text-secondary">
-                          {alerte.produit.reference}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
+                  <li key={alerte.id} className="flex flex-col gap-1 px-4 py-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="min-w-0 truncate font-medium text-text-primary">
+                        {alerte.produit.nom}
+                      </span>
                       <Badge variant={alerte.type === 'RUPTURE' ? 'error' : 'warning'}>
                         {alerte.type === 'RUPTURE' ? 'Rupture' : 'Stock faible'}
                       </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-text-secondary">
-                      {alerte.quantiteAuDeclenchement} · seuil {alerte.produit.seuilAlerte}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-text-secondary">
+                    </div>
+                    <p className="text-sm text-text-secondary">
+                      {alerte.quantiteAuDeclenchement} · seuil {alerte.produit.seuilAlerte} ·{' '}
                       {new Date(
                         statut === 'ACTIVE' ? alerte.createdAt : (alerte.resolvedAt ?? alerte.createdAt),
                       ).toLocaleDateString('fr-FR')}
-                    </td>
-                  </tr>
+                    </p>
+                  </li>
                 ))}
-              </tbody>
-            </table>
+              </ul>
+            </>
           ) : statut === 'ACTIVE' ? (
             // État vide volontairement positif : aucune alerte active est
             // une bonne nouvelle, pas un manque à combler.
