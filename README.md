@@ -95,6 +95,33 @@ Les emails d'alerte ne sont pas réellement envoyés en développement (`EMAIL_P
 - Pas encore de CI/CD ni de monitoring
 - Le service d'email doit être branché sur un vrai fournisseur avant une mise en production
 
+## Déploiement
+
+### Backend — Railway
+
+1. Sur [railway.app](https://railway.app), créez un projet depuis le dépôt GitHub.
+2. Dans les réglages du service, définissez le **Root Directory** sur `backend`.
+3. Ajoutez un plugin **PostgreSQL** au projet — Railway injecte automatiquement `DATABASE_URL`.
+4. Variables d'environnement à ajouter manuellement :
+
+   ```
+   JWT_ACCESS_SECRET=...       # openssl rand -hex 32
+   JWT_REFRESH_SECRET=...      # openssl rand -hex 32
+   EMAIL_PROVIDER=dev
+   FRONTEND_URL=https://votre-site.netlify.app
+   ```
+
+5. Railway détecte `backend/railway.json` : build avec `npm run build`, puis au démarrage `npm run migrate:deploy` (applique les migrations, jamais `migrate dev` en production) suivi de `npm run start:prod`.
+6. Notez l'URL publique attribuée par Railway — elle sera nécessaire pour `VITE_API_URL` côté frontend.
+
+### Frontend — Netlify
+
+Le fichier `netlify.toml` à la racine indique déjà à Netlify que le projet vit dans `frontend/` et gère le routage React Router. Il reste à définir, dans les réglages du site Netlify :
+
+```
+VITE_API_URL=https://votre-backend.up.railway.app
+```
+
 ## Documentation
 
 `backend/README.md` — architecture, principe multi-tenant, contrôle d'accès, liste complète des routes API et état d'avancement du backlog.
