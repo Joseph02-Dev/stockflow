@@ -3,8 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Archive, Pencil, Plus, Search } from 'lucide-react';
+import { Archive, Download, Pencil, Plus, Search } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
+import { exporterCsv } from '@/lib/exporterCsv';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
@@ -114,10 +115,32 @@ export function ProduitsPage() {
         titre="Produits"
         description="Votre catalogue et les seuils d’alerte associés."
         action={
-          <Button onClick={ouvrirCreation}>
-            <Plus className="size-4" aria-hidden="true" />
-            Nouveau produit
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              disabled={!data || data.length === 0}
+              onClick={() =>
+                data &&
+                exporterCsv(
+                  `produits-${new Date().toISOString().slice(0, 10)}.csv`,
+                  [
+                    { entete: 'Nom', valeur: (p: Produit) => p.nom },
+                    { entete: 'Référence', valeur: (p: Produit) => p.reference ?? '' },
+                    { entete: 'Seuil d’alerte', valeur: (p: Produit) => p.seuilAlerte },
+                    { entete: 'Statut', valeur: (p: Produit) => (p.archive ? 'Archivé' : 'Actif') },
+                  ],
+                  data,
+                )
+              }
+            >
+              <Download className="size-4" aria-hidden="true" />
+              Exporter CSV
+            </Button>
+            <Button onClick={ouvrirCreation}>
+              <Plus className="size-4" aria-hidden="true" />
+              Nouveau produit
+            </Button>
+          </div>
         }
       />
 

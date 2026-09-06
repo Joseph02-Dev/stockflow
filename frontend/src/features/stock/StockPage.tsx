@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowDownToLine, ArrowUpFromLine, Plus } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, Download, Plus } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
+import { exporterCsv } from '@/lib/exporterCsv';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card, PageHeader } from '@/components/patterns/Page';
@@ -83,10 +84,58 @@ export function StockPage() {
         titre="Stock & Mouvements"
         description="L’état de votre stock et la traçabilité de chaque entrée et sortie."
         action={
-          <Button onClick={() => setModaleOuverte(true)}>
-            <Plus className="size-4" aria-hidden="true" />
-            Nouveau mouvement
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              disabled={actif === 'stock' ? !stock.data?.length : !mouvements.data?.length}
+              onClick={() => {
+                const date = new Date().toISOString().slice(0, 10);
+                if (actif === 'stock' && stock.data) {
+                  exporterCsv(
+                    `stock-${date}.csv`,
+                    [
+                      { entete: 'Produit', valeur: (l: LigneStock) => l.produit.nom },
+                      { entete: 'Référence', valeur: (l: LigneStock) => l.produit.reference ?? '' },
+                      { entete: 'Emplacement', valeur: (l: LigneStock) => l.emplacement.nom },
+                      { entete: 'Quantité', valeur: (l: LigneStock) => l.quantite },
+                      {
+                        entete: 'Statut',
+                        valeur: (l: LigneStock) => statutStock(l.quantite, l.produit.seuilAlerte).libelle,
+                      },
+                    ],
+                    stock.data,
+                  );
+                } else if (mouvements.data) {
+                  exporterCsv(
+                    `mouvements-${date}.csv`,
+                    [
+                      {
+                        entete: 'Date',
+                        valeur: (m: Mouvement) => new Date(m.createdAt).toLocaleDateString('fr-FR'),
+                      },
+                      { entete: 'Type', valeur: (m: Mouvement) => (m.type === 'ENTREE' ? 'Entrée' : 'Sortie') },
+                      { entete: 'Produit', valeur: (m: Mouvement) => m.produit.nom },
+                      { entete: 'Emplacement', valeur: (m: Mouvement) => m.emplacement.nom },
+                      { entete: 'Quantité', valeur: (m: Mouvement) => m.quantite },
+                      { entete: 'Utilisateur', valeur: (m: Mouvement) => m.utilisateur.nom },
+                      {
+                        entete: 'Fournisseur',
+                        valeur: (m: Mouvement) => m.fournisseur?.nom ?? '',
+                      },
+                    ],
+                    mouvements.data,
+                  );
+                }
+              }}
+            >
+              <Download className="size-4" aria-hidden="true" />
+              Exporter CSV
+            </Button>
+            <Button onClick={() => setModaleOuverte(true)}>
+              <Plus className="size-4" aria-hidden="true" />
+              Nouveau mouvement
+            </Button>
+          </div>
         }
       />
 
