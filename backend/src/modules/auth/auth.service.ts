@@ -14,7 +14,7 @@ import type { AcceptInviteDto } from './dto/accept-invite.dto.js';
 export interface AuthResult {
   accessToken: string;
   refreshToken: string;
-  utilisateur: { id: string; email: string; nom: string; role: 'ADMIN' | 'GESTIONNAIRE' };
+  utilisateur: { id: string; email: string; nom: string; role: 'ADMIN' | 'GESTIONNAIRE'; photoUrl: string | null };
   entreprise: { id: string; nom: string };
 }
 
@@ -149,7 +149,7 @@ export class AuthService {
   }
 
   private async construireReponseAuth(
-    utilisateur: { id: string; email: string; nom: string; role: 'ADMIN' | 'GESTIONNAIRE' },
+    utilisateur: { id: string; email: string; nom: string; role: 'ADMIN' | 'GESTIONNAIRE'; photoUrl: string | null },
     entreprise: { id: string; nom: string },
   ): Promise<AuthResult> {
     const payload = { sub: utilisateur.id, entrepriseId: entreprise.id, role: utilisateur.role };
@@ -171,7 +171,13 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      utilisateur: { id: utilisateur.id, email: utilisateur.email, nom: utilisateur.nom, role: utilisateur.role },
+      utilisateur: {
+        id: utilisateur.id,
+        email: utilisateur.email,
+        nom: utilisateur.nom,
+        role: utilisateur.role,
+        photoUrl: utilisateur.photoUrl,
+      },
       entreprise: { id: entreprise.id, nom: entreprise.nom },
     };
   }

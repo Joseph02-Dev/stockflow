@@ -1,10 +1,10 @@
 # StockFlow
 
-Application SaaS de gestion de stock pour PME : produits, mouvements d'entrée/sortie, fournisseurs, alertes et dashboard.
+Application SaaS de gestion de stock pour PME : produits (avec photo, prix, TVA, catégorie, marque), mouvements d'entrée/sortie, fournisseurs (avec photo), alertes et dashboard.
 
 ```
 stockflow/
-├── backend/    # API NestJS + PostgreSQL (Prisma) — 102 tests
+├── backend/    # API NestJS + PostgreSQL (Prisma) — 135 tests
 └── frontend/   # Application React + Vite + Tailwind
 ```
 
@@ -12,6 +12,7 @@ stockflow/
 
 - **Node.js 20 ou plus** (`node --version`)
 - **PostgreSQL 14 ou plus**, démarré localement
+- **Un compte Cloudinary gratuit** ([cloudinary.com](https://cloudinary.com)) pour les photos produits/fournisseurs/profil
 
 ## Installation
 
@@ -42,9 +43,13 @@ DATABASE_URL="postgresql://postgres:VOTRE_MOT_DE_PASSE@localhost:5432/stockflow?
 JWT_ACCESS_SECRET=une-chaine-aleatoire-longue
 JWT_REFRESH_SECRET=une-autre-chaine-aleatoire-longue
 EMAIL_PROVIDER=dev
+CLOUDINARY_CLOUD_NAME=votre-cloud-name
+CLOUDINARY_API_KEY=votre-api-key
+CLOUDINARY_API_SECRET=votre-api-secret
 ```
 
 Pour générer des secrets : `openssl rand -hex 32`
+Pour Cloudinary : créez un compte gratuit, les trois valeurs sont sur votre Dashboard.
 
 Puis créez les tables, chargez le jeu de démonstration et démarrez :
 
@@ -109,6 +114,9 @@ Les emails d'alerte ne sont pas réellement envoyés en développement (`EMAIL_P
    JWT_REFRESH_SECRET=...      # openssl rand -hex 32
    EMAIL_PROVIDER=dev
    FRONTEND_URL=https://votre-site.netlify.app
+   CLOUDINARY_CLOUD_NAME=...
+   CLOUDINARY_API_KEY=...
+   CLOUDINARY_API_SECRET=...
    ```
 
 5. Railway détecte `backend/railway.json` : build avec `npm run build`, puis au démarrage `npm run migrate:deploy` (applique les migrations, jamais `migrate dev` en production) suivi de `npm run start:prod`.

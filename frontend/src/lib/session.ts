@@ -3,6 +3,7 @@ export interface Utilisateur {
   email: string;
   nom: string;
   role: 'ADMIN' | 'GESTIONNAIRE';
+  photoUrl?: string | null;
 }
 
 export interface Entreprise {

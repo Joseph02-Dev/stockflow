@@ -18,6 +18,7 @@ import { clearSession, getSession } from '@/lib/session';
 import { useSession } from '@/lib/useSession';
 import { cn } from '@/lib/cn';
 import { Badge } from '@/components/ui/Badge';
+import { ProfilModal } from '@/features/profil/ProfilModal';
 
 const liens = [
   { to: '/', libelle: 'Dashboard', Icone: LayoutDashboard, exact: true },
@@ -174,6 +175,7 @@ export function AppLayout() {
   const session = useSession();
   const navigate = useNavigate();
   const [menuMobileOuvert, setMenuMobileOuvert] = useState(false);
+  const [profilOuvert, setProfilOuvert] = useState(false);
 
   // Compteur d'alertes actives affiché en pastille sur l'entrée « Alertes ».
   // Partage la même clé de cache que la page Alertes : un mouvement de
@@ -253,17 +255,25 @@ export function AppLayout() {
           </div>
 
           <div className="flex shrink-0 items-center gap-3">
-            <div className="hidden items-center gap-2 sm:flex">
-              <span className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                {initiales}
+            <button
+              type="button"
+              onClick={() => setProfilOuvert(true)}
+              className="hidden items-center gap-2 rounded-(--radius-button) px-1 py-1 sm:flex hover:bg-background"
+            >
+              <span className="flex size-8 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                {session?.utilisateur.photoUrl ? (
+                  <img src={session.utilisateur.photoUrl} alt="" className="size-full object-cover" />
+                ) : (
+                  initiales
+                )}
               </span>
-              <div className="flex flex-col leading-tight">
+              <div className="flex flex-col leading-tight text-left">
                 <span className="text-sm text-text-primary">{session?.utilisateur.nom}</span>
                 <Badge variant="neutral">
                   {session?.utilisateur.role === 'ADMIN' ? 'Administrateur' : 'Gestionnaire'}
                 </Badge>
               </div>
-            </div>
+            </button>
 
             <button
               type="button"
@@ -280,6 +290,8 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      <ProfilModal ouvert={profilOuvert} onFermer={() => setProfilOuvert(false)} />
     </div>
   );
 }

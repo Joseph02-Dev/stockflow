@@ -8,13 +8,20 @@ import { api, messageErreur } from '@/lib/api';
 import { exporterCsv } from '@/lib/exporterCsv';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Alert } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import { Drawer } from '@/components/ui/Drawer';
 import { Modal } from '@/components/ui/Modal';
+import { ImageUploadField } from '@/components/patterns/ImageUploadField';
 import { Card, PageHeader } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { useDebounce } from '@/lib/useDebounce';
+
+interface ElementReference {
+  id: string;
+  nom: string;
+}
 
 interface Produit {
   id: string;
@@ -22,6 +29,14 @@ interface Produit {
   reference: string | null;
   seuilAlerte: number;
   archive: boolean;
+  photoUrl: string | null;
+  prixAchat: number | null;
+  prixVente: number | null;
+  tauxTva: number | null;
+  codeBarre: string | null;
+  description: string | null;
+  categorie: ElementReference | null;
+  marque: ElementReference | null;
 }
 
 const schema = z.object({
@@ -33,9 +48,23 @@ const schema = z.object({
     .number({ message: 'Le seuil doit être un nombre.' })
     .int('Le seuil doit être un nombre entier.')
     .min(0, 'Le seuil ne peut pas être négatif.'),
+  prixAchat: z.union([z.number().int().min(0), z.nan()]).optional(),
+  prixVente: z.union([z.number().int().min(0), z.nan()]).optional(),
+  tauxTva: z.union([z.number().int().min(0).max(100), z.nan()]).optional(),
+  codeBarre: z.string().optional(),
+  description: z.string().optional(),
+  categorieId: z.string().optional(),
+  marqueId: z.string().optional(),
 });
 
 type Formulaire = z.infer<typeof schema>;
+
+/** Un input number vide renvoie NaN avec valueAsNumber : à convertir en absence de valeur. */
+function nombreOuIndefini(valeur: number | undefined): number | undefined {
+  return valeur === undefined || Number.isNaN(valeur) ? undefined : valeur;
+}
+
+const FORMATEUR_GNF = new Intl.NumberFormat('fr-FR');
 
 export function ProduitsPage() {
   const queryClient = useQueryClient();
@@ -45,6 +74,7 @@ export function ProduitsPage() {
   const [enEdition, setEnEdition] = useState<Produit | null>(null);
   const [aArchiver, setAArchiver] = useState<Produit | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined);
 
   const rechercheRetardee = useDebounce(recherche);
 
@@ -58,6 +88,17 @@ export function ProduitsPage() {
     },
   });
 
+  const categories = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => (await api.get<ElementReference[]>('/categories')).data,
+    enabled: drawerOuvert,
+  });
+  const marques = useQuery({
+    queryKey: ['marques'],
+    queryFn: async () => (await api.get<ElementReference[]>('/marques')).data,
+    enabled: drawerOuvert,
+  });
+
   const { register, handleSubmit, reset, formState } = useForm<Formulaire>({
     resolver: zodResolver(schema),
   });
@@ -65,14 +106,38 @@ export function ProduitsPage() {
   function ouvrirCreation() {
     setEnEdition(null);
     setErreur(null);
-    reset({ nom: '', reference: '', seuilAlerte: 0 });
+    setPhotoUrl(undefined);
+    reset({
+      nom: '',
+      reference: '',
+      seuilAlerte: 0,
+      prixAchat: undefined,
+      prixVente: undefined,
+      tauxTva: undefined,
+      codeBarre: '',
+      description: '',
+      categorieId: '',
+      marqueId: '',
+    });
     setDrawerOuvert(true);
   }
 
   function ouvrirEdition(produit: Produit) {
     setEnEdition(produit);
     setErreur(null);
-    reset({ nom: produit.nom, reference: produit.reference ?? '', seuilAlerte: produit.seuilAlerte });
+    setPhotoUrl(produit.photoUrl ?? undefined);
+    reset({
+      nom: produit.nom,
+      reference: produit.reference ?? '',
+      seuilAlerte: produit.seuilAlerte,
+      prixAchat: produit.prixAchat ?? undefined,
+      prixVente: produit.prixVente ?? undefined,
+      tauxTva: produit.tauxTva ?? undefined,
+      codeBarre: produit.codeBarre ?? '',
+      description: produit.description ?? '',
+      categorieId: produit.categorie?.id ?? '',
+      marqueId: produit.marque?.id ?? '',
+    });
     setDrawerOuvert(true);
   }
 
@@ -82,6 +147,14 @@ export function ProduitsPage() {
         nom: valeurs.nom,
         seuilAlerte: valeurs.seuilAlerte,
         ...(valeurs.reference ? { reference: valeurs.reference } : {}),
+        ...(nombreOuIndefini(valeurs.prixAchat) !== undefined ? { prixAchat: valeurs.prixAchat } : {}),
+        ...(nombreOuIndefini(valeurs.prixVente) !== undefined ? { prixVente: valeurs.prixVente } : {}),
+        ...(nombreOuIndefini(valeurs.tauxTva) !== undefined ? { tauxTva: valeurs.tauxTva } : {}),
+        ...(valeurs.codeBarre ? { codeBarre: valeurs.codeBarre } : {}),
+        ...(valeurs.description ? { description: valeurs.description } : {}),
+        ...(valeurs.categorieId ? { categorieId: valeurs.categorieId } : {}),
+        ...(valeurs.marqueId ? { marqueId: valeurs.marqueId } : {}),
+        ...(photoUrl ? { photoUrl } : {}),
       };
       if (enEdition) {
         await api.patch(`/produits/${enEdition.id}`, corps);
@@ -109,6 +182,15 @@ export function ProduitsPage() {
 
   const rechercheActive = rechercheRetardee.length > 0;
 
+  const optionsCategories = [
+    { valeur: '', libelle: 'Aucune' },
+    ...(categories.data ?? []).map((c) => ({ valeur: c.id, libelle: c.nom })),
+  ];
+  const optionsMarques = [
+    { valeur: '', libelle: 'Aucune' },
+    ...(marques.data ?? []).map((m) => ({ valeur: m.id, libelle: m.nom })),
+  ];
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -126,6 +208,12 @@ export function ProduitsPage() {
                   [
                     { entete: 'Nom', valeur: (p: Produit) => p.nom },
                     { entete: 'Référence', valeur: (p: Produit) => p.reference ?? '' },
+                    { entete: 'Catégorie', valeur: (p: Produit) => p.categorie?.nom ?? '' },
+                    { entete: 'Marque', valeur: (p: Produit) => p.marque?.nom ?? '' },
+                    { entete: 'Code-barre', valeur: (p: Produit) => p.codeBarre ?? '' },
+                    { entete: 'Prix d’achat (GNF)', valeur: (p: Produit) => p.prixAchat ?? '' },
+                    { entete: 'Prix de vente (GNF)', valeur: (p: Produit) => p.prixVente ?? '' },
+                    { entete: 'TVA (%)', valeur: (p: Produit) => p.tauxTva ?? '' },
                     { entete: 'Seuil d’alerte', valeur: (p: Produit) => p.seuilAlerte },
                     { entete: 'Statut', valeur: (p: Produit) => (p.archive ? 'Archivé' : 'Actif') },
                   ],
@@ -182,8 +270,10 @@ export function ProduitsPage() {
           <table className="hidden w-full text-sm md:table">
             <thead className="border-b border-border-subtle bg-background text-left">
               <tr>
+                <th scope="col" className="px-4 py-3 font-medium text-text-secondary"></th>
                 <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Nom</th>
-                <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Référence</th>
+                <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Catégorie / Marque</th>
+                <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Prix de vente</th>
                 <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Seuil d’alerte</th>
                 <th scope="col" className="px-4 py-3 text-right font-medium text-text-secondary">Actions</th>
               </tr>
@@ -192,14 +282,31 @@ export function ProduitsPage() {
               {data.map((produit) => (
                 <tr key={produit.id}>
                   <td className="px-4 py-3">
+                    <div className="flex size-10 items-center justify-center overflow-hidden rounded-(--radius-button) bg-background">
+                      {produit.photoUrl ? (
+                        <img src={produit.photoUrl} alt="" className="size-full object-cover" />
+                      ) : (
+                        <span className="text-xs text-text-secondary">—</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
                     <span className="font-medium text-text-primary">{produit.nom}</span>
+                    {produit.reference && (
+                      <span className="ml-2 text-xs text-text-secondary">{produit.reference}</span>
+                    )}
                     {produit.archive && (
                       <span className="ml-2">
                         <Badge variant="neutral">Archivé</Badge>
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-text-secondary">{produit.reference ?? '—'}</td>
+                  <td className="px-4 py-3 text-text-secondary">
+                    {[produit.categorie?.nom, produit.marque?.nom].filter(Boolean).join(' · ') || '—'}
+                  </td>
+                  <td className="px-4 py-3 text-text-secondary">
+                    {produit.prixVente !== null ? `${FORMATEUR_GNF.format(produit.prixVente)} GNF` : '—'}
+                  </td>
                   <td className="px-4 py-3 text-text-secondary">{produit.seuilAlerte}</td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
@@ -207,7 +314,6 @@ export function ProduitsPage() {
                         <Pencil className="size-4" aria-hidden="true" />
                         <span className="sr-only lg:not-sr-only">Modifier</span>
                       </Button>
-                      {/* Un produit déjà archivé n'a pas à l'être de nouveau. */}
                       {!produit.archive && (
                         <Button variant="ghost" onClick={() => setAArchiver(produit)}>
                           <Archive className="size-4" aria-hidden="true" />
@@ -221,17 +327,24 @@ export function ProduitsPage() {
             </tbody>
           </table>
 
-          {/* Cartes empilées sous md : un tableau ne se lit pas sur un
-              écran étroit, conformément à la spécification UX validée. */}
           <ul className="divide-y divide-border-subtle md:hidden">
             {data.map((produit) => (
               <li key={produit.id} className="flex flex-col gap-2 px-4 py-3">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-text-primary">{produit.nom}</p>
-                    {produit.reference && (
-                      <p className="truncate text-sm text-text-secondary">{produit.reference}</p>
-                    )}
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-(--radius-button) bg-background">
+                      {produit.photoUrl ? (
+                        <img src={produit.photoUrl} alt="" className="size-full object-cover" />
+                      ) : (
+                        <span className="text-xs text-text-secondary">—</span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-text-primary">{produit.nom}</p>
+                      {produit.reference && (
+                        <p className="truncate text-sm text-text-secondary">{produit.reference}</p>
+                      )}
+                    </div>
                   </div>
                   {produit.archive && <Badge variant="neutral">Archivé</Badge>}
                 </div>
@@ -288,6 +401,8 @@ export function ProduitsPage() {
         >
           {erreur && <Alert variant="error">{erreur}</Alert>}
 
+          <ImageUploadField label="Photo" valeur={photoUrl} dossier="produits" onChange={setPhotoUrl} />
+
           <Input label="Nom" error={formState.errors.nom?.message} {...register('nom')} />
           <Input
             label="Référence (facultatif)"
@@ -295,6 +410,56 @@ export function ProduitsPage() {
             error={formState.errors.reference?.message}
             {...register('reference')}
           />
+          <Input
+            label="Code-barre (facultatif)"
+            placeholder="3401234567890"
+            error={formState.errors.codeBarre?.message}
+            {...register('codeBarre')}
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Select label="Catégorie" options={optionsCategories} {...register('categorieId')} />
+            <Select label="Marque" options={optionsMarques} {...register('marqueId')} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Prix d’achat (GNF)"
+              type="number"
+              min={0}
+              error={formState.errors.prixAchat?.message}
+              {...register('prixAchat', { valueAsNumber: true })}
+            />
+            <Input
+              label="Prix de vente (GNF)"
+              type="number"
+              min={0}
+              error={formState.errors.prixVente?.message}
+              {...register('prixVente', { valueAsNumber: true })}
+            />
+          </div>
+          <Input
+            label="Taux de TVA (%)"
+            type="number"
+            min={0}
+            max={100}
+            hint="Ex. 18 pour 18%."
+            error={formState.errors.tauxTva?.message}
+            {...register('tauxTva', { valueAsNumber: true })}
+          />
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="description" className="text-sm font-medium text-text-primary">
+              Description (facultatif)
+            </label>
+            <textarea
+              id="description"
+              rows={3}
+              {...register('description')}
+              className="rounded-(--radius-button) border border-border-subtle bg-surface px-3 py-2 text-sm text-text-primary"
+            />
+          </div>
+
           <Input
             label="Seuil d’alerte"
             type="number"

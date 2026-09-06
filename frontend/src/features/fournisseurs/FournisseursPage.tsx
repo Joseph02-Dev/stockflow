@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { Drawer } from '@/components/ui/Drawer';
+import { ImageUploadField } from '@/components/patterns/ImageUploadField';
 import { Card, PageHeader } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 
@@ -18,6 +19,7 @@ interface Fournisseur {
   nom: string;
   emailContact: string | null;
   telephone: string | null;
+  photoUrl: string | null;
 }
 
 const schema = z.object({
@@ -36,6 +38,7 @@ export function FournisseursPage() {
   const queryClient = useQueryClient();
   const [drawerOuvert, setDrawerOuvert] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['fournisseurs'],
@@ -48,6 +51,7 @@ export function FournisseursPage() {
 
   function ouvrirCreation() {
     setErreur(null);
+    setPhotoUrl(undefined);
     reset({ nom: '', emailContact: '', telephone: '' });
     setDrawerOuvert(true);
   }
@@ -60,6 +64,7 @@ export function FournisseursPage() {
         // rester nuls en base plutôt que d'être des chaînes vides.
         ...(valeurs.emailContact ? { emailContact: valeurs.emailContact } : {}),
         ...(valeurs.telephone ? { telephone: valeurs.telephone } : {}),
+        ...(photoUrl ? { photoUrl } : {}),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fournisseurs'] });
@@ -96,12 +101,23 @@ export function FournisseursPage() {
                   to={`/fournisseurs/${fournisseur.id}`}
                   className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-background"
                 >
-                  <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-background">
+                      {fournisseur.photoUrl ? (
+                        <img src={fournisseur.photoUrl} alt="" className="size-full object-cover" />
+                      ) : (
+                        <span className="text-xs text-text-secondary">
+                          {fournisseur.nom.slice(0, 2).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
                     <p className="truncate font-medium text-text-primary">{fournisseur.nom}</p>
                     <p className="truncate text-sm text-text-secondary">
                       {[fournisseur.emailContact, fournisseur.telephone].filter(Boolean).join(' · ') ||
                         'Aucun contact renseigné'}
                     </p>
+                  </div>
                   </div>
                   <ChevronRight className="size-5 shrink-0 text-text-secondary" aria-hidden="true" />
                 </Link>
@@ -129,6 +145,8 @@ export function FournisseursPage() {
           noValidate
         >
           {erreur && <Alert variant="error">{erreur}</Alert>}
+
+          <ImageUploadField label="Photo" valeur={photoUrl} dossier="fournisseurs" onChange={setPhotoUrl} forme="rond" />
 
           <Input label="Nom" error={formState.errors.nom?.message} {...register('nom')} />
           <Input
