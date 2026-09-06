@@ -1,7 +1,9 @@
 [build]
   base = "frontend"
   command = "npm run build"
-  publish = "frontend/dist"
+  # Relatif à `base` ci-dessus, donc "dist" et non "frontend/dist" —
+  # sinon Netlify cherche frontend/frontend/dist, qui n'existe pas.
+  publish = "dist"
 
 [build.environment]
   # Vite 8 exige Node ^20.19.0 ou >=22.12.0. Sans cette variable, Netlify
