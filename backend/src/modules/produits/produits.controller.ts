@@ -17,6 +17,11 @@ export class ProduitsController {
     return this.produitsService.lister(entrepriseId, { search, inclureArchives: archive === 'true' });
   }
 
+  @Get(':id')
+  obtenir(@CurrentTenant() entrepriseId: string, @Param('id') id: string) {
+    return this.produitsService.obtenir(entrepriseId, id);
+  }
+
   @Post()
   creer(@CurrentTenant() entrepriseId: string, @Body() dto: CreateProduitDto) {
     return this.produitsService.creer(entrepriseId, dto);

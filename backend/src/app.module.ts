@@ -16,6 +16,9 @@ import { TenantContextModule } from './common/context/tenant-context.module.js';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
 import { EmailModule } from './common/email/email.module.js';
+import { CategoriesModule } from './modules/categories/categories.module.js';
+import { MarquesModule } from './modules/marques/marques.module.js';
+import { UploadsModule } from './modules/uploads/uploads.module.js';
 
 @Module({
   imports: [
@@ -31,6 +34,9 @@ import { EmailModule } from './common/email/email.module.js';
     MouvementsModule,
     AlertesModule,
     DashboardModule,
+    CategoriesModule,
+    MarquesModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: RolesGuard }],

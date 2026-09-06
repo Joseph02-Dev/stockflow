@@ -163,13 +163,33 @@ inviterUtilisateur() { ... }
 
 ## Base de données
 
-ORM : **Prisma 7** (adaptateur `@prisma/adapter-pg`). Schéma : `prisma/schema.prisma` — reflète les 9 entités validées en architecture (avec `archive` sur `emplacement`, décision validée en audit Lead Developer).
+ORM : **Prisma 7** (adaptateur `@prisma/adapter-pg`). Schéma : `prisma/schema.prisma` — reflète les 11 entités validées en architecture (`archive` sur `emplacement`/`produit` ; `categorie` et `marque` ajoutées pour la fiche produit enrichie).
 
 ```bash
 npx prisma migrate dev     # créer/appliquer une migration en développement
 npx prisma generate        # régénérer le client après modification du schéma
 npx prisma studio          # explorateur visuel de la base
 ```
+
+## Fiche produit enrichie et images
+
+Le produit dispose de champs facultatifs : `photoUrl`, `prixAchat`/`prixVente` (en francs guinéens — GNF, entiers, sans subdivision décimale), `tauxTva` (pourcentage), `codeBarre` (unique par entreprise), `description`, `categorieId`/`marqueId`. Les catégories et marques sont des entités de référence gérées par l'Admin (`/categories`, `/marques`), consultables par tous.
+
+Les images (produits, fournisseurs, photo de profil) sont téléversées sur **Cloudinary**, jamais stockées localement — le système de fichiers de Railway est éphémère, un stockage local disparaîtrait au prochain déploiement.
+
+```
+POST /uploads/image?type=produits|fournisseurs|utilisateurs
+```
+Champ `fichier` (multipart), JPEG/PNG/WEBP uniquement, 5 Mo maximum. Retourne `{ url }`. Nécessite `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` dans `.env`.
+
+| Méthode | Route | Accès | Description |
+|---|---|---|---|
+| GET | `/categories` | Authentifié | Liste les catégories |
+| POST | `/categories` | Admin | Crée une catégorie |
+| PATCH | `/categories/:id` | Admin | Renomme une catégorie |
+| DELETE | `/categories/:id` | Admin | Supprime (refuse si utilisée par un produit) |
+| GET/POST/PATCH/DELETE | `/marques` | idem | Même logique que Catégories |
+| PATCH | `/users/me/photo` | Authentifié | Modifie sa propre photo de profil |
 
 ## Documentation
 

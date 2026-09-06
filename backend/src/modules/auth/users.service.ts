@@ -22,7 +22,7 @@ export class UsersService {
   async lister(entrepriseId: string) {
     return this.prisma.utilisateur.findMany({
       where: { entrepriseId },
-      select: { id: true, email: true, nom: true, role: true, createdAt: true },
+      select: { id: true, email: true, nom: true, role: true, photoUrl: true, createdAt: true },
       orderBy: { createdAt: 'asc' },
     });
   }
@@ -56,7 +56,7 @@ export class UsersService {
     return this.prisma.utilisateur.update({
       where: { id: utilisateurId },
       data: { role: nouveauRole },
-      select: { id: true, email: true, nom: true, role: true, createdAt: true },
+      select: { id: true, email: true, nom: true, role: true, photoUrl: true, createdAt: true },
     });
   }
 
@@ -100,5 +100,19 @@ export class UsersService {
     });
 
     return { message: 'Invitation envoyée.' };
+  }
+
+  /**
+   * Un utilisateur ne modifie que sa propre photo — jamais celle d'un
+   * autre, même un Admin. C'est délibérément une route "sur soi-même"
+   * (utilisateurId vient du token, pas d'un paramètre d'URL), pas une
+   * route générique d'édition de profil.
+   */
+  async modifierPhoto(utilisateurId: string, photoUrl: string) {
+    return this.prisma.utilisateur.update({
+      where: { id: utilisateurId },
+      data: { photoUrl },
+      select: { id: true, email: true, nom: true, role: true, photoUrl: true, createdAt: true },
+    });
   }
 }

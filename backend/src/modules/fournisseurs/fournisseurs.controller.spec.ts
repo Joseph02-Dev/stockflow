@@ -272,4 +272,33 @@ describe('Fournisseurs (FOUR-001, FOUR-002) — intégration réelle, base Postg
 
     expect(tentative.status).toBe(404);
   });
+
+  it('enregistre et modifie la photo du fournisseur', async () => {
+    const accessToken = await creerAdmin();
+    const creation = await request(app.getHttpServer())
+      .post('/fournisseurs')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ nom: 'Fournisseur Photo', photoUrl: 'https://res.cloudinary.com/demo/image/upload/f1.jpg' });
+
+    expect(creation.status).toBe(201);
+    expect(creation.body.photoUrl).toBe('https://res.cloudinary.com/demo/image/upload/f1.jpg');
+
+    const modification = await request(app.getHttpServer())
+      .patch(`/fournisseurs/${creation.body.id}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ photoUrl: 'https://res.cloudinary.com/demo/image/upload/f2.jpg' });
+
+    expect(modification.body.photoUrl).toBe('https://res.cloudinary.com/demo/image/upload/f2.jpg');
+  });
+
+  it('rejette avec 400 une photoUrl qui n’est pas une URL valide', async () => {
+    const accessToken = await creerAdmin();
+
+    const response = await request(app.getHttpServer())
+      .post('/fournisseurs')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ nom: 'Fournisseur Invalide', photoUrl: 'pas-une-url' });
+
+    expect(response.status).toBe(400);
+  });
 });

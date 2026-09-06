@@ -17,7 +17,13 @@ export class FournisseursService {
 
   async creer(entrepriseId: string, dto: CreateFournisseurDto) {
     return this.prisma.fournisseur.create({
-      data: { entrepriseId, nom: dto.nom, emailContact: dto.emailContact, telephone: dto.telephone },
+      data: {
+        entrepriseId,
+        nom: dto.nom,
+        emailContact: dto.emailContact,
+        telephone: dto.telephone,
+        photoUrl: dto.photoUrl,
+      },
     });
   }
 

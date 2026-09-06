@@ -378,4 +378,53 @@ describe("Flux d'invitation AUTH-003 (intégration réelle, base PostgreSQL)", (
 
     expect(response.status).toBe(400);
   });
+
+  // Photo de profil
+
+  it('un utilisateur peut définir sa propre photo de profil', async () => {
+    const { accessToken } = await creerAdmin();
+
+    const response = await request(app.getHttpServer())
+      .patch('/users/me/photo')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ photoUrl: 'https://res.cloudinary.com/demo/image/upload/profil.jpg' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.photoUrl).toBe('https://res.cloudinary.com/demo/image/upload/profil.jpg');
+    // Le hash du mot de passe ne doit jamais sortir, même sur cette route.
+    expect(response.body.passwordHash).toBeUndefined();
+  });
+
+  it('rejette avec 400 une photoUrl invalide', async () => {
+    const { accessToken } = await creerAdmin();
+
+    const response = await request(app.getHttpServer())
+      .patch('/users/me/photo')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ photoUrl: 'pas-une-url' });
+
+    expect(response.status).toBe(400);
+  });
+
+  it('rejette avec 401 une modification de photo sans authentification', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/users/me/photo')
+      .send({ photoUrl: 'https://res.cloudinary.com/demo/image/upload/profil.jpg' });
+
+    expect(response.status).toBe(401);
+  });
+
+  it('la photo mise à jour apparaît dans la liste des utilisateurs (Admin)', async () => {
+    const { accessToken } = await creerAdmin();
+    await request(app.getHttpServer())
+      .patch('/users/me/photo')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ photoUrl: 'https://res.cloudinary.com/demo/image/upload/profil2.jpg' });
+
+    const liste = await request(app.getHttpServer())
+      .get('/users')
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    expect(liste.body[0].photoUrl).toBe('https://res.cloudinary.com/demo/image/upload/profil2.jpg');
+  });
 });

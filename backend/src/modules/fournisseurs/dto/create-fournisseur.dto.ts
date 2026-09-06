@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, IsUrl, MaxLength, MinLength } from 'class-validator';
 
 export class CreateFournisseurDto {
   @IsString()
@@ -14,4 +14,8 @@ export class CreateFournisseurDto {
   @IsString()
   @MaxLength(30)
   telephone?: string;
+
+  @IsOptional()
+  @IsUrl({}, { message: 'photoUrl doit être une URL valide.' })
+  photoUrl?: string;
 }

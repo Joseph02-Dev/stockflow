@@ -6,6 +6,7 @@ import type { RequestContext } from '../../common/context/tenant-context.service
 import { UsersService } from './users.service.js';
 import { InviteUserDto } from './dto/invite-user.dto.js';
 import { UpdateRoleDto } from './dto/update-role.dto.js';
+import { UpdateProfilDto } from './dto/update-profil.dto.js';
 
 @Controller('users')
 export class UsersController {
@@ -15,6 +16,13 @@ export class UsersController {
   @Get()
   lister(@CurrentTenant() entrepriseId: string) {
     return this.usersService.lister(entrepriseId);
+  }
+
+  // Pas de @Roles('ADMIN') : tout utilisateur authentifié modifie sa
+  // propre photo, quel que soit son rôle.
+  @Patch('me/photo')
+  modifierMaPhoto(@CurrentUser() user: RequestContext, @Body() dto: UpdateProfilDto) {
+    return this.usersService.modifierPhoto(user.utilisateurId, dto.photoUrl);
   }
 
   @Roles('ADMIN')
