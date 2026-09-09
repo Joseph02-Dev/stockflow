@@ -150,6 +150,10 @@ model Produit {
   description String?
   categorieId String? @map("categorie_id")
   marqueId    String? @map("marque_id")
+  // Ex. "Unité", "Sac", "Barre", "Litre", "Kg" — texte libre plutôt qu'une
+  // liste figée : les unités varient trop selon le secteur d'activité
+  // pour être une entité de référence gérée comme catégorie/marque.
+  uniteMesure String? @map("unite_mesure")
 
   entreprise           Entreprise           @relation(fields: [entrepriseId], references: [id])
   categorie            Categorie?           @relation(fields: [categorieId], references: [id])
@@ -199,6 +203,10 @@ model Fournisseur {
   emailContact String?  @map("email_contact")
   telephone    String?
   photoUrl     String?  @map("photo_url")
+  // Saisi manuellement par l'Admin (délai annoncé par le fournisseur),
+  // pas calculé depuis l'historique des réceptions — on n'a pas encore
+  // de date de commande, seulement une date de réception.
+  delaiLivraisonJours Int?     @map("delai_livraison_jours")
   createdAt    DateTime @default(now()) @map("created_at")
 
   entreprise       Entreprise           @relation(fields: [entrepriseId], references: [id])

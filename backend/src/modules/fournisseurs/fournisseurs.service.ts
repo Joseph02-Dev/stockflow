@@ -23,6 +23,7 @@ export class FournisseursService {
         emailContact: dto.emailContact,
         telephone: dto.telephone,
         photoUrl: dto.photoUrl,
+        delaiLivraisonJours: dto.delaiLivraisonJours,
       },
     });
   }

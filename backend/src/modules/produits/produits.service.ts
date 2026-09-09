@@ -49,6 +49,7 @@ export class ProduitsService {
           prixVente: dto.prixVente,
           tauxTva: dto.tauxTva,
           codeBarre: dto.codeBarre,
+          uniteMesure: dto.uniteMesure,
           description: dto.description,
           categorieId: dto.categorieId,
           marqueId: dto.marqueId,

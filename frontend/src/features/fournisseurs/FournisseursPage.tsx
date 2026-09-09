@@ -20,6 +20,7 @@ interface Fournisseur {
   emailContact: string | null;
   telephone: string | null;
   photoUrl: string | null;
+  delaiLivraisonJours: number | null;
 }
 
 const schema = z.object({
@@ -30,6 +31,7 @@ const schema = z.object({
     .optional()
     .or(z.literal('')),
   telephone: z.string().optional(),
+  delaiLivraisonJours: z.union([z.number().int().min(0), z.nan()]).optional(),
 });
 
 type Formulaire = z.infer<typeof schema>;
@@ -65,6 +67,9 @@ export function FournisseursPage() {
         ...(valeurs.emailContact ? { emailContact: valeurs.emailContact } : {}),
         ...(valeurs.telephone ? { telephone: valeurs.telephone } : {}),
         ...(photoUrl ? { photoUrl } : {}),
+        ...(valeurs.delaiLivraisonJours !== undefined && !Number.isNaN(valeurs.delaiLivraisonJours)
+          ? { delaiLivraisonJours: valeurs.delaiLivraisonJours }
+          : {}),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fournisseurs'] });
@@ -114,8 +119,15 @@ export function FournisseursPage() {
                     <div className="min-w-0">
                     <p className="truncate font-medium text-text-primary">{fournisseur.nom}</p>
                     <p className="truncate text-sm text-text-secondary">
-                      {[fournisseur.emailContact, fournisseur.telephone].filter(Boolean).join(' · ') ||
-                        'Aucun contact renseigné'}
+                      {[
+                        fournisseur.emailContact,
+                        fournisseur.telephone,
+                        fournisseur.delaiLivraisonJours !== null
+                          ? `${fournisseur.delaiLivraisonJours} j`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ') || 'Aucun contact renseigné'}
                     </p>
                   </div>
                   </div>
@@ -159,6 +171,13 @@ export function FournisseursPage() {
             label="Téléphone (facultatif)"
             error={formState.errors.telephone?.message}
             {...register('telephone')}
+          />
+          <Input
+            label="Délai de livraison moyen, en jours (facultatif)"
+            type="number"
+            min={0}
+            error={formState.errors.delaiLivraisonJours?.message}
+            {...register('delaiLivraisonJours', { valueAsNumber: true })}
           />
 
           <div className="flex justify-end gap-2 pt-2">

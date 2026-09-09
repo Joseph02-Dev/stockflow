@@ -35,6 +35,7 @@ interface Produit {
   tauxTva: number | null;
   codeBarre: string | null;
   description: string | null;
+  uniteMesure: string | null;
   categorie: ElementReference | null;
   marque: ElementReference | null;
 }
@@ -52,6 +53,7 @@ const schema = z.object({
   prixVente: z.union([z.number().int().min(0), z.nan()]).optional(),
   tauxTva: z.union([z.number().int().min(0).max(100), z.nan()]).optional(),
   codeBarre: z.string().optional(),
+  uniteMesure: z.string().optional(),
   description: z.string().optional(),
   categorieId: z.string().optional(),
   marqueId: z.string().optional(),
@@ -118,6 +120,7 @@ export function ProduitsPage() {
       description: '',
       categorieId: '',
       marqueId: '',
+      uniteMesure: '',
     });
     setDrawerOuvert(true);
   }
@@ -137,6 +140,7 @@ export function ProduitsPage() {
       description: produit.description ?? '',
       categorieId: produit.categorie?.id ?? '',
       marqueId: produit.marque?.id ?? '',
+      uniteMesure: produit.uniteMesure ?? '',
     });
     setDrawerOuvert(true);
   }
@@ -151,6 +155,7 @@ export function ProduitsPage() {
         ...(nombreOuIndefini(valeurs.prixVente) !== undefined ? { prixVente: valeurs.prixVente } : {}),
         ...(nombreOuIndefini(valeurs.tauxTva) !== undefined ? { tauxTva: valeurs.tauxTva } : {}),
         ...(valeurs.codeBarre ? { codeBarre: valeurs.codeBarre } : {}),
+        ...(valeurs.uniteMesure ? { uniteMesure: valeurs.uniteMesure } : {}),
         ...(valeurs.description ? { description: valeurs.description } : {}),
         ...(valeurs.categorieId ? { categorieId: valeurs.categorieId } : {}),
         ...(valeurs.marqueId ? { marqueId: valeurs.marqueId } : {}),
@@ -307,7 +312,10 @@ export function ProduitsPage() {
                   <td className="px-4 py-3 text-text-secondary">
                     {produit.prixVente !== null ? `${FORMATEUR_GNF.format(produit.prixVente)} GNF` : '—'}
                   </td>
-                  <td className="px-4 py-3 text-text-secondary">{produit.seuilAlerte}</td>
+                  <td className="px-4 py-3 text-text-secondary">
+                    {produit.seuilAlerte}
+                    {produit.uniteMesure ? ` ${produit.uniteMesure.toLowerCase()}` : ''}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" onClick={() => ouvrirEdition(produit)}>
@@ -410,12 +418,32 @@ export function ProduitsPage() {
             error={formState.errors.reference?.message}
             {...register('reference')}
           />
-          <Input
-            label="Code-barre (facultatif)"
-            placeholder="3401234567890"
-            error={formState.errors.codeBarre?.message}
-            {...register('codeBarre')}
-          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Code-barre (facultatif)"
+              placeholder="3401234567890"
+              error={formState.errors.codeBarre?.message}
+              {...register('codeBarre')}
+            />
+            <Select
+              label="Unité de mesure"
+              options={[
+                { valeur: '', libelle: 'Non précisée' },
+                { valeur: 'Unité', libelle: 'Unité' },
+                { valeur: 'Sac', libelle: 'Sac' },
+                { valeur: 'Barre', libelle: 'Barre' },
+                { valeur: 'Boîte', libelle: 'Boîte' },
+                { valeur: 'Carton', libelle: 'Carton' },
+                { valeur: 'Rouleau', libelle: 'Rouleau' },
+                { valeur: 'Paire', libelle: 'Paire' },
+                { valeur: 'Litre', libelle: 'Litre' },
+                { valeur: 'Kg', libelle: 'Kg' },
+                { valeur: 'Mètre', libelle: 'Mètre' },
+                { valeur: 'm²', libelle: 'm²' },
+              ]}
+              {...register('uniteMesure')}
+            />
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <Select label="Catégorie" options={optionsCategories} {...register('categorieId')} />

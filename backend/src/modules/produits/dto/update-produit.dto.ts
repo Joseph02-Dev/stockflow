@@ -56,4 +56,9 @@ export class UpdateProduitDto {
   @IsOptional()
   @IsUUID('4', { message: 'marqueId doit être un identifiant valide.' })
   marqueId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  uniteMesure?: string;
 }
