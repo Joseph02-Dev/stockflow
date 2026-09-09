@@ -12,23 +12,28 @@
   --color-secondary: #0f172a;
   --color-accent: #7c3aed;
 
-  --color-background: #f8fafc;
+  /* Sidebar bleu nuit — nouvelle direction visuelle */
+  --color-navy: #0b1b34;
+  --color-navy-light: #16294a;
+  --color-navy-text: #8ca1bc;
+
+  --color-background: #edf1f7;
   --color-surface: #ffffff;
   --color-border-subtle: #e2e8f0;
 
   --color-text-primary: #0f172a;
   --color-text-secondary: #64748b;
 
-  --color-success: #16a34a;
-  --color-warning: #d97706;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
   --color-error: #dc2626;
   --color-info: #0284c7;
 
   --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
 
-  --radius-button: 6px;
-  --radius-card: 8px;
-  --radius-modal: 12px;
+  --radius-button: 9px;
+  --radius-card: 13px;
+  --radius-modal: 14px;
 }
 
 html,

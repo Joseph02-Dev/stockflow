@@ -1,17 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
   Boxes,
   LayoutDashboard,
   LogOut,
-  Menu,
+  MoreHorizontal,
   Package,
   Settings,
+  Tag,
   Truck,
   Warehouse,
-  X,
+  Wifi,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { clearSession, getSession } from '@/lib/session';
@@ -20,166 +21,103 @@ import { cn } from '@/lib/cn';
 import { Badge } from '@/components/ui/Badge';
 import { ProfilModal } from '@/features/profil/ProfilModal';
 
-const liens = [
-  { to: '/', libelle: 'Dashboard', Icone: LayoutDashboard, exact: true },
+const sectionPilotage = [
+  { to: '/', libelle: 'Tableau de bord', Icone: LayoutDashboard, exact: true },
   { to: '/produits', libelle: 'Produits', Icone: Package },
-  { to: '/stock', libelle: 'Stock & Mouvements', Icone: Warehouse },
-  { to: '/fournisseurs', libelle: 'Fournisseurs', Icone: Truck },
+  { to: '/stock', libelle: 'Stock & mouvements', Icone: Warehouse },
   { to: '/alertes', libelle: 'Alertes', Icone: Bell },
 ];
 
-/**
- * Liste de liens partagée entre la sidebar desktop et le menu mobile —
- * un seul endroit à faire évoluer si un onglet est ajouté ou retiré.
- */
-function ListeNavigation({
-  role,
+// Fournisseurs reste accessible à tous (comme Produits) ; Catégories &
+// marques et Paramètres sont ajoutés séparément ci-dessous, réservés à
+// l'Admin — /parametres est entièrement protégé côté routage, un
+// Gestionnaire qui cliquerait dessus serait silencieusement renvoyé à
+// l'accueil.
+const sectionReferentiel = [{ to: '/fournisseurs', libelle: 'Fournisseurs', Icone: Truck }];
+
+// Les 4 destinations les plus fréquentes uniquement : la barre mobile
+// n'a la place que pour ça sans devenir illisible. Fournisseurs,
+// Catégories/Marques et Paramètres restent accessibles via « Plus ».
+const navMobile = [
+  { to: '/', libelle: 'Accueil', Icone: LayoutDashboard, exact: true },
+  { to: '/produits', libelle: 'Produits', Icone: Package },
+  { to: '/stock', libelle: 'Mouvements', Icone: Warehouse },
+  { to: '/alertes', libelle: 'Alertes', Icone: Bell },
+];
+
+function LienNav({
+  to,
+  libelle,
+  Icone,
+  exact,
   nombreAlertes,
   onNaviguer,
+  actifForce,
 }: {
-  role: 'ADMIN' | 'GESTIONNAIRE' | undefined;
+  to: string;
+  libelle: string;
+  Icone: typeof LayoutDashboard;
+  exact?: boolean;
   nombreAlertes: number;
   onNaviguer?: () => void;
+  /**
+   * Remplace la détection automatique de React Router. Nécessaire quand
+   * deux liens pointent vers le même chemin avec des paramètres de
+   * requête différents (Catégories & marques / Paramètres pointent tous
+   * deux vers /parametres) — sans ça, les deux s'allument en même temps.
+   */
+  actifForce?: boolean;
 }) {
-  return (
-    <nav className="flex flex-1 flex-col gap-1 px-3" aria-label="Navigation principale">
-      {liens.map(({ to, libelle, Icone, exact }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={exact}
-          onClick={onNaviguer}
-          className={({ isActive }) =>
-            cn(
-              'flex items-center gap-3 rounded-(--radius-button) px-3 py-2.5 text-sm font-medium transition-colors md:py-2',
-              isActive
-                ? 'bg-primary/10 text-primary'
-                : 'text-text-secondary hover:bg-background hover:text-text-primary',
-            )
-          }
-        >
-          <Icone className="size-5" aria-hidden="true" />
-          <span className="flex-1">{libelle}</span>
-          {to === '/alertes' && nombreAlertes > 0 && (
-            <span
-              className="inline-flex min-w-5 items-center justify-center rounded-full bg-error px-1.5 py-0.5 text-xs font-semibold text-white"
-              aria-label={`${nombreAlertes} alerte${nombreAlertes > 1 ? 's' : ''} active${nombreAlertes > 1 ? 's' : ''}`}
-            >
-              {nombreAlertes}
-            </span>
-          )}
-        </NavLink>
-      ))}
+  const estAlertes = to === '/alertes';
+  const classes = (actif: boolean) =>
+    cn(
+      'flex items-center gap-3 rounded-(--radius-button) px-3 py-2.5 text-sm font-medium transition-colors',
+      actif ? 'bg-primary text-white' : 'text-navy-text hover:bg-white/5 hover:text-white',
+    );
 
-      {/* Paramètres : absent du menu pour un Gestionnaire — on ne montre
-          pas ce que l'utilisateur ne peut pas faire. */}
-      {role === 'ADMIN' && (
-        <NavLink
-          to="/parametres"
-          onClick={onNaviguer}
-          className={({ isActive }) =>
-            cn(
-              'flex items-center gap-3 rounded-(--radius-button) px-3 py-2.5 text-sm font-medium transition-colors md:py-2',
-              isActive
-                ? 'bg-primary/10 text-primary'
-                : 'text-text-secondary hover:bg-background hover:text-text-primary',
-            )
-          }
+  const contenu = (
+    <>
+      <Icone className="size-[18px] shrink-0" aria-hidden="true" />
+      <span className="flex-1 truncate">{libelle}</span>
+      {estAlertes && nombreAlertes > 0 && (
+        <span
+          className="inline-flex min-w-5 items-center justify-center rounded-full bg-error px-1.5 py-0.5 text-xs font-semibold text-white"
+          aria-label={`${nombreAlertes} alerte${nombreAlertes > 1 ? 's' : ''} active${nombreAlertes > 1 ? 's' : ''}`}
         >
-          <Settings className="size-5" aria-hidden="true" />
-          Paramètres
-        </NavLink>
+          {nombreAlertes}
+        </span>
       )}
-    </nav>
+    </>
   );
-}
 
-/**
- * Menu plein écran pour mobile (sous 768px), où la sidebar est masquée.
- * Même comportement que les autres panneaux du Design System : fermeture
- * par Échap, verrouillage du scroll, focus déplacé à l'ouverture.
- */
-function MenuMobile({
-  ouvert,
-  onFermer,
-  role,
-  nombreAlertes,
-  nomEntreprise,
-}: {
-  ouvert: boolean;
-  onFermer: () => void;
-  role: 'ADMIN' | 'GESTIONNAIRE' | undefined;
-  nombreAlertes: number;
-  nomEntreprise: string | undefined;
-}) {
-  const conteneurRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!ouvert) return;
-
-    function surTouche(event: KeyboardEvent) {
-      if (event.key === 'Escape') onFermer();
-    }
-    document.addEventListener('keydown', surTouche);
-
-    const overflowInitial = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    conteneurRef.current?.focus();
-
-    return () => {
-      document.removeEventListener('keydown', surTouche);
-      document.body.style.overflow = overflowInitial;
-    };
-  }, [ouvert, onFermer]);
-
-  if (!ouvert) return null;
+  if (actifForce !== undefined) {
+    return (
+      <NavLink to={to} onClick={onNaviguer} className={classes(actifForce)}>
+        {contenu}
+      </NavLink>
+    );
+  }
 
   return (
-    <div className="fixed inset-0 z-50 md:hidden">
-      <div className="absolute inset-0 bg-secondary/40" onClick={onFermer} aria-hidden="true" />
-
-      <div
-        ref={conteneurRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Menu de navigation"
-        tabIndex={-1}
-        className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-surface shadow-lg"
-      >
-        <div className="flex items-center justify-between gap-2 px-4 py-4">
-          <div className="flex items-center gap-2">
-            <Boxes className="size-6 text-primary" aria-hidden="true" />
-            <span className="font-semibold text-secondary">StockFlow</span>
-          </div>
-          <button
-            type="button"
-            onClick={onFermer}
-            aria-label="Fermer le menu"
-            className="rounded-(--radius-button) p-1 text-text-secondary hover:bg-background hover:text-text-primary"
-          >
-            <X className="size-5" aria-hidden="true" />
-          </button>
-        </div>
-
-        {nomEntreprise && (
-          <p className="truncate px-4 pb-2 text-xs text-text-secondary">{nomEntreprise}</p>
-        )}
-
-        <ListeNavigation role={role} nombreAlertes={nombreAlertes} onNaviguer={onFermer} />
-      </div>
-    </div>
+    <NavLink to={to} end={exact} onClick={onNaviguer} className={({ isActive }) => classes(isActive)}>
+      {contenu}
+    </NavLink>
   );
 }
 
 export function AppLayout() {
   const session = useSession();
   const navigate = useNavigate();
-  const [menuMobileOuvert, setMenuMobileOuvert] = useState(false);
+  const location = useLocation();
   const [profilOuvert, setProfilOuvert] = useState(false);
+  const [plusOuvert, setPlusOuvert] = useState(false);
 
-  // Compteur d'alertes actives affiché en pastille sur l'entrée « Alertes ».
-  // Partage la même clé de cache que la page Alertes : un mouvement de
-  // stock qui invalide ['alertes'] met donc aussi la pastille à jour.
+  const surParametres = location.pathname === '/parametres';
+  const ongletCategoriesActif = surParametres && new URLSearchParams(location.search).get('onglet') === 'categories';
+
+  // Compteur d'alertes actives — partage la clé de cache avec la page
+  // Alertes, donc tout mouvement de stock qui l'invalide met aussi la
+  // pastille à jour automatiquement.
   const alertesActives = useQuery({
     queryKey: ['alertes', 'ACTIVE'],
     queryFn: async () => (await api.get<unknown[]>('/alertes?statut=ACTIVE')).data,
@@ -193,9 +131,7 @@ export function AppLayout() {
         await api.post('/auth/logout', { refreshToken: courante.refreshToken });
       }
     } catch {
-      // La déconnexion locale doit aboutir même si l'appel serveur échoue
-      // (réseau coupé, token déjà expiré) : on purge la session dans tous
-      // les cas.
+      // La déconnexion locale doit aboutir même si l'appel serveur échoue.
     } finally {
       clearSession();
       navigate('/connexion', { replace: true });
@@ -211,48 +147,78 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-full">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-border-subtle bg-surface md:flex">
-        <div className="flex items-center gap-2 px-6 py-5">
-          <Boxes className="size-6 text-primary" aria-hidden="true" />
-          <span className="font-semibold text-secondary">StockFlow</span>
+      {/* Sidebar desktop — bleu nuit, conforme au nouveau design */}
+      <aside className="hidden w-64 shrink-0 flex-col bg-navy md:flex">
+        <div className="flex items-center gap-2.5 px-5 py-5">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-primary text-base font-bold text-white">
+            S
+          </span>
+          <div className="min-w-0 leading-tight">
+            <p className="truncate text-[15px] font-semibold text-white">StockFlow</p>
+            <p className="truncate text-xs text-navy-text">{session?.entreprise.nom}</p>
+          </div>
         </div>
 
-        <ListeNavigation role={session?.utilisateur.role} nombreAlertes={nombreAlertes} />
-      </aside>
+        <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3 pt-2" aria-label="Navigation principale">
+          <div className="flex flex-col gap-1">
+            <span className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-navy-text/70 uppercase">
+              Pilotage
+            </span>
+            {sectionPilotage.map((lien) => (
+              <LienNav key={lien.to} {...lien} nombreAlertes={nombreAlertes} />
+            ))}
+          </div>
 
-      <MenuMobile
-        ouvert={menuMobileOuvert}
-        onFermer={() => setMenuMobileOuvert(false)}
-        role={session?.utilisateur.role}
-        nombreAlertes={nombreAlertes}
-        nomEntreprise={session?.entreprise.nom}
-      />
+          <div className="flex flex-col gap-1">
+            <span className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-navy-text/70 uppercase">
+              Référentiel
+            </span>
+            {sectionReferentiel.map((lien) => (
+              <LienNav key={lien.to} {...lien} nombreAlertes={nombreAlertes} />
+            ))}
+            {session?.utilisateur.role === 'ADMIN' && (
+              <>
+                <LienNav
+                  to="/parametres?onglet=categories"
+                  libelle="Catégories & marques"
+                  Icone={Tag}
+                  nombreAlertes={nombreAlertes}
+                  actifForce={ongletCategoriesActif}
+                />
+                <LienNav
+                  to="/parametres"
+                  libelle="Paramètres"
+                  Icone={Settings}
+                  nombreAlertes={nombreAlertes}
+                  actifForce={surParametres && !ongletCategoriesActif}
+                />
+              </>
+            )}
+          </div>
+        </nav>
+
+        <div className="p-3">
+          {/* Indicateur visuel seulement pour l'instant — la synchronisation
+              hors-ligne réelle n'est pas encore implémentée. */}
+          <div className="flex items-center gap-2 rounded-(--radius-button) bg-navy-light px-3 py-2.5 text-xs text-navy-text">
+            <span className="inline-flex size-2 shrink-0 rounded-full bg-success" aria-hidden="true" />
+            <Wifi className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">En ligne</span>
+          </div>
+        </div>
+      </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between gap-2 border-b border-border-subtle bg-surface px-4 py-3 md:px-6">
-          <div className="flex min-w-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setMenuMobileOuvert(true)}
-              aria-label={
-                nombreAlertes > 0
-                  ? `Ouvrir le menu — ${nombreAlertes} alerte${nombreAlertes > 1 ? 's' : ''} active${nombreAlertes > 1 ? 's' : ''}`
-                  : 'Ouvrir le menu'
-              }
-              className="relative -ml-1 rounded-(--radius-button) p-1.5 text-text-secondary hover:bg-background hover:text-text-primary md:hidden"
-            >
-              <Menu className="size-5" aria-hidden="true" />
-              {nombreAlertes > 0 && (
-                <span
-                  className="absolute top-1 right-1 inline-flex size-2 rounded-full bg-error"
-                  aria-hidden="true"
-                />
-              )}
-            </button>
-            <span className="truncate text-sm font-medium text-text-primary">
-              {session?.entreprise.nom}
+          <div className="flex min-w-0 items-center gap-2 md:hidden">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-[9px] bg-primary text-sm font-bold text-white">
+              S
             </span>
+            <span className="truncate text-sm font-medium text-text-primary">{session?.entreprise.nom}</span>
           </div>
+          <span className="hidden truncate text-sm font-medium text-text-secondary md:block">
+            {session?.entreprise.nom}
+          </span>
 
           <div className="flex shrink-0 items-center gap-3">
             <button
@@ -286,10 +252,95 @@ export function AppLayout() {
           </div>
         </header>
 
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 p-4 pb-20 md:p-6 md:pb-6">
           <Outlet />
         </main>
       </div>
+
+      {/* Barre de navigation mobile — remplace l'ancien menu plein écran */}
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border-subtle bg-surface md:hidden"
+        aria-label="Navigation principale"
+      >
+        {navMobile.map(({ to, libelle, Icone, exact }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={exact}
+            className={({ isActive }) =>
+              cn(
+                'relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium',
+                isActive ? 'text-primary' : 'text-text-secondary',
+              )
+            }
+          >
+            <Icone className="size-5" aria-hidden="true" />
+            {libelle}
+            {to === '/alertes' && nombreAlertes > 0 && (
+              <span
+                className="absolute top-1 right-[calc(50%-18px)] inline-flex size-2 rounded-full bg-error"
+                aria-hidden="true"
+              />
+            )}
+          </NavLink>
+        ))}
+        <button
+          type="button"
+          onClick={() => setPlusOuvert(true)}
+          className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-text-secondary"
+        >
+          <MoreHorizontal className="size-5" aria-hidden="true" />
+          Plus
+        </button>
+      </nav>
+
+      {plusOuvert && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-secondary/40" onClick={() => setPlusOuvert(false)} aria-hidden="true" />
+          <div className="absolute inset-x-0 bottom-0 rounded-t-(--radius-modal) bg-surface p-3 pb-6">
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border-subtle" />
+            <NavLink
+              to="/fournisseurs"
+              onClick={() => setPlusOuvert(false)}
+              className="flex items-center gap-3 rounded-(--radius-button) px-3 py-3 text-sm font-medium text-text-primary hover:bg-background"
+            >
+              <Truck className="size-5 text-text-secondary" aria-hidden="true" />
+              Fournisseurs
+            </NavLink>
+            {session?.utilisateur.role === 'ADMIN' && (
+              <>
+                <NavLink
+                  to="/parametres?onglet=categories"
+                  onClick={() => setPlusOuvert(false)}
+                  className="flex items-center gap-3 rounded-(--radius-button) px-3 py-3 text-sm font-medium text-text-primary hover:bg-background"
+                >
+                  <Tag className="size-5 text-text-secondary" aria-hidden="true" />
+                  Catégories & marques
+                </NavLink>
+                <NavLink
+                  to="/parametres"
+                  onClick={() => setPlusOuvert(false)}
+                  className="flex items-center gap-3 rounded-(--radius-button) px-3 py-3 text-sm font-medium text-text-primary hover:bg-background"
+                >
+                  <Settings className="size-5 text-text-secondary" aria-hidden="true" />
+                  Paramètres
+                </NavLink>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setPlusOuvert(false);
+                setProfilOuvert(true);
+              }}
+              className="flex w-full items-center gap-3 rounded-(--radius-button) px-3 py-3 text-left text-sm font-medium text-text-primary hover:bg-background"
+            >
+              <Boxes className="size-5 text-text-secondary" aria-hidden="true" />
+              Mon profil
+            </button>
+          </div>
+        </div>
+      )}
 
       <ProfilModal ouvert={profilOuvert} onFermer={() => setProfilOuvert(false)} />
     </div>

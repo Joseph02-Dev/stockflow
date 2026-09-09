@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/patterns/Page';
 import { EntrepriseSection } from './EntrepriseSection';
 import { EmplacementsSection } from './EmplacementsSection';
@@ -16,8 +17,16 @@ const onglets = [
 
 type CleOnglet = (typeof onglets)[number]['cle'];
 
+function estOngletValide(valeur: string | null): valeur is CleOnglet {
+  return onglets.some((o) => o.cle === valeur);
+}
+
 export function ParametresPage() {
-  const [actif, setActif] = useState<CleOnglet>('entreprise');
+  const [parametresUrl] = useSearchParams();
+  const ongletDepuisUrl = parametresUrl.get('onglet');
+  const [actif, setActif] = useState<CleOnglet>(
+    estOngletValide(ongletDepuisUrl) ? ongletDepuisUrl : 'entreprise',
+  );
 
   return (
     <div className="flex flex-col gap-6">
