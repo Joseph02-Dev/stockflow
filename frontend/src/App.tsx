@@ -5,6 +5,7 @@ import { InscriptionPage } from '@/features/auth/InscriptionPage';
 import { InvitationPage } from '@/features/auth/InvitationPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { ProduitsPage } from '@/features/produits/ProduitsPage';
+import { ProduitFormPage } from '@/features/produits/ProduitFormPage';
 import { StockPage } from '@/features/stock/StockPage';
 import { AlertesPage } from '@/features/alertes/AlertesPage';
 import { FournisseursPage } from '@/features/fournisseurs/FournisseursPage';
@@ -55,6 +56,8 @@ export function App() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/produits" element={<ProduitsPage />} />
+          <Route path="/produits/nouveau" element={<ProduitFormPage />} />
+          <Route path="/produits/:id" element={<ProduitFormPage />} />
           <Route path="/stock" element={<StockPage />} />
           <Route path="/alertes" element={<AlertesPage />} />
           <Route path="/fournisseurs" element={<FournisseursPage />} />

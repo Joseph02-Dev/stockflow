@@ -27,7 +27,15 @@ export class ProduitsService {
   async obtenir(entrepriseId: string, produitId: string) {
     const produit = await this.prisma.produit.findUnique({
       where: { id: produitId },
-      include: { categorie: true, marque: true },
+      include: {
+        categorie: true,
+        marque: true,
+        // Nécessaire pour le widget « Fournisseur habituel » de la fiche
+        // produit — pas de champ dédié, on réutilise l'association déjà
+        // existante plutôt que d'ajouter un concept de fournisseur
+        // "principal" qui n'a jamais été validé.
+        fournisseursAssocies: { include: { fournisseur: true } },
+      },
     });
     if (!produit || produit.entrepriseId !== entrepriseId) {
       throw new NotFoundException('Produit introuvable.');

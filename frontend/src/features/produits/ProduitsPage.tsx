@@ -1,27 +1,16 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { Link, useNavigate } from 'react-router-dom';
 import { Archive, Download, Pencil, Plus, Search } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { exporterCsv } from '@/lib/exporterCsv';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
 import { Alert } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
-import { Drawer } from '@/components/ui/Drawer';
 import { Modal } from '@/components/ui/Modal';
-import { ImageUploadField } from '@/components/patterns/ImageUploadField';
 import { Card, PageHeader } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { useDebounce } from '@/lib/useDebounce';
-
-interface ElementReference {
-  id: string;
-  nom: string;
-}
 
 interface Produit {
   id: string;
@@ -30,53 +19,21 @@ interface Produit {
   seuilAlerte: number;
   archive: boolean;
   photoUrl: string | null;
-  prixAchat: number | null;
   prixVente: number | null;
-  tauxTva: number | null;
-  codeBarre: string | null;
-  description: string | null;
   uniteMesure: string | null;
-  categorie: ElementReference | null;
-  marque: ElementReference | null;
-}
-
-const schema = z.object({
-  nom: z.string().min(1, 'Le nom du produit est requis.'),
-  reference: z.string().optional(),
-  // La conversion en nombre est faite par React Hook Form
-  // (valueAsNumber) : un input HTML renvoie toujours une chaîne.
-  seuilAlerte: z
-    .number({ message: 'Le seuil doit être un nombre.' })
-    .int('Le seuil doit être un nombre entier.')
-    .min(0, 'Le seuil ne peut pas être négatif.'),
-  prixAchat: z.union([z.number().int().min(0), z.nan()]).optional(),
-  prixVente: z.union([z.number().int().min(0), z.nan()]).optional(),
-  tauxTva: z.union([z.number().int().min(0).max(100), z.nan()]).optional(),
-  codeBarre: z.string().optional(),
-  uniteMesure: z.string().optional(),
-  description: z.string().optional(),
-  categorieId: z.string().optional(),
-  marqueId: z.string().optional(),
-});
-
-type Formulaire = z.infer<typeof schema>;
-
-/** Un input number vide renvoie NaN avec valueAsNumber : à convertir en absence de valeur. */
-function nombreOuIndefini(valeur: number | undefined): number | undefined {
-  return valeur === undefined || Number.isNaN(valeur) ? undefined : valeur;
+  categorie: { nom: string } | null;
+  marque: { nom: string } | null;
 }
 
 const FORMATEUR_GNF = new Intl.NumberFormat('fr-FR');
 
 export function ProduitsPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [recherche, setRecherche] = useState('');
   const [afficherArchives, setAfficherArchives] = useState(false);
-  const [drawerOuvert, setDrawerOuvert] = useState(false);
-  const [enEdition, setEnEdition] = useState<Produit | null>(null);
   const [aArchiver, setAArchiver] = useState<Produit | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
-  const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined);
 
   const rechercheRetardee = useDebounce(recherche);
 
@@ -90,91 +47,6 @@ export function ProduitsPage() {
     },
   });
 
-  const categories = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => (await api.get<ElementReference[]>('/categories')).data,
-    enabled: drawerOuvert,
-  });
-  const marques = useQuery({
-    queryKey: ['marques'],
-    queryFn: async () => (await api.get<ElementReference[]>('/marques')).data,
-    enabled: drawerOuvert,
-  });
-
-  const { register, handleSubmit, reset, formState } = useForm<Formulaire>({
-    resolver: zodResolver(schema),
-  });
-
-  function ouvrirCreation() {
-    setEnEdition(null);
-    setErreur(null);
-    setPhotoUrl(undefined);
-    reset({
-      nom: '',
-      reference: '',
-      seuilAlerte: 0,
-      prixAchat: undefined,
-      prixVente: undefined,
-      tauxTva: undefined,
-      codeBarre: '',
-      description: '',
-      categorieId: '',
-      marqueId: '',
-      uniteMesure: '',
-    });
-    setDrawerOuvert(true);
-  }
-
-  function ouvrirEdition(produit: Produit) {
-    setEnEdition(produit);
-    setErreur(null);
-    setPhotoUrl(produit.photoUrl ?? undefined);
-    reset({
-      nom: produit.nom,
-      reference: produit.reference ?? '',
-      seuilAlerte: produit.seuilAlerte,
-      prixAchat: produit.prixAchat ?? undefined,
-      prixVente: produit.prixVente ?? undefined,
-      tauxTva: produit.tauxTva ?? undefined,
-      codeBarre: produit.codeBarre ?? '',
-      description: produit.description ?? '',
-      categorieId: produit.categorie?.id ?? '',
-      marqueId: produit.marque?.id ?? '',
-      uniteMesure: produit.uniteMesure ?? '',
-    });
-    setDrawerOuvert(true);
-  }
-
-  const enregistrer = useMutation({
-    mutationFn: async (valeurs: Formulaire) => {
-      const corps = {
-        nom: valeurs.nom,
-        seuilAlerte: valeurs.seuilAlerte,
-        ...(valeurs.reference ? { reference: valeurs.reference } : {}),
-        ...(nombreOuIndefini(valeurs.prixAchat) !== undefined ? { prixAchat: valeurs.prixAchat } : {}),
-        ...(nombreOuIndefini(valeurs.prixVente) !== undefined ? { prixVente: valeurs.prixVente } : {}),
-        ...(nombreOuIndefini(valeurs.tauxTva) !== undefined ? { tauxTva: valeurs.tauxTva } : {}),
-        ...(valeurs.codeBarre ? { codeBarre: valeurs.codeBarre } : {}),
-        ...(valeurs.uniteMesure ? { uniteMesure: valeurs.uniteMesure } : {}),
-        ...(valeurs.description ? { description: valeurs.description } : {}),
-        ...(valeurs.categorieId ? { categorieId: valeurs.categorieId } : {}),
-        ...(valeurs.marqueId ? { marqueId: valeurs.marqueId } : {}),
-        ...(photoUrl ? { photoUrl } : {}),
-      };
-      if (enEdition) {
-        await api.patch(`/produits/${enEdition.id}`, corps);
-      } else {
-        await api.post('/produits', corps);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['produits'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      setDrawerOuvert(false);
-    },
-    onError: (err) => setErreur(messageErreur(err, 'L’enregistrement a échoué.')),
-  });
-
   const archiver = useMutation({
     mutationFn: async (id: string) => api.patch(`/produits/${id}/archive`),
     onSuccess: () => {
@@ -186,15 +58,6 @@ export function ProduitsPage() {
   });
 
   const rechercheActive = rechercheRetardee.length > 0;
-
-  const optionsCategories = [
-    { valeur: '', libelle: 'Aucune' },
-    ...(categories.data ?? []).map((c) => ({ valeur: c.id, libelle: c.nom })),
-  ];
-  const optionsMarques = [
-    { valeur: '', libelle: 'Aucune' },
-    ...(marques.data ?? []).map((m) => ({ valeur: m.id, libelle: m.nom })),
-  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -215,10 +78,7 @@ export function ProduitsPage() {
                     { entete: 'Référence', valeur: (p: Produit) => p.reference ?? '' },
                     { entete: 'Catégorie', valeur: (p: Produit) => p.categorie?.nom ?? '' },
                     { entete: 'Marque', valeur: (p: Produit) => p.marque?.nom ?? '' },
-                    { entete: 'Code-barre', valeur: (p: Produit) => p.codeBarre ?? '' },
-                    { entete: 'Prix d’achat (GNF)', valeur: (p: Produit) => p.prixAchat ?? '' },
                     { entete: 'Prix de vente (GNF)', valeur: (p: Produit) => p.prixVente ?? '' },
-                    { entete: 'TVA (%)', valeur: (p: Produit) => p.tauxTva ?? '' },
                     { entete: 'Seuil d’alerte', valeur: (p: Produit) => p.seuilAlerte },
                     { entete: 'Statut', valeur: (p: Produit) => (p.archive ? 'Archivé' : 'Actif') },
                   ],
@@ -229,7 +89,7 @@ export function ProduitsPage() {
               <Download className="size-4" aria-hidden="true" />
               Exporter CSV
             </Button>
-            <Button onClick={ouvrirCreation}>
+            <Button onClick={() => navigate('/produits/nouveau')}>
               <Plus className="size-4" aria-hidden="true" />
               Nouveau produit
             </Button>
@@ -263,7 +123,7 @@ export function ProduitsPage() {
         </label>
       </div>
 
-      {erreur && !drawerOuvert && <Alert variant="error">{erreur}</Alert>}
+      {erreur && <Alert variant="error">{erreur}</Alert>}
 
       <Card>
         {isLoading ? (
@@ -272,112 +132,118 @@ export function ProduitsPage() {
           <ErrorState message={messageErreur(error)} onRetry={() => refetch()} />
         ) : data && data.length > 0 ? (
           <>
-          <table className="hidden w-full text-sm md:table">
-            <thead className="border-b border-border-subtle bg-background text-left">
-              <tr>
-                <th scope="col" className="px-4 py-3 font-medium text-text-secondary"></th>
-                <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Nom</th>
-                <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Catégorie / Marque</th>
-                <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Prix de vente</th>
-                <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Seuil d’alerte</th>
-                <th scope="col" className="px-4 py-3 text-right font-medium text-text-secondary">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border-subtle">
-              {data.map((produit) => (
-                <tr key={produit.id}>
-                  <td className="px-4 py-3">
-                    <div className="flex size-10 items-center justify-center overflow-hidden rounded-(--radius-button) bg-background">
-                      {produit.photoUrl ? (
-                        <img src={produit.photoUrl} alt="" className="size-full object-cover" />
-                      ) : (
-                        <span className="text-xs text-text-secondary">—</span>
+            <table className="hidden w-full text-sm md:table">
+              <thead className="border-b border-border-subtle bg-background text-left">
+                <tr>
+                  <th scope="col" className="px-4 py-3 font-medium text-text-secondary"></th>
+                  <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Nom</th>
+                  <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Catégorie / Marque</th>
+                  <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Prix de vente</th>
+                  <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Seuil d’alerte</th>
+                  <th scope="col" className="px-4 py-3 text-right font-medium text-text-secondary">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-subtle">
+                {data.map((produit) => (
+                  <tr key={produit.id} className="group">
+                    <td className="px-4 py-3">
+                      <Link
+                        to={`/produits/${produit.id}`}
+                        className="flex size-10 items-center justify-center overflow-hidden rounded-(--radius-button) bg-background"
+                      >
+                        {produit.photoUrl ? (
+                          <img src={produit.photoUrl} alt="" className="size-full object-cover" />
+                        ) : (
+                          <span className="text-xs text-text-secondary">—</span>
+                        )}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link to={`/produits/${produit.id}`} className="hover:underline">
+                        <span className="font-medium text-text-primary">{produit.nom}</span>
+                        {produit.reference && (
+                          <span className="ml-2 text-xs text-text-secondary">{produit.reference}</span>
+                        )}
+                      </Link>
+                      {produit.archive && (
+                        <span className="ml-2">
+                          <Badge variant="neutral">Archivé</Badge>
+                        </span>
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-text-secondary">
+                      {[produit.categorie?.nom, produit.marque?.nom].filter(Boolean).join(' · ') || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-text-secondary">
+                      {produit.prixVente !== null ? `${FORMATEUR_GNF.format(produit.prixVente)} GNF` : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-text-secondary">
+                      {produit.seuilAlerte}
+                      {produit.uniteMesure ? ` ${produit.uniteMesure.toLowerCase()}` : ''}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" onClick={() => navigate(`/produits/${produit.id}`)}>
+                          <Pencil className="size-4" aria-hidden="true" />
+                          <span className="sr-only lg:not-sr-only">Modifier</span>
+                        </Button>
+                        {!produit.archive && (
+                          <Button variant="ghost" onClick={() => setAArchiver(produit)}>
+                            <Archive className="size-4" aria-hidden="true" />
+                            <span className="sr-only lg:not-sr-only">Archiver</span>
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <ul className="divide-y divide-border-subtle md:hidden">
+              {data.map((produit) => (
+                <li key={produit.id} className="flex flex-col gap-2 px-4 py-3">
+                  <Link to={`/produits/${produit.id}`} className="flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-(--radius-button) bg-background">
+                        {produit.photoUrl ? (
+                          <img src={produit.photoUrl} alt="" className="size-full object-cover" />
+                        ) : (
+                          <span className="text-xs text-text-secondary">—</span>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-text-primary">{produit.nom}</p>
+                        {produit.reference && (
+                          <p className="truncate text-sm text-text-secondary">{produit.reference}</p>
+                        )}
+                      </div>
                     </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="font-medium text-text-primary">{produit.nom}</span>
-                    {produit.reference && (
-                      <span className="ml-2 text-xs text-text-secondary">{produit.reference}</span>
-                    )}
-                    {produit.archive && (
-                      <span className="ml-2">
-                        <Badge variant="neutral">Archivé</Badge>
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-text-secondary">
-                    {[produit.categorie?.nom, produit.marque?.nom].filter(Boolean).join(' · ') || '—'}
-                  </td>
-                  <td className="px-4 py-3 text-text-secondary">
-                    {produit.prixVente !== null ? `${FORMATEUR_GNF.format(produit.prixVente)} GNF` : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-text-secondary">
-                    {produit.seuilAlerte}
-                    {produit.uniteMesure ? ` ${produit.uniteMesure.toLowerCase()}` : ''}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" onClick={() => ouvrirEdition(produit)}>
+                    {produit.archive && <Badge variant="neutral">Archivé</Badge>}
+                  </Link>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-text-secondary">
+                      Seuil d’alerte : {produit.seuilAlerte}
+                      {produit.uniteMesure ? ` ${produit.uniteMesure.toLowerCase()}` : ''}
+                    </span>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" onClick={() => navigate(`/produits/${produit.id}`)}>
                         <Pencil className="size-4" aria-hidden="true" />
-                        <span className="sr-only lg:not-sr-only">Modifier</span>
+                        Modifier
                       </Button>
                       {!produit.archive && (
                         <Button variant="ghost" onClick={() => setAArchiver(produit)}>
                           <Archive className="size-4" aria-hidden="true" />
-                          <span className="sr-only lg:not-sr-only">Archiver</span>
+                          Archiver
                         </Button>
                       )}
                     </div>
-                  </td>
-                </tr>
+                  </div>
+                </li>
               ))}
-            </tbody>
-          </table>
-
-          <ul className="divide-y divide-border-subtle md:hidden">
-            {data.map((produit) => (
-              <li key={produit.id} className="flex flex-col gap-2 px-4 py-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-(--radius-button) bg-background">
-                      {produit.photoUrl ? (
-                        <img src={produit.photoUrl} alt="" className="size-full object-cover" />
-                      ) : (
-                        <span className="text-xs text-text-secondary">—</span>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-text-primary">{produit.nom}</p>
-                      {produit.reference && (
-                        <p className="truncate text-sm text-text-secondary">{produit.reference}</p>
-                      )}
-                    </div>
-                  </div>
-                  {produit.archive && <Badge variant="neutral">Archivé</Badge>}
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-text-secondary">Seuil d’alerte : {produit.seuilAlerte}</span>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" onClick={() => ouvrirEdition(produit)}>
-                      <Pencil className="size-4" aria-hidden="true" />
-                      Modifier
-                    </Button>
-                    {!produit.archive && (
-                      <Button variant="ghost" onClick={() => setAArchiver(produit)}>
-                        <Archive className="size-4" aria-hidden="true" />
-                        Archiver
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+            </ul>
           </>
         ) : rechercheActive ? (
-          // État distinct de l'état vide global : une recherche sans
-          // résultat n'appelle pas la même action.
           <EmptyState
             titre="Aucun résultat"
             description={`Aucun produit ne correspond à « ${rechercheRetardee} ».`}
@@ -391,122 +257,10 @@ export function ProduitsPage() {
           <EmptyState
             titre="Aucun produit"
             description="Créez votre premier produit pour commencer à suivre son stock."
-            action={<Button onClick={ouvrirCreation}>Créer un produit</Button>}
+            action={<Button onClick={() => navigate('/produits/nouveau')}>Créer un produit</Button>}
           />
         )}
       </Card>
-
-      <Drawer
-        ouvert={drawerOuvert}
-        onFermer={() => setDrawerOuvert(false)}
-        titre={enEdition ? 'Modifier le produit' : 'Nouveau produit'}
-        description="Le seuil déclenche une alerte lorsque le stock passe en dessous."
-      >
-        <form
-          onSubmit={handleSubmit((valeurs) => enregistrer.mutate(valeurs))}
-          className="flex flex-col gap-4"
-          noValidate
-        >
-          {erreur && <Alert variant="error">{erreur}</Alert>}
-
-          <ImageUploadField label="Photo" valeur={photoUrl} dossier="produits" onChange={setPhotoUrl} />
-
-          <Input label="Nom" error={formState.errors.nom?.message} {...register('nom')} />
-          <Input
-            label="Référence (facultatif)"
-            placeholder="VIS-440"
-            error={formState.errors.reference?.message}
-            {...register('reference')}
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Code-barre (facultatif)"
-              placeholder="3401234567890"
-              error={formState.errors.codeBarre?.message}
-              {...register('codeBarre')}
-            />
-            <Select
-              label="Unité de mesure"
-              options={[
-                { valeur: '', libelle: 'Non précisée' },
-                { valeur: 'Unité', libelle: 'Unité' },
-                { valeur: 'Sac', libelle: 'Sac' },
-                { valeur: 'Barre', libelle: 'Barre' },
-                { valeur: 'Boîte', libelle: 'Boîte' },
-                { valeur: 'Carton', libelle: 'Carton' },
-                { valeur: 'Rouleau', libelle: 'Rouleau' },
-                { valeur: 'Paire', libelle: 'Paire' },
-                { valeur: 'Litre', libelle: 'Litre' },
-                { valeur: 'Kg', libelle: 'Kg' },
-                { valeur: 'Mètre', libelle: 'Mètre' },
-                { valeur: 'm²', libelle: 'm²' },
-              ]}
-              {...register('uniteMesure')}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Select label="Catégorie" options={optionsCategories} {...register('categorieId')} />
-            <Select label="Marque" options={optionsMarques} {...register('marqueId')} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Prix d’achat (GNF)"
-              type="number"
-              min={0}
-              error={formState.errors.prixAchat?.message}
-              {...register('prixAchat', { valueAsNumber: true })}
-            />
-            <Input
-              label="Prix de vente (GNF)"
-              type="number"
-              min={0}
-              error={formState.errors.prixVente?.message}
-              {...register('prixVente', { valueAsNumber: true })}
-            />
-          </div>
-          <Input
-            label="Taux de TVA (%)"
-            type="number"
-            min={0}
-            max={100}
-            hint="Ex. 18 pour 18%."
-            error={formState.errors.tauxTva?.message}
-            {...register('tauxTva', { valueAsNumber: true })}
-          />
-
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="description" className="text-sm font-medium text-text-primary">
-              Description (facultatif)
-            </label>
-            <textarea
-              id="description"
-              rows={3}
-              {...register('description')}
-              className="rounded-(--radius-button) border border-border-subtle bg-surface px-3 py-2 text-sm text-text-primary"
-            />
-          </div>
-
-          <Input
-            label="Seuil d’alerte"
-            type="number"
-            min={0}
-            hint="0 signifie qu’une alerte ne sera déclenchée qu’en cas de rupture."
-            error={formState.errors.seuilAlerte?.message}
-            {...register('seuilAlerte', { valueAsNumber: true })}
-          />
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setDrawerOuvert(false)}>
-              Annuler
-            </Button>
-            <Button type="submit" loading={enregistrer.isPending}>
-              Enregistrer
-            </Button>
-          </div>
-        </form>
-      </Drawer>
 
       <Modal
         ouvert={aArchiver !== null}

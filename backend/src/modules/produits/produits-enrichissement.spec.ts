@@ -23,6 +23,10 @@ describe('Produits — champs enrichis (prix, TVA, code-barre, catégorie, marqu
       const utilisateurs = await prisma.utilisateur.findMany({ where: { email: { in: emailsCrees } } });
       const utilisateurIds = utilisateurs.map((u) => u.id);
       const entrepriseIds = utilisateurs.map((u) => u.entrepriseId);
+      await prisma.fournisseurProduit.deleteMany({
+        where: { fournisseur: { entrepriseId: { in: entrepriseIds } } },
+      });
+      await prisma.fournisseur.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
       await prisma.produit.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
       await prisma.categorie.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
       await prisma.marque.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
@@ -202,5 +206,29 @@ describe('Produits — champs enrichis (prix, TVA, code-barre, catégorie, marqu
 
     expect(response.status).toBe(200);
     expect(response.body.categorie.nom).toBe('Test Détail');
+  });
+
+  it('GET /produits/:id inclut les fournisseurs associés', async () => {
+    const accessToken = await creerAdmin();
+    const fournisseur = await request(app.getHttpServer())
+      .post('/fournisseurs')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ nom: 'Fournisseur Détail' });
+    const creation = await request(app.getHttpServer())
+      .post('/produits')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ nom: 'Produit Avec Fournisseur' });
+    await request(app.getHttpServer())
+      .post(`/fournisseurs/${fournisseur.body.id}/produits`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ produitId: creation.body.id });
+
+    const response = await request(app.getHttpServer())
+      .get(`/produits/${creation.body.id}`)
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.fournisseursAssocies).toHaveLength(1);
+    expect(response.body.fournisseursAssocies[0].fournisseur.nom).toBe('Fournisseur Détail');
   });
 });
