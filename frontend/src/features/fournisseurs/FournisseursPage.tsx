@@ -13,6 +13,8 @@ import { Drawer } from '@/components/ui/Drawer';
 import { ImageUploadField } from '@/components/patterns/ImageUploadField';
 import { Card, PageHeader } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
+import { cn } from '@/lib/cn';
+import { FournisseurDetail } from './FournisseurDetail';
 
 interface Fournisseur {
   id: string;
@@ -36,16 +38,48 @@ const schema = z.object({
 
 type Formulaire = z.infer<typeof schema>;
 
+function ligneResume(fournisseur: Fournisseur): string {
+  return (
+    [
+      fournisseur.emailContact,
+      fournisseur.telephone,
+      fournisseur.delaiLivraisonJours !== null ? `${fournisseur.delaiLivraisonJours} j` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ') || 'Aucun contact renseigné'
+  );
+}
+
+function AvatarFournisseur({ fournisseur }: { fournisseur: Fournisseur }) {
+  return (
+    <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-background">
+      {fournisseur.photoUrl ? (
+        <img src={fournisseur.photoUrl} alt="" className="size-full object-cover" />
+      ) : (
+        <span className="text-xs text-text-secondary">{fournisseur.nom.slice(0, 2).toUpperCase()}</span>
+      )}
+    </div>
+  );
+}
+
 export function FournisseursPage() {
   const queryClient = useQueryClient();
   const [drawerOuvert, setDrawerOuvert] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined);
+  const [selectionId, setSelectionId] = useState<string | null>(null);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['fournisseurs'],
     queryFn: async () => (await api.get<Fournisseur[]>('/fournisseurs')).data,
   });
+
+  // Vue maître-détail desktop : retombe sur le premier fournisseur de la
+  // liste si rien n'est sélectionné, ou si la sélection a disparu (ex.
+  // fournisseur supprimé) — calculé pendant le rendu plutôt que via un
+  // effet, pour éviter un rendu supplémentaire évitable.
+  const selectionEffective =
+    selectionId && data?.some((f) => f.id === selectionId) ? selectionId : (data?.[0]?.id ?? null);
 
   const { register, handleSubmit, reset, formState } = useForm<Formulaire>({
     resolver: zodResolver(schema),
@@ -62,8 +96,6 @@ export function FournisseursPage() {
     mutationFn: async (valeurs: Formulaire) =>
       api.post('/fournisseurs', {
         nom: valeurs.nom,
-        // Les champs facultatifs vides ne sont pas envoyés : ils doivent
-        // rester nuls en base plutôt que d'être des chaînes vides.
         ...(valeurs.emailContact ? { emailContact: valeurs.emailContact } : {}),
         ...(valeurs.telephone ? { telephone: valeurs.telephone } : {}),
         ...(photoUrl ? { photoUrl } : {}),
@@ -71,9 +103,13 @@ export function FournisseursPage() {
           ? { delaiLivraisonJours: valeurs.delaiLivraisonJours }
           : {}),
       }),
-    onSuccess: () => {
+    onSuccess: (reponse) => {
       queryClient.invalidateQueries({ queryKey: ['fournisseurs'] });
       setDrawerOuvert(false);
+      // Sélectionne directement le fournisseur qu'on vient de créer sur
+      // desktop, plutôt que de laisser l'ancienne sélection en place.
+      const nouveauId = (reponse.data as { id?: string } | undefined)?.id;
+      if (nouveauId) setSelectionId(nouveauId);
     },
     onError: (err) => setErreur(messageErreur(err, 'L’enregistrement a échoué.')),
   });
@@ -93,57 +129,87 @@ export function FournisseursPage() {
 
       {erreur && !drawerOuvert && <Alert variant="error">{erreur}</Alert>}
 
-      <Card>
-        {isLoading ? (
+      {isLoading ? (
+        <Card>
           <LoadingState />
-        ) : isError ? (
+        </Card>
+      ) : isError ? (
+        <Card>
           <ErrorState message={messageErreur(error)} onRetry={() => refetch()} />
-        ) : data && data.length > 0 ? (
-          <ul className="divide-y divide-border-subtle">
-            {data.map((fournisseur) => (
-              <li key={fournisseur.id}>
-                <Link
-                  to={`/fournisseurs/${fournisseur.id}`}
-                  className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-background"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-background">
-                      {fournisseur.photoUrl ? (
-                        <img src={fournisseur.photoUrl} alt="" className="size-full object-cover" />
-                      ) : (
-                        <span className="text-xs text-text-secondary">
-                          {fournisseur.nom.slice(0, 2).toUpperCase()}
-                        </span>
+        </Card>
+      ) : data && data.length > 0 ? (
+        <>
+          {/* Desktop : vue maître-détail, liste + fiche sur le même écran */}
+          <div className="hidden gap-6 md:flex">
+            <Card className="h-fit w-80 shrink-0 overflow-hidden">
+              <div className="border-b border-border-subtle px-4 py-3">
+                <p className="text-sm font-medium text-text-primary">{data.length} partenaire(s)</p>
+              </div>
+              <ul className="max-h-[calc(100vh-14rem)] divide-y divide-border-subtle overflow-y-auto">
+                {data.map((fournisseur) => (
+                  <li key={fournisseur.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectionId(fournisseur.id)}
+                      className={cn(
+                        'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors',
+                        selectionEffective === fournisseur.id ? 'bg-primary/10' : 'hover:bg-background',
                       )}
+                    >
+                      <AvatarFournisseur fournisseur={fournisseur} />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-text-primary">{fournisseur.nom}</p>
+                        <p className="truncate text-xs text-text-secondary">{ligneResume(fournisseur)}</p>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+
+            <div className="min-w-0 flex-1">
+              {selectionEffective ? (
+                <FournisseurDetail fournisseurId={selectionEffective} />
+              ) : (
+                <Card>
+                  <EmptyState titre="Sélectionnez un fournisseur" description="Choisissez un contact dans la liste." />
+                </Card>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile : liste seule, navigation vers la fiche en page dédiée */}
+          <Card className="md:hidden">
+            <ul className="divide-y divide-border-subtle">
+              {data.map((fournisseur) => (
+                <li key={fournisseur.id}>
+                  <Link
+                    to={`/fournisseurs/${fournisseur.id}`}
+                    className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-background"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <AvatarFournisseur fournisseur={fournisseur} />
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-text-primary">{fournisseur.nom}</p>
+                        <p className="truncate text-sm text-text-secondary">{ligneResume(fournisseur)}</p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                    <p className="truncate font-medium text-text-primary">{fournisseur.nom}</p>
-                    <p className="truncate text-sm text-text-secondary">
-                      {[
-                        fournisseur.emailContact,
-                        fournisseur.telephone,
-                        fournisseur.delaiLivraisonJours !== null
-                          ? `${fournisseur.delaiLivraisonJours} j`
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ') || 'Aucun contact renseigné'}
-                    </p>
-                  </div>
-                  </div>
-                  <ChevronRight className="size-5 shrink-0 text-text-secondary" aria-hidden="true" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
+                    <ChevronRight className="size-5 shrink-0 text-text-secondary" aria-hidden="true" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </>
+      ) : (
+        <Card>
           <EmptyState
             titre="Aucun fournisseur"
             description="Ajoutez un fournisseur pour suivre vos approvisionnements."
             action={<Button onClick={ouvrirCreation}>Créer un fournisseur</Button>}
           />
-        )}
-      </Card>
+        </Card>
+      )}
 
       <Drawer
         ouvert={drawerOuvert}

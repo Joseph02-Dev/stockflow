@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { cn } from '@/lib/cn';
 
 export function PageHeader({
   titre,
@@ -20,9 +21,14 @@ export function PageHeader({
   );
 }
 
-export function Card({ children }: { children: ReactNode }) {
+export function Card({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className="overflow-hidden rounded-(--radius-card) border border-border-subtle bg-surface shadow-sm">
+    <div
+      className={cn(
+        'overflow-hidden rounded-(--radius-card) border border-border-subtle bg-surface shadow-sm',
+        className,
+      )}
+    >
       {children}
     </div>
   );
