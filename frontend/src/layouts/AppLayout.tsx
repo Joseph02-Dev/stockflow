@@ -21,6 +21,7 @@ import { useSession } from '@/lib/useSession';
 import { cn } from '@/lib/cn';
 import { Badge } from '@/components/ui/Badge';
 import { ProfilModal } from '@/features/profil/ProfilModal';
+import { useSynchronisation } from '@/lib/useSynchronisation';
 
 const sectionPilotage = [
   { to: '/', libelle: 'Tableau de bord', Icone: LayoutDashboard, exact: true },
@@ -114,6 +115,7 @@ export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [profilOuvert, setProfilOuvert] = useState(false);
+  const { statut: statutSynchro, nombreEnAttente } = useSynchronisation();
   const [plusOuvert, setPlusOuvert] = useState(false);
 
   const surParametres = location.pathname === '/parametres';
@@ -202,12 +204,33 @@ export function AppLayout() {
         </nav>
 
         <div className="p-3">
-          {/* Indicateur visuel seulement pour l'instant — la synchronisation
-              hors-ligne réelle n'est pas encore implémentée. */}
-          <div className="flex items-center gap-2 rounded-(--radius-button) bg-navy-light px-3 py-2.5 text-xs text-navy-text">
-            <span className="inline-flex size-2 shrink-0 rounded-full bg-success" aria-hidden="true" />
+          <div
+            className={cn(
+              'flex items-center gap-2 rounded-(--radius-button) px-3 py-2.5 text-xs',
+              statutSynchro === 'hors-ligne' ? 'bg-error/20 text-white' : 'bg-navy-light text-navy-text',
+            )}
+          >
+            <span
+              className={cn(
+                'inline-flex size-2 shrink-0 rounded-full',
+                statutSynchro === 'hors-ligne'
+                  ? 'bg-error'
+                  : statutSynchro === 'synchronisation'
+                    ? 'animate-pulse bg-warning'
+                    : 'bg-success',
+              )}
+              aria-hidden="true"
+            />
             <Wifi className="size-3.5 shrink-0" aria-hidden="true" />
-            <span className="truncate">En ligne</span>
+            <span className="truncate">
+              {statutSynchro === 'hors-ligne'
+                ? nombreEnAttente > 0
+                  ? `Hors ligne · ${nombreEnAttente} en attente`
+                  : 'Hors ligne'
+                : statutSynchro === 'synchronisation'
+                  ? 'Synchronisation…'
+                  : 'En ligne'}
+            </span>
           </div>
         </div>
       </aside>

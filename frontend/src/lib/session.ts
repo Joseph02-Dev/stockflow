@@ -61,6 +61,14 @@ export function setSession(session: Session): void {
 export function clearSession(): void {
   localStorage.removeItem(CLE_SESSION);
   abonnes.forEach((notifier) => notifier());
+
+  // Le cache du service worker ne distingue pas les utilisateurs (les
+  // réponses API sont mises en cache par URL, sans tenir compte du token
+  // qui les a produites). Sans ce nettoyage, un second compte connecté
+  // sur le même appareil pourrait voir les données hors-ligne du premier.
+  if ('caches' in window) {
+    caches.keys().then((cles) => cles.forEach((cle) => caches.delete(cle)));
+  }
 }
 
 /** Permet aux composants React de réagir aux changements de session. */

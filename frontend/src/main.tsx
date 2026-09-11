@@ -25,3 +25,16 @@ createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </StrictMode>,
 );
+
+// Enregistré après le rendu initial, pour ne jamais retarder le premier
+// affichage. L'enregistrement peut échouer silencieusement (navigation
+// privée stricte, navigateur sans support) : l'application reste
+// pleinement fonctionnelle en ligne dans tous les cas, seul le mode
+// hors-ligne serait alors indisponible.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // Volontairement silencieux — voir commentaire ci-dessus.
+    });
+  });
+}

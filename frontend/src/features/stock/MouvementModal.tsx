@@ -3,8 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowDownToLine, ArrowUpFromLine, ArrowRightLeft } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, ArrowRightLeft, WifiOff } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
+import { ajouterMouvementEnAttente } from '@/lib/mouvementsHorsLigne';
+import { useEnLigne } from '@/lib/useEnLigne';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -40,6 +42,8 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
   const queryClient = useQueryClient();
   const [type, setType] = useState<TypeMouvement>('ENTREE');
   const [erreur, setErreur] = useState<string | null>(null);
+  const [enregistreLocalement, setEnregistreLocalement] = useState(false);
+  const enLigne = useEnLigne();
 
   const produits = useQuery({
     queryKey: ['produits', '', false],
@@ -79,40 +83,76 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
     emplacementSourceChoisi === emplacementDestinationChoisi;
 
   const enregistrer = useMutation({
-    mutationFn: async (valeurs: Formulaire) => {
-      if (type === 'ENTREE') {
-        return api.post('/mouvements/entree', {
-          produitId: valeurs.produitId,
-          emplacementId: valeurs.emplacementId,
-          quantite: valeurs.quantite,
-          ...(valeurs.fournisseurId ? { fournisseurId: valeurs.fournisseurId } : {}),
-        });
+    mutationFn: async (valeurs: Formulaire): Promise<{ horsLigne: boolean }> => {
+      const route =
+        type === 'ENTREE' ? '/mouvements/entree' : type === 'SORTIE' ? '/mouvements/sortie' : '/mouvements/transfert';
+      const typeFile = type === 'ENTREE' ? 'entree' : type === 'SORTIE' ? 'sortie' : 'transfert';
+      const corps =
+        type === 'ENTREE'
+          ? {
+              produitId: valeurs.produitId,
+              emplacementId: valeurs.emplacementId,
+              quantite: valeurs.quantite,
+              ...(valeurs.fournisseurId ? { fournisseurId: valeurs.fournisseurId } : {}),
+            }
+          : type === 'SORTIE'
+            ? { produitId: valeurs.produitId, emplacementId: valeurs.emplacementId, quantite: valeurs.quantite }
+            : {
+                produitId: valeurs.produitId,
+                emplacementSourceId: valeurs.emplacementId,
+                emplacementDestinationId: valeurs.emplacementDestinationId,
+                quantite: valeurs.quantite,
+              };
+      const nomProduit = produits.data?.find((p) => p.id === valeurs.produitId)?.nom ?? 'Produit';
+
+      // Hors-ligne détecté avant même d'essayer : inutile d'attendre un
+      // délai d'expiration réseau pour arriver à la même conclusion.
+      if (!enLigne) {
+        ajouterMouvementEnAttente(typeFile, corps, nomProduit);
+        return { horsLigne: true };
       }
-      if (type === 'SORTIE') {
-        return api.post('/mouvements/sortie', {
-          produitId: valeurs.produitId,
-          emplacementId: valeurs.emplacementId,
-          quantite: valeurs.quantite,
-        });
+
+      try {
+        await api.post(route, corps);
+        return { horsLigne: false };
+      } catch (erreur) {
+        // Distingue une vraie coupure réseau (la requête n'a jamais
+        // atteint le serveur, donc pas de `response`) d'une erreur
+        // métier légitime (ex. 409 stock insuffisant, réponse bien
+        // reçue) — seule la première doit être mise en file d'attente,
+        // la seconde doit rester une erreur visible immédiatement.
+        const estEchecReseau =
+          erreur instanceof Object && 'isAxiosError' in erreur && !(erreur as { response?: unknown }).response;
+        if (estEchecReseau) {
+          ajouterMouvementEnAttente(typeFile, corps, nomProduit);
+          return { horsLigne: true };
+        }
+        throw erreur;
       }
-      return api.post('/mouvements/transfert', {
-        produitId: valeurs.produitId,
-        emplacementSourceId: valeurs.emplacementId,
-        emplacementDestinationId: valeurs.emplacementDestinationId,
-        quantite: valeurs.quantite,
-      });
     },
-    onSuccess: () => {
+    onSuccess: (resultat) => {
       // Un mouvement change le stock, l'historique, les alertes et les
       // indicateurs du dashboard : tout doit être rafraîchi. Un transfert
       // n'affecte jamais les alertes (stock total inchangé), mais on
       // invalide quand même par simplicité — la requête réseau, si elle
       // a lieu, retombera immédiatement sur des données identiques.
+      // Si le mouvement a été mis en file (hors-ligne), ces données
+      // n'ont pas changé : l'invalidation est sans effet visible, ce qui
+      // est correct.
       queryClient.invalidateQueries({ queryKey: ['stock'] });
       queryClient.invalidateQueries({ queryKey: ['mouvements'] });
       queryClient.invalidateQueries({ queryKey: ['alertes'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      onFermer();
+      if (resultat.horsLigne) {
+        // Lu directement depuis le résultat de la mutation, jamais depuis
+        // un état de composant capturé dans la fermeture de ce callback
+        // — un état mis à jour à l'intérieur de mutationFn n'est pas
+        // garanti d'être visible ici au bon moment (fermeture obsolète).
+        setEnregistreLocalement(true);
+        setTimeout(onFermer, 1600);
+      } else {
+        onFermer();
+      }
     },
     onError: (err) => setErreur(messageErreur(err, 'L’enregistrement a échoué.')),
   });
@@ -167,6 +207,17 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
           ))}
         </div>
 
+        {!enLigne && !enregistreLocalement && (
+          <Alert variant="warning">
+            <span className="flex items-center gap-2">
+              <WifiOff className="size-4 shrink-0" aria-hidden="true" />
+              Vous êtes hors-ligne — ce mouvement sera enregistré localement et synchronisé au retour du réseau.
+            </span>
+          </Alert>
+        )}
+        {enregistreLocalement && (
+          <Alert variant="success">Enregistré localement. Synchronisation automatique dès que possible.</Alert>
+        )}
         {erreur && <Alert variant="error">{erreur}</Alert>}
 
         {/* Un mouvement est impossible sans catalogue ni emplacement :
