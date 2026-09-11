@@ -85,11 +85,31 @@ export function ProduitFormPage() {
     queryKey: ['marques'],
     queryFn: async () => (await api.get<ElementReference[]>('/marques')).data,
   });
+  // Uniquement pour pré-remplir le taux de TVA en création — inutile en
+  // édition, où la valeur enregistrée du produit prévaut toujours.
+  const entreprise = useQuery({
+    queryKey: ['entreprise'],
+    queryFn: async () => (await api.get<{ tauxTvaParDefaut: number | null }>('/entreprise')).data,
+    enabled: !enEdition,
+  });
 
-  const { register, handleSubmit, reset, watch, formState } = useForm<Formulaire>({
+  const { register, handleSubmit, reset, setValue, watch, formState } = useForm<Formulaire>({
     resolver: zodResolver(schema),
     defaultValues: { nom: '', seuilAlerte: 0 },
   });
+
+  // Pré-remplit le taux de TVA depuis le défaut de l'entreprise — en
+  // création seulement, et seulement si la personne n'a encore rien
+  // saisi dans ce champ (ne doit jamais écraser une valeur déjà tapée).
+  useEffect(() => {
+    if (enEdition || entreprise.data?.tauxTvaParDefaut === undefined || entreprise.data?.tauxTvaParDefaut === null) {
+      return;
+    }
+    if (!formState.dirtyFields.tauxTva) {
+      setValue('tauxTva', entreprise.data.tauxTvaParDefaut);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entreprise.data, enEdition]);
 
   // Remplit le formulaire une fois le produit chargé (mode édition).
   useEffect(() => {

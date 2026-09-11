@@ -28,8 +28,22 @@ const abonnes = new Set<() => void>();
 let cacheBrut: string | null = null;
 let cacheSession: Session | null = null;
 
+/**
+ * "Rester connectée" (case à cocher de l'écran de connexion) détermine
+ * RÉELLEMENT où la session est stockée, pas seulement visuellement :
+ * - cochée (par défaut) → localStorage, survit à la fermeture du
+ *   navigateur, comme avant.
+ * - décochée → sessionStorage, effacée à la fermeture de l'onglet ou du
+ *   navigateur — utile sur un poste partagé.
+ * getSession() vérifie les deux emplacements, au cas où l'un contiendrait
+ * une session d'une précédente visite avec l'autre choix.
+ */
+function lireBrut(): string | null {
+  return localStorage.getItem(CLE_SESSION) ?? sessionStorage.getItem(CLE_SESSION);
+}
+
 export function getSession(): Session | null {
-  const brut = localStorage.getItem(CLE_SESSION);
+  const brut = lireBrut();
   if (brut === cacheBrut) return cacheSession;
 
   cacheBrut = brut;
@@ -43,6 +57,7 @@ export function getSession(): Session | null {
     // Session corrompue : on la purge plutôt que de laisser
     // l'application dans un état incohérent.
     localStorage.removeItem(CLE_SESSION);
+    sessionStorage.removeItem(CLE_SESSION);
     cacheBrut = null;
     cacheSession = null;
   }
@@ -53,13 +68,32 @@ export function getAccessToken(): string | null {
   return getSession()?.accessToken ?? null;
 }
 
-export function setSession(session: Session): void {
-  localStorage.setItem(CLE_SESSION, JSON.stringify(session));
+/**
+ * Indique si la session actuelle est stockée dans localStorage (donc
+ * "Rester connectée" était coché) — utilisé par les écrans qui mettent à
+ * jour une session déjà ouverte (profil, entreprise, rôle) pour ne pas
+ * forcer silencieusement un retour à localStorage si la personne avait
+ * choisi sessionStorage.
+ */
+export function sessionActuelleEstPersistante(): boolean {
+  return localStorage.getItem(CLE_SESSION) !== null;
+}
+
+export function setSession(session: Session, resterConnecte = true): void {
+  const serialise = JSON.stringify(session);
+  if (resterConnecte) {
+    localStorage.setItem(CLE_SESSION, serialise);
+    sessionStorage.removeItem(CLE_SESSION);
+  } else {
+    sessionStorage.setItem(CLE_SESSION, serialise);
+    localStorage.removeItem(CLE_SESSION);
+  }
   abonnes.forEach((notifier) => notifier());
 }
 
 export function clearSession(): void {
   localStorage.removeItem(CLE_SESSION);
+  sessionStorage.removeItem(CLE_SESSION);
   abonnes.forEach((notifier) => notifier());
 
   // Le cache du service worker ne distingue pas les utilisateurs (les

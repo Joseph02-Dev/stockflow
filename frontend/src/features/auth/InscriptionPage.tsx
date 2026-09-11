@@ -3,7 +3,19 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Building2, CheckCircle2, Mail, MapPin, ShieldCheck, User } from 'lucide-react';
+import {
+  Briefcase,
+  Building2,
+  CheckCircle2,
+  Hammer,
+  Mail,
+  MapPin,
+  Plus,
+  ShieldCheck,
+  ShoppingBag,
+  User,
+  X,
+} from 'lucide-react';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -12,6 +24,7 @@ import { ChampMotDePasse } from './ChampMotDePasse';
 import { IndicateurForceMotDePasse } from './IndicateurForceMotDePasse';
 import { api, messageErreur } from '@/lib/api';
 import { getSession, setSession } from '@/lib/session';
+import { cn } from '@/lib/cn';
 import type { Session } from '@/lib/session';
 
 const schemaCompte = z.object({
@@ -21,23 +34,27 @@ const schemaCompte = z.object({
   password: z.string().min(8, 'Le mot de passe doit contenir au moins 8 caractères.'),
 });
 
-const schemaEmplacement = z.object({
-  nom: z.string().min(2, 'Le nom de l’emplacement doit contenir au moins 2 caractères.'),
-  adresse: z.string().optional(),
-});
-
 type FormulaireCompte = z.infer<typeof schemaCompte>;
-type FormulaireEmplacement = z.infer<typeof schemaEmplacement>;
+
+const SECTEURS = [
+  { valeur: 'MATERIAUX', libelle: 'Matériaux', Icone: Building2 },
+  { valeur: 'COMMERCE', libelle: 'Commerce', Icone: ShoppingBag },
+  { valeur: 'ARTISANAT', libelle: 'Artisanat', Icone: Hammer },
+  { valeur: 'AUTRE', libelle: 'Autre', Icone: Briefcase },
+] as const;
+
+type Secteur = (typeof SECTEURS)[number]['valeur'];
 
 const ETAPES = [
   { numero: 1, titre: 'Compte administrateur', description: 'Nom de l’entreprise, votre identité et vos accès.' },
-  { numero: 2, titre: 'Premier emplacement', description: 'Où stockez-vous vos produits.' },
+  { numero: 2, titre: 'Votre activité', description: 'Secteur, emplacements et TVA par défaut.' },
 ];
 
 export function InscriptionPage() {
   const navigate = useNavigate();
   const [etape, setEtape] = useState<1 | 2>(1);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [envoiEnCours, setEnvoiEnCours] = useState(false);
 
   // Évalué une seule fois au montage : un utilisateur déjà connecté n'a
   // rien à faire ici et repart vers le dashboard. En revanche, la session
@@ -46,8 +63,15 @@ export function InscriptionPage() {
   const [dejaConnecteAuMontage] = useState(() => getSession() !== null);
 
   const formCompte = useForm<FormulaireCompte>({ resolver: zodResolver(schemaCompte) });
-  const formEmplacement = useForm<FormulaireEmplacement>({ resolver: zodResolver(schemaEmplacement) });
   const motDePasseSaisi = useWatch({ control: formCompte.control, name: 'password' }) ?? '';
+
+  // Étape 2 : pas un formulaire react-hook-form classique — une sélection
+  // de puces et une liste dynamique s'y prêtent mieux qu'un schéma de
+  // validation champ par champ.
+  const [secteurActivite, setSecteurActivite] = useState<Secteur | null>(null);
+  const [emplacements, setEmplacements] = useState<string[]>([]);
+  const [nouvelEmplacement, setNouvelEmplacement] = useState('');
+  const [tauxTvaParDefaut, setTauxTvaParDefaut] = useState<0 | 18 | null>(18);
 
   async function creerCompte(valeurs: FormulaireCompte) {
     setErreur(null);
@@ -60,16 +84,49 @@ export function InscriptionPage() {
     }
   }
 
-  async function creerEmplacement(valeurs: FormulaireEmplacement) {
+  function ajouterEmplacement() {
+    const nom = nouvelEmplacement.trim();
+    if (!nom) return;
+    if (emplacements.includes(nom)) {
+      setNouvelEmplacement('');
+      return;
+    }
+    setEmplacements((liste) => [...liste, nom]);
+    setNouvelEmplacement('');
+  }
+
+  function retirerEmplacement(nom: string) {
+    setEmplacements((liste) => liste.filter((e) => e !== nom));
+  }
+
+  async function terminerInscription() {
     setErreur(null);
+    if (emplacements.length === 0) {
+      setErreur('Ajoutez au moins un emplacement de stock.');
+      return;
+    }
+    setEnvoiEnCours(true);
     try {
-      await api.post('/emplacements', {
-        nom: valeurs.nom,
-        ...(valeurs.adresse ? { adresse: valeurs.adresse } : {}),
-      });
+      // L'entreprise existe déjà (créée à l'étape 1) : secteur et TVA
+      // sont une mise à jour partielle, pas une nouvelle création.
+      if (secteurActivite || tauxTvaParDefaut !== null) {
+        await api.patch('/entreprise', {
+          ...(secteurActivite ? { secteurActivite } : {}),
+          ...(tauxTvaParDefaut !== null ? { tauxTvaParDefaut } : {}),
+        });
+      }
+      // Créés séquentiellement plutôt qu'en parallèle : en cas d'échec
+      // partiel, l'ordre reste prévisible et le message d'erreur clair
+      // (pas de promesses concurrentes dont on ne sait plus laquelle a
+      // échoué).
+      for (const nom of emplacements) {
+        await api.post('/emplacements', { nom });
+      }
       navigate('/', { replace: true });
     } catch (error) {
-      setErreur(messageErreur(error, 'La création de l’emplacement a échoué.'));
+      setErreur(messageErreur(error, 'La création a échoué.'));
+    } finally {
+      setEnvoiEnCours(false);
     }
   }
 
@@ -85,8 +142,8 @@ export function InscriptionPage() {
         </h2>
         <p className="mt-3 text-sm text-navy-text">
           {etape === 1
-            ? 'Vous créez d’abord votre compte administrateur, puis vous indiquez où vous stockez vos produits.'
-            : 'Un dernier champ, et vous accédez directement à votre tableau de bord.'}
+            ? 'Vous créez d’abord votre compte administrateur, puis vous décrivez votre activité et vos emplacements.'
+            : 'Ces réglages définissent vos catégories et vos alertes par défaut.'}
         </p>
       </div>
       <ul className="flex flex-col gap-1">
@@ -123,33 +180,115 @@ export function InscriptionPage() {
   if (etape === 2) {
     return (
       <AuthLayout
-        titre="Votre premier emplacement"
-        description="Un dépôt, une boutique — vous pourrez en ajouter d’autres ensuite."
-        etape={{ actuelle: 2, total: 2, libelle: 'Compte administrateur' }}
+        titre="Votre activité"
+        description="Ces réglages définissent vos catégories et vos alertes par défaut."
+        etape={{ actuelle: 2, total: 2, libelle: 'Votre activité' }}
         panneauGauche={panneauGauche}
       >
-        <form onSubmit={formEmplacement.handleSubmit(creerEmplacement)} className="flex flex-col gap-4" noValidate>
+        <div className="flex flex-col gap-4">
           {erreur && <Alert variant="error">{erreur}</Alert>}
 
-          <Input
-            label="Nom de l’emplacement"
-            placeholder="Entrepôt principal"
-            autoComplete="off"
-            icone={<MapPin className="size-4" aria-hidden="true" />}
-            error={formEmplacement.formState.errors.nom?.message}
-            {...formEmplacement.register('nom')}
-          />
-          <Input
-            label="Adresse (facultatif)"
-            autoComplete="off"
-            error={formEmplacement.formState.errors.adresse?.message}
-            {...formEmplacement.register('adresse')}
-          />
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-text-primary">Secteur d’activité</span>
+            <div className="grid grid-cols-2 gap-2">
+              {SECTEURS.map(({ valeur, libelle, Icone }) => (
+                <button
+                  key={valeur}
+                  type="button"
+                  onClick={() => setSecteurActivite(valeur)}
+                  aria-pressed={secteurActivite === valeur}
+                  className={cn(
+                    'flex items-center gap-2 rounded-(--radius-button) border px-3 py-2 text-sm font-medium transition-colors',
+                    secteurActivite === valeur
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border-subtle text-text-secondary hover:bg-background',
+                  )}
+                >
+                  <Icone className="size-4 shrink-0" aria-hidden="true" />
+                  {libelle}
+                </button>
+              ))}
+            </div>
+          </div>
 
-          <Button type="submit" loading={formEmplacement.formState.isSubmitting} className="mt-2 w-full">
-            Terminer
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-text-primary">Emplacements de stock</span>
+            {emplacements.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {emplacements.map((nom) => (
+                  <span
+                    key={nom}
+                    className="flex items-center gap-1.5 rounded-full bg-primary/10 py-1 pr-1.5 pl-3 text-sm font-medium text-primary"
+                  >
+                    {nom}
+                    <button
+                      type="button"
+                      onClick={() => retirerEmplacement(nom)}
+                      aria-label={`Retirer ${nom}`}
+                      className="rounded-full p-0.5 hover:bg-primary/20"
+                    >
+                      <X className="size-3.5" aria-hidden="true" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Input
+                label=""
+                placeholder="Dépôt Madina"
+                autoComplete="off"
+                icone={<MapPin className="size-4" aria-hidden="true" />}
+                value={nouvelEmplacement}
+                onChange={(event) => setNouvelEmplacement(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    ajouterEmplacement();
+                  }
+                }}
+              />
+              <Button type="button" variant="secondary" onClick={ajouterEmplacement}>
+                <Plus className="size-4" aria-hidden="true" />
+                Ajouter
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium text-text-primary">Devise</span>
+              <div className="flex h-9 items-center rounded-(--radius-button) border border-border-subtle bg-background px-3 text-sm text-text-secondary">
+                GNF · Franc guinéen
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium text-text-primary">TVA par défaut</span>
+              <div className="flex gap-2">
+                {[18, 0].map((valeur) => (
+                  <button
+                    key={valeur}
+                    type="button"
+                    onClick={() => setTauxTvaParDefaut(valeur as 0 | 18)}
+                    aria-pressed={tauxTvaParDefaut === valeur}
+                    className={cn(
+                      'flex-1 rounded-(--radius-button) border px-3 py-2 text-sm font-medium transition-colors',
+                      tauxTvaParDefaut === valeur
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border-subtle text-text-secondary hover:bg-background',
+                    )}
+                  >
+                    {valeur}%
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <Button type="button" loading={envoiEnCours} onClick={terminerInscription} className="mt-2 w-full">
+            Créer mon espace
           </Button>
-        </form>
+        </div>
       </AuthLayout>
     );
   }

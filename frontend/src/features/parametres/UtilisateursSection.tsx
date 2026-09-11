@@ -13,7 +13,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Card } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { useSession } from '@/lib/useSession';
-import { getSession, setSession } from '@/lib/session';
+import { getSession, setSession, sessionActuelleEstPersistante } from '@/lib/session';
 import { Badge } from '@/components/ui/Badge';
 
 interface UtilisateurListe {
@@ -73,7 +73,10 @@ export function UtilisateursSection() {
       // réservées à l'Admin jusqu'à la prochaine connexion.
       const session = getSession();
       if (session && session.utilisateur.id === variables.id) {
-        setSession({ ...session, utilisateur: { ...session.utilisateur, role: variables.role } });
+        setSession(
+          { ...session, utilisateur: { ...session.utilisateur, role: variables.role } },
+          sessionActuelleEstPersistante(),
+        );
       }
     },
     onError: (err) => setErreur(messageErreur(err, 'La modification du rôle a échoué.')),

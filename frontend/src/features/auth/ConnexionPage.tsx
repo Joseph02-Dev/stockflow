@@ -11,6 +11,7 @@ import { Alert } from '@/components/ui/Alert';
 import { ChampMotDePasse } from './ChampMotDePasse';
 import { api, messageErreur } from '@/lib/api';
 import { setSession } from '@/lib/session';
+import { useEnLigne } from '@/lib/useEnLigne';
 import type { Session } from '@/lib/session';
 
 const schema = z.object({
@@ -26,9 +27,16 @@ const REPERES = [
   { Icone: WifiOff, titre: 'Fonctionne en réseau faible', description: 'Saisie hors-ligne, synchronisation au retour.' },
 ];
 
+// Au-delà de ce délai, on affiche un message rassurant plutôt que de
+// laisser un spinner muet — la personne sait que ce n'est pas figé.
+const SEUIL_CONNEXION_LENTE_MS = 2500;
+
 export function ConnexionPage() {
   const navigate = useNavigate();
+  const enLigne = useEnLigne();
   const [erreur, setErreur] = useState<string | null>(null);
+  const [resterConnecte, setResterConnecte] = useState(true);
+  const [connexionLente, setConnexionLente] = useState(false);
   const {
     register,
     handleSubmit,
@@ -37,12 +45,17 @@ export function ConnexionPage() {
 
   async function onSubmit(valeurs: Formulaire) {
     setErreur(null);
+    setConnexionLente(false);
+    const minuteur = setTimeout(() => setConnexionLente(true), SEUIL_CONNEXION_LENTE_MS);
     try {
       const { data } = await api.post<Session>('/auth/login', valeurs);
-      setSession(data);
+      setSession(data, resterConnecte);
       navigate('/', { replace: true });
     } catch (error) {
       setErreur(messageErreur(error, 'Email ou mot de passe incorrect.'));
+    } finally {
+      clearTimeout(minuteur);
+      setConnexionLente(false);
     }
   }
 
@@ -84,6 +97,14 @@ export function ConnexionPage() {
       }
     >
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+        {!enLigne && (
+          <Alert variant="warning">
+            <span className="flex items-center gap-2">
+              <WifiOff className="size-4 shrink-0" aria-hidden="true" />
+              Vous êtes hors-ligne. La connexion nécessite une première synchronisation réseau.
+            </span>
+          </Alert>
+        )}
         {erreur && <Alert variant="error">{erreur}</Alert>}
 
         <Input
@@ -94,15 +115,36 @@ export function ConnexionPage() {
           error={errors.email?.message}
           {...register('email')}
         />
-        <ChampMotDePasse
-          label="Mot de passe"
-          autoComplete="current-password"
-          error={errors.password?.message}
-          {...register('password')}
-        />
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-baseline justify-between">
+            <label htmlFor="password" className="text-sm font-medium text-text-primary">
+              Mot de passe
+            </label>
+            <Link to="/mot-de-passe-oublie" className="text-xs font-medium text-primary hover:underline">
+              Mot de passe oublié ?
+            </Link>
+          </div>
+          <ChampMotDePasse
+            label=""
+            id="password"
+            autoComplete="current-password"
+            error={errors.password?.message}
+            {...register('password')}
+          />
+        </div>
+
+        <label className="flex items-center gap-2 text-sm text-text-secondary">
+          <input
+            type="checkbox"
+            checked={resterConnecte}
+            onChange={(event) => setResterConnecte(event.target.checked)}
+            className="size-4 rounded border-border-subtle text-primary"
+          />
+          Rester connectée sur cet appareil
+        </label>
 
         <Button type="submit" loading={isSubmitting} className="mt-2 w-full">
-          Se connecter
+          {isSubmitting && connexionLente ? 'Connexion lente détectée…' : 'Se connecter'}
         </Button>
       </form>
     </AuthLayout>

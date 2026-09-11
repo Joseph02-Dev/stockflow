@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { Card } from '@/components/patterns/Page';
 import { ErrorState, LoadingState } from '@/components/patterns/States';
-import { getSession, setSession } from '@/lib/session';
+import { getSession, setSession, sessionActuelleEstPersistante } from '@/lib/session';
 
 const schema = z.object({
   nom: z.string().min(2, 'Le nom de l’entreprise doit contenir au moins 2 caractères.'),
@@ -48,7 +48,7 @@ export function EntrepriseSection() {
       // la session : il faut la mettre à jour pour éviter d'afficher une
       // valeur périmée jusqu'à la prochaine connexion.
       const session = getSession();
-      if (session) setSession({ ...session, entreprise });
+      if (session) setSession({ ...session, entreprise }, sessionActuelleEstPersistante());
     },
     onError: (err) => {
       setSucces(false);

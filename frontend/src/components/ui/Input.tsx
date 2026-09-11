@@ -22,9 +22,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={inputId} className="text-sm font-medium text-text-primary">
-        {label}
-      </label>
+      {label && (
+        <label htmlFor={inputId} className="text-sm font-medium text-text-primary">
+          {label}
+        </label>
+      )}
       <div className="relative">
         {icone && (
           <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-secondary">

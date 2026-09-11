@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { Modal } from '@/components/ui/Modal';
 import { ImageUploadField } from '@/components/patterns/ImageUploadField';
-import { getSession, setSession } from '@/lib/session';
+import { getSession, setSession, sessionActuelleEstPersistante } from '@/lib/session';
 import { useSession } from '@/lib/useSession';
 
 export function ProfilModal({ ouvert, onFermer }: { ouvert: boolean; onFermer: () => void }) {
@@ -19,7 +19,7 @@ export function ProfilModal({ ouvert, onFermer }: { ouvert: boolean; onFermer: (
       setErreur(null);
       const courante = getSession();
       if (courante && photoUrl) {
-        setSession({ ...courante, utilisateur: { ...courante.utilisateur, photoUrl } });
+        setSession({ ...courante, utilisateur: { ...courante.utilisateur, photoUrl } }, sessionActuelleEstPersistante());
       }
       onFermer();
     },

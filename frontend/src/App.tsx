@@ -3,6 +3,8 @@ import { AppLayout } from '@/layouts/AppLayout';
 import { ConnexionPage } from '@/features/auth/ConnexionPage';
 import { InscriptionPage } from '@/features/auth/InscriptionPage';
 import { InvitationPage } from '@/features/auth/InvitationPage';
+import { MotDePasseOubliePage } from '@/features/auth/MotDePasseOubliePage';
+import { ReinitialiserMotDePassePage } from '@/features/auth/ReinitialiserMotDePassePage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { ProduitsPage } from '@/features/produits/ProduitsPage';
 import { ProduitFormPage } from '@/features/produits/ProduitFormPage';
@@ -45,6 +47,8 @@ export function App() {
       <Route element={<RoutePublique />}>
         <Route path="/connexion" element={<ConnexionPage />} />
         <Route path="/invitation" element={<InvitationPage />} />
+        <Route path="/mot-de-passe-oublie" element={<MotDePasseOubliePage />} />
+        <Route path="/reinitialiser-mot-de-passe" element={<ReinitialiserMotDePassePage />} />
       </Route>
 
       {/*
