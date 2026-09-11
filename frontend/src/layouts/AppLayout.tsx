@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
   Boxes,
+  ClipboardList,
   LayoutDashboard,
   LogOut,
   MoreHorizontal,
@@ -33,7 +34,10 @@ const sectionPilotage = [
 // l'Admin — /parametres est entièrement protégé côté routage, un
 // Gestionnaire qui cliquerait dessus serait silencieusement renvoyé à
 // l'accueil.
-const sectionReferentiel = [{ to: '/fournisseurs', libelle: 'Fournisseurs', Icone: Truck }];
+const sectionReferentiel = [
+  { to: '/fournisseurs', libelle: 'Fournisseurs', Icone: Truck },
+  { to: '/commandes', libelle: 'Commandes fournisseur', Icone: ClipboardList },
+];
 
 // Les 4 destinations les plus fréquentes uniquement : la barre mobile
 // n'a la place que pour ça sans devenir illisible. Fournisseurs,
@@ -306,6 +310,14 @@ export function AppLayout() {
             >
               <Truck className="size-5 text-text-secondary" aria-hidden="true" />
               Fournisseurs
+            </NavLink>
+            <NavLink
+              to="/commandes"
+              onClick={() => setPlusOuvert(false)}
+              className="flex items-center gap-3 rounded-(--radius-button) px-3 py-3 text-sm font-medium text-text-primary hover:bg-background"
+            >
+              <ClipboardList className="size-5 text-text-secondary" aria-hidden="true" />
+              Commandes fournisseur
             </NavLink>
             {session?.utilisateur.role === 'ADMIN' && (
               <>

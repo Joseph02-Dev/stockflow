@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
-import { CheckCircle2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { CheckCircle2, ShoppingCart } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { Badge } from '@/components/ui/Badge';
-
+import { Button } from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { cn } from '@/lib/cn';
@@ -16,7 +16,13 @@ interface Alerte {
   quantiteAuDeclenchement: number;
   createdAt: string;
   resolvedAt: string | null;
-  produit: { id: string; nom: string; reference: string | null; seuilAlerte: number };
+  produit: {
+    id: string;
+    nom: string;
+    reference: string | null;
+    seuilAlerte: number;
+    fournisseursAssocies: { fournisseur: { id: string; nom: string } }[];
+  };
 }
 
 const filtres = [
@@ -27,12 +33,46 @@ const filtres = [
 type Statut = (typeof filtres)[number]['cle'];
 
 export function AlertesPage() {
+  const navigate = useNavigate();
   const [statut, setStatut] = useState<Statut>('ACTIVE');
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['alertes', statut],
     queryFn: async () => (await api.get<Alerte[]>(`/alertes?statut=${statut}`)).data,
   });
+
+  // Regroupe les alertes actives par fournisseur habituel (première
+  // association du produit, même logique que la fiche produit) — permet
+  // de proposer « Préparer la commande » sans que l'utilisateur ait à
+  // sélectionner les produits un par un.
+  const groupesParFournisseur =
+    statut === 'ACTIVE' && data
+      ? Object.values(
+          data.reduce<Record<string, { fournisseur: { id: string; nom: string }; alertes: Alerte[] }>>(
+            (acc, alerte) => {
+              const fournisseur = alerte.produit.fournisseursAssocies[0]?.fournisseur;
+              if (!fournisseur) return acc;
+              acc[fournisseur.id] ??= { fournisseur, alertes: [] };
+              acc[fournisseur.id].alertes.push(alerte);
+              return acc;
+            },
+            {},
+          ),
+        )
+      : [];
+
+  function preparerCommande(groupe: (typeof groupesParFournisseur)[number]) {
+    navigate('/commandes/nouvelle', {
+      state: {
+        fournisseurId: groupe.fournisseur.id,
+        lignes: groupe.alertes.map((a) => ({
+          produitId: a.produit.id,
+          // Suggestion raisonnable : ramener le stock au seuil, jamais 0.
+          quantiteCommandee: Math.max(a.produit.seuilAlerte - a.quantiteAuDeclenchement, 1),
+        })),
+      },
+    });
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -154,6 +194,28 @@ export function AlertesPage() {
           )}
         </Card>
       </div>
+
+      {groupesParFournisseur.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {groupesParFournisseur.map((groupe) => (
+            <div
+              key={groupe.fournisseur.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-(--radius-card) border border-border-subtle bg-surface px-4 py-3"
+            >
+              <div className="flex items-center gap-3">
+                <ShoppingCart className="size-5 shrink-0 text-primary" aria-hidden="true" />
+                <p className="text-sm text-text-primary">
+                  Regrouper {groupe.alertes.length} alerte{groupe.alertes.length > 1 ? 's' : ''} en une commande{' '}
+                  <span className="font-medium">{groupe.fournisseur.nom}</span>
+                </p>
+              </div>
+              <Button variant="secondary" onClick={() => preparerCommande(groupe)}>
+                Préparer la commande
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {statut === 'ACTIVE' && data && data.length > 0 && (
         <div>
