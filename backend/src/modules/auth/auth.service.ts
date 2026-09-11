@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { randomUUID, randomBytes } from 'node:crypto';
@@ -6,6 +6,7 @@ import ms from 'ms';
 import type { StringValue } from 'ms';
 import { PrismaService } from '../../config/prisma.service.js';
 import { EMAIL_SERVICE, type EmailService } from '../../common/email/email.service.js';
+import { domaineEmailExiste } from '../../common/email/domaine-email.util.js';
 import { hashToken } from './token-hash.util.js';
 import type { RegisterDto } from './dto/register.dto.js';
 import type { LoginDto } from './dto/login.dto.js';
@@ -13,6 +14,8 @@ import type { LogoutDto } from './dto/logout.dto.js';
 import type { AcceptInviteDto } from './dto/accept-invite.dto.js';
 import type { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import type { ResetPasswordDto } from './dto/reset-password.dto.js';
+import type { VerifyEmailDto } from './dto/verify-email.dto.js';
+import type { ResendVerificationDto } from './dto/resend-verification.dto.js';
 
 export interface AuthResult {
   accessToken: string;
@@ -46,18 +49,28 @@ export class AuthService {
    * Règle multi-tenant : cette route est la SEULE à créer une entreprise.
    * Toutes les autres routes de l'application opèrent ensuite dans le
    * périmètre d'une entreprise déjà existante, déduite du token.
+   *
+   * Double opt-in (décision validée) : le compte est créé mais reste
+   * inactif — login() le refusera — tant que la personne n'a pas cliqué
+   * le lien reçu par email. Ne retourne donc plus de tokens directement,
+   * contrairement à avant.
    */
-  async register(dto: RegisterDto): Promise<AuthResult> {
+  async register(dto: RegisterDto): Promise<{ message: string }> {
     const emailExistant = await this.prisma.utilisateur.findUnique({ where: { email: dto.email } });
     if (emailExistant) {
       throw new ConflictException('Un compte existe déjà avec cette adresse email.');
     }
 
+    const domaineValide = await domaineEmailExiste(dto.email);
+    if (!domaineValide) {
+      throw new BadRequestException("Cette adresse email semble invalide : son domaine n'accepte pas de courrier.");
+    }
+
     const passwordHash = await argon2.hash(dto.password);
 
-    const { entreprise, utilisateur } = await this.prisma.$transaction(async (tx) => {
+    const utilisateur = await this.prisma.$transaction(async (tx) => {
       const entreprise = await tx.entreprise.create({ data: { nom: dto.nomEntreprise } });
-      const utilisateur = await tx.utilisateur.create({
+      return tx.utilisateur.create({
         data: {
           entrepriseId: entreprise.id,
           email: dto.email,
@@ -66,10 +79,13 @@ export class AuthService {
           role: 'ADMIN',
         },
       });
-      return { entreprise, utilisateur };
     });
 
-    return this.construireReponseAuth(utilisateur, entreprise);
+    await this.envoyerEmailVerification(utilisateur.id, utilisateur.email);
+
+    return {
+      message: 'Compte créé. Vérifiez votre boîte mail pour activer votre accès.',
+    };
   }
 
   /**
@@ -126,6 +142,15 @@ export class AuthService {
         where: { id: utilisateur.id },
         data: { tentativesEchouees: 0, bloqueJusqua: null },
       });
+    }
+
+    // Vérifié après le mot de passe (pas avant) : un compte non vérifié
+    // ne doit pas être une information exploitable par quelqu'un qui n'a
+    // pas le bon mot de passe.
+    if (!utilisateur.emailVerifieAt) {
+      throw new UnauthorizedException(
+        'Confirmez votre adresse email avant de vous connecter — vérifiez votre boîte mail.',
+      );
     }
 
     const entreprise = await this.prisma.entreprise.findUniqueOrThrow({
@@ -189,6 +214,10 @@ export class AuthService {
           nom: dto.nom,
           passwordHash,
           role: invitation.role,
+          // Recevoir l'invitation à cette adresse ET fournir le jeton
+          // qu'elle contenait prouve déjà la possession de la boîte —
+          // inutile de redemander une confirmation par email.
+          emailVerifieAt: new Date(),
         },
       });
       await tx.invitation.update({ where: { id: invitation.id }, data: { acceptedAt: new Date() } });
@@ -205,6 +234,11 @@ export class AuthService {
    * permettrait d'énumérer les comptes existants (même règle que login()).
    */
   async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {
+    const domaineValide = await domaineEmailExiste(dto.email);
+    if (!domaineValide) {
+      throw new BadRequestException("Cette adresse email semble invalide : son domaine n'accepte pas de courrier.");
+    }
+
     const utilisateur = await this.prisma.utilisateur.findUnique({ where: { email: dto.email } });
 
     if (utilisateur) {
@@ -263,6 +297,65 @@ export class AuthService {
     ]);
 
     return { message: 'Mot de passe réinitialisé. Vous pouvez maintenant vous connecter.' };
+  }
+
+  /**
+   * Confirmation du clic sur le lien reçu par email — active le compte et
+   * connecte directement la personne (évite un aller-retour supplémentaire
+   * vers l'écran de connexion juste après avoir prouvé qui elle est).
+   */
+  async verifyEmail(dto: VerifyEmailDto): Promise<AuthResult> {
+    const tokenHash = hashToken(dto.token);
+    const verification = await this.prisma.verificationEmail.findUnique({ where: { tokenHash } });
+
+    if (!verification || verification.usedAt || verification.expiresAt < new Date()) {
+      throw new NotFoundException('Lien de confirmation invalide, déjà utilisé, ou expiré.');
+    }
+
+    const { utilisateur, entreprise } = await this.prisma.$transaction(async (tx) => {
+      const utilisateur = await tx.utilisateur.update({
+        where: { id: verification.utilisateurId },
+        data: { emailVerifieAt: new Date() },
+      });
+      await tx.verificationEmail.update({ where: { id: verification.id }, data: { usedAt: new Date() } });
+      const entreprise = await tx.entreprise.findUniqueOrThrow({ where: { id: utilisateur.entrepriseId } });
+      return { utilisateur, entreprise };
+    });
+
+    return this.construireReponseAuth(utilisateur, entreprise);
+  }
+
+  /**
+   * Renvoi du lien de confirmation. Même principe de non-fuite que
+   * forgotPassword() : réponse identique que le compte existe, soit déjà
+   * vérifié, soit inconnu.
+   */
+  async resendVerification(dto: ResendVerificationDto): Promise<{ message: string }> {
+    const utilisateur = await this.prisma.utilisateur.findUnique({ where: { email: dto.email } });
+    if (utilisateur && !utilisateur.emailVerifieAt) {
+      await this.envoyerEmailVerification(utilisateur.id, utilisateur.email);
+    }
+    return { message: 'Si un compte en attente de confirmation existe, un nouveau lien vient d’être envoyé.' };
+  }
+
+  private async envoyerEmailVerification(utilisateurId: string, email: string): Promise<void> {
+    const token = randomBytes(32).toString('hex');
+    const expiration = (process.env.EMAIL_VERIFICATION_EXPIRATION ?? '24h') as StringValue;
+
+    await this.prisma.verificationEmail.create({
+      data: {
+        utilisateurId,
+        tokenHash: hashToken(token),
+        expiresAt: new Date(Date.now() + ms(expiration)),
+      },
+    });
+
+    const lienBase = process.env.FRONTEND_URL ?? '';
+    await this.emailService.send({
+      to: email,
+      subject: 'Confirmez votre adresse email StockFlow',
+      body: `Bienvenue sur StockFlow ! Confirmez votre adresse email pour activer votre compte.\n\nLien : ${lienBase}/verifier-email?token=${token}\n\nCe lien expire dans 24 heures.`,
+    });
   }
 
   private async construireReponseAuth(

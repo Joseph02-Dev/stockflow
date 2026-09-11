@@ -5,10 +5,12 @@ import * as argon2 from 'argon2';
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { AppModule } from '../../app.module.js';
 import { PrismaService } from '../../config/prisma.service.js';
+import { DevEmailService } from '../../common/email/dev-email.service.js';
 
 describe('POST /auth/register (intégration réelle, base PostgreSQL)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let devEmail: DevEmailService;
   const emailsCrees: string[] = [];
 
   beforeAll(async () => {
@@ -17,15 +19,18 @@ describe('POST /auth/register (intégration réelle, base PostgreSQL)', () => {
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await app.init();
     prisma = moduleRef.get(PrismaService);
+    devEmail = moduleRef.get(DevEmailService);
   });
 
   afterEach(async () => {
+    devEmail.clear();
     // Nettoyage : supprime les données créées par ce fichier de test pour
     // rester idempotent (rejouable sans collision d'email unique).
     if (emailsCrees.length > 0) {
       const utilisateurs = await prisma.utilisateur.findMany({ where: { email: { in: emailsCrees } } });
       const utilisateurIds = utilisateurs.map((u) => u.id);
       const entrepriseIds = utilisateurs.map((u) => u.entrepriseId);
+      await prisma.verificationEmail.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
       await prisma.refreshToken.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
       await prisma.utilisateur.deleteMany({ where: { email: { in: emailsCrees } } });
       await prisma.entreprise.deleteMany({ where: { id: { in: entrepriseIds } } });
@@ -37,7 +42,7 @@ describe('POST /auth/register (intégration réelle, base PostgreSQL)', () => {
     await app.close();
   });
 
-  it('crée une entreprise + un admin, et retourne des tokens', async () => {
+  it('crée une entreprise + un admin inactif, et envoie un email de confirmation (double opt-in)', async () => {
     const email = `test-auth-${Date.now()}@stockflow.dev`;
     emailsCrees.push(email);
 
@@ -49,12 +54,62 @@ describe('POST /auth/register (intégration réelle, base PostgreSQL)', () => {
     });
 
     expect(response.status).toBe(201);
-    expect(response.body.accessToken).toBeDefined();
-    expect(response.body.refreshToken).toBeDefined();
-    expect(response.body.utilisateur).toMatchObject({ email, nom: 'Alice Dupont', role: 'ADMIN' });
-    expect(response.body.entreprise).toMatchObject({ nom: 'Menuiserie Dupont' });
+    // Ne renvoie plus de tokens : le compte n'est pas actif tant que
+    // l'email n'a pas été confirmé (décision validée).
+    expect(response.body.accessToken).toBeUndefined();
+    expect(response.body.message).toBeDefined();
     // Le mot de passe ne doit JAMAIS apparaître dans la réponse.
     expect(JSON.stringify(response.body)).not.toContain('motdepasse-solide-123');
+
+    const utilisateur = await prisma.utilisateur.findUniqueOrThrow({ where: { email } });
+    expect(utilisateur.emailVerifieAt).toBeNull();
+    expect(utilisateur.role).toBe('ADMIN');
+
+    const emails = devEmail.getSentEmails();
+    expect(emails).toHaveLength(1);
+    expect(emails[0].to).toBe(email);
+    expect(emails[0].body).toContain('verifier-email?token=');
+  });
+
+  it('refuse la connexion tant que l’email n’est pas confirmé', async () => {
+    const email = `test-auth-nonverif-${Date.now()}@stockflow.dev`;
+    emailsCrees.push(email);
+    await request(app.getHttpServer()).post('/auth/register').send({
+      nomEntreprise: 'Entreprise Non Vérifiée',
+      nomAdmin: 'Testeur',
+      email,
+      password: 'motdepasse-solide-123',
+    });
+
+    const connexion = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password: 'motdepasse-solide-123' });
+
+    expect(connexion.status).toBe(401);
+    expect(connexion.body.message).toContain('Confirmez votre adresse email');
+  });
+
+  it('active le compte et connecte automatiquement après clic sur le lien de confirmation', async () => {
+    const email = `test-auth-verif-${Date.now()}@stockflow.dev`;
+    emailsCrees.push(email);
+    await request(app.getHttpServer()).post('/auth/register').send({
+      nomEntreprise: 'Entreprise Vérifiée',
+      nomAdmin: 'Testeur',
+      email,
+      password: 'motdepasse-solide-123',
+    });
+    const lien = devEmail.getSentEmails()[0].body;
+    const token = lien.match(/token=([a-f0-9]+)/)?.[1];
+    expect(token).toBeDefined();
+
+    const verification = await request(app.getHttpServer()).post('/auth/verify-email').send({ token });
+    expect(verification.status).toBe(200);
+    expect(verification.body.accessToken).toBeDefined();
+
+    const connexion = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password: 'motdepasse-solide-123' });
+    expect(connexion.status).toBe(200);
   });
 
   it('hash réellement le mot de passe en base (jamais stocké en clair)', async () => {
@@ -89,6 +144,17 @@ describe('POST /auth/register (intégration réelle, base PostgreSQL)', () => {
       nomEntreprise: 'Entreprise Test',
       nomAdmin: 'Testeur',
       email: 'pas-un-email',
+      password: 'motdepasse-solide-123',
+    });
+
+    expect(response.status).toBe(400);
+  });
+
+  it('rejette avec 400 un domaine email inexistant (pas d’enregistrement MX)', async () => {
+    const response = await request(app.getHttpServer()).post('/auth/register').send({
+      nomEntreprise: 'Entreprise Test',
+      nomAdmin: 'Testeur',
+      email: `test-${Date.now()}@ce-domaine-nexiste-vraiment-pas-xyz123.com`,
       password: 'motdepasse-solide-123',
     });
 

@@ -24,6 +24,7 @@ describe('Produits (PROD-001 à PROD-004) — intégration réelle, base Postgre
       const utilisateurIds = utilisateurs.map((u) => u.id);
       const entrepriseIds = utilisateurs.map((u) => u.entrepriseId);
       await prisma.refreshToken.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
+      await prisma.verificationEmail.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
       await prisma.utilisateur.deleteMany({ where: { email: { in: emailsCrees } } });
       await prisma.produit.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
       await prisma.entreprise.deleteMany({ where: { id: { in: entrepriseIds } } });
@@ -38,13 +39,20 @@ describe('Produits (PROD-001 à PROD-004) — intégration réelle, base Postgre
   async function creerAdmin() {
     const email = `test-prod-${Date.now()}-${Math.random().toString(36).slice(2)}@stockflow.dev`;
     emailsCrees.push(email);
-    const response = await request(app.getHttpServer()).post('/auth/register').send({
+    await request(app.getHttpServer()).post('/auth/register').send({
       nomEntreprise: 'Entreprise Produits',
       nomAdmin: 'Admin Produits',
       email,
       password: 'motdepasse-solide-123',
     });
-    return response.body.accessToken as string;
+    // Compte vérifié directement en base plutôt que de passer par le
+    // vrai lien de confirmation : ce test porte sur autre chose que le
+    // parcours de vérification d'email, qui a ses propres tests dédiés.
+    await prisma.utilisateur.update({ where: { email }, data: { emailVerifieAt: new Date() } });
+    const connexion = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password: 'motdepasse-solide-123' });
+    return connexion.body.accessToken as string;
   }
 
   it('crée un produit avec un seuil par défaut à 0 si non précisé', async () => {

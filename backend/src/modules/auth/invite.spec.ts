@@ -29,6 +29,7 @@ describe("Flux d'invitation AUTH-003 (intégration réelle, base PostgreSQL)", (
       const entrepriseIds = utilisateurs.map((u) => u.entrepriseId);
       await prisma.invitation.deleteMany({ where: { email: { in: emailsCrees } } });
       await prisma.refreshToken.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
+      await prisma.verificationEmail.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
       await prisma.utilisateur.deleteMany({ where: { email: { in: emailsCrees } } });
       await prisma.entreprise.deleteMany({ where: { id: { in: entrepriseIds } } });
       emailsCrees.length = 0;
@@ -42,13 +43,21 @@ describe("Flux d'invitation AUTH-003 (intégration réelle, base PostgreSQL)", (
   async function creerAdmin() {
     const emailAdmin = `test-invite-admin-${Date.now()}-${Math.random().toString(36).slice(2)}@stockflow.dev`;
     emailsCrees.push(emailAdmin);
-    const registerResponse = await request(app.getHttpServer()).post('/auth/register').send({
+    await request(app.getHttpServer()).post('/auth/register').send({
       nomEntreprise: 'Entreprise Invite',
       nomAdmin: 'Admin Test',
       email: emailAdmin,
       password: 'motdepasse-solide-123',
     });
-    return { accessToken: registerResponse.body.accessToken as string, emailAdmin };
+    await prisma.utilisateur.update({ where: { email: emailAdmin }, data: { emailVerifieAt: new Date() } });
+    const connexion = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: emailAdmin, password: 'motdepasse-solide-123' });
+    // register() envoie aussi un email de vérification : on repart d'une
+    // file vide pour que les assertions sur les emails d'invitation,
+    // plus bas, ne voient jamais cet email-là.
+    devEmail.clear();
+    return { accessToken: connexion.body.accessToken as string, emailAdmin };
   }
 
   it("un Admin peut inviter un utilisateur : l'email est envoyé (transport dev)", async () => {

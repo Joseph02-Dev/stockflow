@@ -1,10 +1,11 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import ms from 'ms';
 import type { StringValue } from 'ms';
 import { PrismaService } from '../../config/prisma.service.js';
 import { hashToken } from './token-hash.util.js';
 import { EMAIL_SERVICE, type EmailService } from '../../common/email/email.service.js';
+import { domaineEmailExiste } from '../../common/email/domaine-email.util.js';
 import type { InviteUserDto } from './dto/invite-user.dto.js';
 
 @Injectable()
@@ -70,6 +71,11 @@ export class UsersService {
     const emailDejaUtilise = await this.prisma.utilisateur.findUnique({ where: { email: dto.email } });
     if (emailDejaUtilise) {
       throw new ConflictException('Un compte existe déjà avec cette adresse email.');
+    }
+
+    const domaineValide = await domaineEmailExiste(dto.email);
+    if (!domaineValide) {
+      throw new BadRequestException("Cette adresse email semble invalide : son domaine n'accepte pas de courrier.");
     }
 
     const invitationActive = await this.prisma.invitation.findFirst({

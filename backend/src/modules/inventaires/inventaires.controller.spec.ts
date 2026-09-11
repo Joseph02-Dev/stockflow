@@ -29,6 +29,7 @@ describe('Inventaires — intégration réelle, base PostgreSQL', () => {
       await prisma.mouvement.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
       await prisma.stock.deleteMany({ where: { produit: { entrepriseId: { in: entrepriseIds } } } });
       await prisma.refreshToken.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
+      await prisma.verificationEmail.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
       await prisma.utilisateur.deleteMany({ where: { email: { in: emailsCrees } } });
       await prisma.produit.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
       await prisma.emplacement.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
@@ -44,13 +45,17 @@ describe('Inventaires — intégration réelle, base PostgreSQL', () => {
   async function creerContexte() {
     const email = `test-inventaire-${Date.now()}-${Math.random().toString(36).slice(2)}@stockflow.dev`;
     emailsCrees.push(email);
-    const registerResponse = await request(app.getHttpServer()).post('/auth/register').send({
+    await request(app.getHttpServer()).post('/auth/register').send({
       nomEntreprise: 'Entreprise Inventaire',
       nomAdmin: 'Admin Inventaire',
       email,
       password: 'motdepasse-solide-123',
     });
-    const accessToken = registerResponse.body.accessToken as string;
+    await prisma.utilisateur.update({ where: { email }, data: { emailVerifieAt: new Date() } });
+    const connexion = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password: 'motdepasse-solide-123' });
+    const accessToken = connexion.body.accessToken as string;
 
     const emplacement = await request(app.getHttpServer())
       .post('/emplacements')

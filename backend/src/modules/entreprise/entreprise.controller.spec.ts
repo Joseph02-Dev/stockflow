@@ -29,6 +29,7 @@ describe('GET/PATCH /entreprise (intégration réelle, base PostgreSQL)', () => 
       const entrepriseIds = utilisateurs.map((u) => u.entrepriseId);
       await prisma.invitation.deleteMany({ where: { email: { in: emailsCrees } } });
       await prisma.refreshToken.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
+      await prisma.verificationEmail.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
       await prisma.utilisateur.deleteMany({ where: { email: { in: emailsCrees } } });
       await prisma.emplacement.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
       await prisma.entreprise.deleteMany({ where: { id: { in: entrepriseIds } } });
@@ -43,13 +44,20 @@ describe('GET/PATCH /entreprise (intégration réelle, base PostgreSQL)', () => 
   async function creerAdminEtGestionnaire() {
     const emailAdmin = `test-ent-admin-${Date.now()}-${Math.random().toString(36).slice(2)}@stockflow.dev`;
     emailsCrees.push(emailAdmin);
-    const registerResponse = await request(app.getHttpServer()).post('/auth/register').send({
+    await request(app.getHttpServer()).post('/auth/register').send({
       nomEntreprise: 'Entreprise Config',
       nomAdmin: 'Admin Config',
       email: emailAdmin,
       password: 'motdepasse-solide-123',
     });
-    const accessTokenAdmin = registerResponse.body.accessToken as string;
+    await prisma.utilisateur.update({ where: { email: emailAdmin }, data: { emailVerifieAt: new Date() } });
+    const connexionAdmin = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: emailAdmin, password: 'motdepasse-solide-123' });
+    const accessTokenAdmin = connexionAdmin.body.accessToken as string;
+    // Repart d'une file d'emails vide : seul l'email d'invitation envoyé
+    // ci-dessous doit s'y trouver quand on le lit plus bas.
+    devEmail.clear();
 
     const emailGestionnaire = `test-ent-gest-${Date.now()}-${Math.random().toString(36).slice(2)}@stockflow.dev`;
     emailsCrees.push(emailGestionnaire);

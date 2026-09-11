@@ -102,6 +102,13 @@ model Utilisateur {
   tentativesEchouees Int       @default(0) @map("tentatives_echouees")
   bloqueJusqua       DateTime? @map("bloque_jusqua")
 
+  // Double opt-in : le compte reste inactif (connexion refusée) tant que
+  // ce champ n'est pas renseigné. Un utilisateur invité par email n'a
+  // pas besoin de cette étape — accepter l'invitation prouve déjà la
+  // possession de l'adresse (voir acceptInvite()), emailVerifieAt est
+  // alors renseigné immédiatement.
+  emailVerifieAt DateTime? @map("email_verifie_at")
+
   entreprise                  Entreprise                   @relation(fields: [entrepriseId], references: [id])
   mouvements                  Mouvement[]
   refreshTokens               RefreshToken[]
@@ -110,9 +117,27 @@ model Utilisateur {
   inventaireLignesValidees    InventaireLigne[]
   commandes                   CommandeFournisseur[]
   reinitialisationsMotDePasse ReinitialisationMotDePasse[]
+  verificationsEmail          VerificationEmail[]
 
   @@index([entrepriseId])
   @@map("utilisateur")
+}
+
+/**
+ * Jeton de confirmation d'adresse email — même schéma que ReinitialisationMotDePasse.
+ */
+model VerificationEmail {
+  id            String    @id @default(uuid())
+  utilisateurId String    @map("utilisateur_id")
+  tokenHash     String    @unique @map("token_hash")
+  expiresAt     DateTime  @map("expires_at")
+  usedAt        DateTime? @map("used_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id])
+
+  @@index([utilisateurId])
+  @@map("verification_email")
 }
 
 /**

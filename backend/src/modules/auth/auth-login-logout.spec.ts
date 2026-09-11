@@ -25,6 +25,7 @@ describe('POST /auth/login et /auth/logout (intégration réelle, base PostgreSQ
       const utilisateurIds = utilisateurs.map((u) => u.id);
       const entrepriseIds = utilisateurs.map((u) => u.entrepriseId);
       await prisma.refreshToken.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
+      await prisma.verificationEmail.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
       await prisma.utilisateur.deleteMany({ where: { email: { in: emailsCrees } } });
       await prisma.entreprise.deleteMany({ where: { id: { in: entrepriseIds } } });
       emailsCrees.length = 0;
@@ -45,6 +46,11 @@ describe('POST /auth/login et /auth/logout (intégration réelle, base PostgreSQ
       email,
       password,
     });
+    // Ce fichier teste connexion/déconnexion/verrouillage, pas le
+    // parcours de double opt-in (qui a ses propres tests dédiés dans
+    // auth.controller.spec.ts) : le compte est vérifié directement en
+    // base pour pouvoir se connecter.
+    await prisma.utilisateur.update({ where: { email }, data: { emailVerifieAt: new Date() } });
     return { email, password };
   }
 

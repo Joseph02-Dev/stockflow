@@ -30,6 +30,7 @@ describe('Fournisseurs (FOUR-001, FOUR-002) — intégration réelle, base Postg
       await prisma.mouvement.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
       await prisma.stock.deleteMany({ where: { produit: { entrepriseId: { in: entrepriseIds } } } });
       await prisma.refreshToken.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
+      await prisma.verificationEmail.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
       await prisma.utilisateur.deleteMany({ where: { email: { in: emailsCrees } } });
       await prisma.fournisseur.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
       await prisma.produit.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
@@ -46,13 +47,20 @@ describe('Fournisseurs (FOUR-001, FOUR-002) — intégration réelle, base Postg
   async function creerAdmin() {
     const email = `test-four-${Date.now()}-${Math.random().toString(36).slice(2)}@stockflow.dev`;
     emailsCrees.push(email);
-    const response = await request(app.getHttpServer()).post('/auth/register').send({
+    await request(app.getHttpServer()).post('/auth/register').send({
       nomEntreprise: 'Entreprise Fournisseurs',
       nomAdmin: 'Admin Fournisseurs',
       email,
       password: 'motdepasse-solide-123',
     });
-    return response.body.accessToken as string;
+    // Compte vérifié directement en base plutôt que de passer par le
+    // vrai lien de confirmation : ce test porte sur autre chose que le
+    // parcours de vérification d'email, qui a ses propres tests dédiés.
+    await prisma.utilisateur.update({ where: { email }, data: { emailVerifieAt: new Date() } });
+    const connexion = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password: 'motdepasse-solide-123' });
+    return connexion.body.accessToken as string;
   }
 
   it('crée une fiche fournisseur', async () => {

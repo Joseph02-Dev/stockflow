@@ -29,6 +29,7 @@ describe('Réinitialisation de mot de passe — intégration réelle, base Postg
       const entrepriseIds = utilisateurs.map((u) => u.entrepriseId);
       await prisma.reinitialisationMotDePasse.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
       await prisma.refreshToken.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
+      await prisma.verificationEmail.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
       await prisma.utilisateur.deleteMany({ where: { email: { in: emailsCrees } } });
       await prisma.entreprise.deleteMany({ where: { id: { in: entrepriseIds } } });
       emailsCrees.length = 0;
@@ -49,6 +50,14 @@ describe('Réinitialisation de mot de passe — intégration réelle, base Postg
       email,
       password,
     });
+    // Ce fichier teste la réinitialisation de mot de passe, pas le
+    // parcours de double opt-in (qui a ses propres tests dédiés) : le
+    // compte est vérifié directement en base pour pouvoir se connecter.
+    await prisma.utilisateur.update({ where: { email }, data: { emailVerifieAt: new Date() } });
+    // register() envoie aussi un email de vérification : on repart d'une
+    // file vide pour que les tests de ce fichier (qui portent sur
+    // l'email de réinitialisation) ne le voient jamais.
+    devEmail.clear();
     return { email, password };
   }
 

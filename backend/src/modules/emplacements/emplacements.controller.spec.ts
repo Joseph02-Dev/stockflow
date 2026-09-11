@@ -29,6 +29,7 @@ describe('Emplacements (ENT-002, ENT-003) — intégration réelle, base Postgre
       const entrepriseIds = utilisateurs.map((u) => u.entrepriseId);
       await prisma.invitation.deleteMany({ where: { email: { in: emailsCrees } } });
       await prisma.refreshToken.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
+      await prisma.verificationEmail.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
       await prisma.utilisateur.deleteMany({ where: { email: { in: emailsCrees } } });
       await prisma.emplacement.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
       await prisma.entreprise.deleteMany({ where: { id: { in: entrepriseIds } } });
@@ -43,13 +44,18 @@ describe('Emplacements (ENT-002, ENT-003) — intégration réelle, base Postgre
   async function creerAdminEtGestionnaire() {
     const emailAdmin = `test-empl-admin-${Date.now()}-${Math.random().toString(36).slice(2)}@stockflow.dev`;
     emailsCrees.push(emailAdmin);
-    const registerResponse = await request(app.getHttpServer()).post('/auth/register').send({
+    await request(app.getHttpServer()).post('/auth/register').send({
       nomEntreprise: 'Entreprise Emplacements',
       nomAdmin: 'Admin Emplacements',
       email: emailAdmin,
       password: 'motdepasse-solide-123',
     });
-    const accessTokenAdmin = registerResponse.body.accessToken as string;
+    await prisma.utilisateur.update({ where: { email: emailAdmin }, data: { emailVerifieAt: new Date() } });
+    const connexionAdmin = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: emailAdmin, password: 'motdepasse-solide-123' });
+    const accessTokenAdmin = connexionAdmin.body.accessToken as string;
+    devEmail.clear();
 
     const emailGestionnaire = `test-empl-gest-${Date.now()}-${Math.random().toString(36).slice(2)}@stockflow.dev`;
     emailsCrees.push(emailGestionnaire);
