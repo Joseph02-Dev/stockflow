@@ -21,6 +21,18 @@ enum TypeMouvement {
   ENTREE
   SORTIE
   TRANSFERT
+  AJUSTEMENT
+}
+
+enum StatutInventaire {
+  EN_COURS
+  TERMINE
+}
+
+enum StatutLigneInventaire {
+  EN_ATTENTE
+  VALIDEE
+  IGNOREE
 }
 
 enum TypeAlerte {
@@ -47,6 +59,7 @@ model Entreprise {
   invitations  Invitation[]
   categories   Categorie[]
   marques      Marque[]
+  inventaires  Inventaire[]
 
   @@map("entreprise")
 }
@@ -61,10 +74,12 @@ model Utilisateur {
   role         Role
   createdAt    DateTime @default(now()) @map("created_at")
 
-  entreprise          Entreprise     @relation(fields: [entrepriseId], references: [id])
-  mouvements          Mouvement[]
-  refreshTokens       RefreshToken[]
-  invitationsEnvoyees Invitation[]
+  entreprise               Entreprise        @relation(fields: [entrepriseId], references: [id])
+  mouvements               Mouvement[]
+  refreshTokens            RefreshToken[]
+  invitationsEnvoyees      Invitation[]
+  inventaires              Inventaire[]
+  inventaireLignesValidees InventaireLigne[]
 
   @@index([entrepriseId])
   @@map("utilisateur")
@@ -122,13 +137,14 @@ model Emplacement {
   archive      Boolean  @default(false)
   createdAt    DateTime @default(now()) @map("created_at")
 
-  entreprise Entreprise  @relation(fields: [entrepriseId], references: [id])
-  stocks     Stock[]
-  mouvements Mouvement[]
+  entreprise      Entreprise   @relation(fields: [entrepriseId], references: [id])
+  stocks          Stock[]
+  mouvements      Mouvement[]
   // Transferts dont cet emplacement est la destination (la relation
   // "mouvements" ci-dessus couvre déjà la source de tous les mouvements,
   // transferts inclus).
-  mouvementsRecus Mouvement[] @relation("MouvementDestination")
+  mouvementsRecus Mouvement[]  @relation("MouvementDestination")
+  inventaires     Inventaire[]
 
   @@index([entrepriseId])
   @@map("emplacement")
@@ -167,6 +183,7 @@ model Produit {
   mouvements           Mouvement[]
   alertes              Alerte[]
   fournisseursAssocies FournisseurProduit[]
+  inventaireLignes     InventaireLigne[]
 
   @@unique([entrepriseId, codeBarre])
   @@index([entrepriseId, nom])
@@ -202,17 +219,17 @@ model Marque {
 }
 
 model Fournisseur {
-  id           String   @id @default(uuid())
-  entrepriseId String   @map("entreprise_id")
-  nom          String
-  emailContact String?  @map("email_contact")
-  telephone    String?
-  photoUrl     String?  @map("photo_url")
+  id                  String   @id @default(uuid())
+  entrepriseId        String   @map("entreprise_id")
+  nom                 String
+  emailContact        String?  @map("email_contact")
+  telephone           String?
+  photoUrl            String?  @map("photo_url")
   // Saisi manuellement par l'Admin (délai annoncé par le fournisseur),
   // pas calculé depuis l'historique des réceptions — on n'a pas encore
   // de date de commande, seulement une date de réception.
   delaiLivraisonJours Int?     @map("delai_livraison_jours")
-  createdAt    DateTime @default(now()) @map("created_at")
+  createdAt           DateTime @default(now()) @map("created_at")
 
   entreprise       Entreprise           @relation(fields: [entrepriseId], references: [id])
   produitsAssocies FournisseurProduit[]
@@ -293,4 +310,55 @@ model Alerte {
 
   @@index([entrepriseId, statut])
   @@map("alerte")
+}
+
+/**
+ * Session de comptage physique portant sur tout le catalogue actif d'UN
+ * emplacement (décision validée). À la création, une InventaireLigne est
+ * générée pour chaque produit actif de l'entreprise — pas seulement ceux
+ * ayant déjà du stock à cet emplacement, puisqu'un comptage doit aussi
+ * révéler un produit qu'on croyait absent mais qui s'y trouve en réalité.
+ */
+model Inventaire {
+  id            String           @id @default(uuid())
+  entrepriseId  String           @map("entreprise_id")
+  emplacementId String           @map("emplacement_id")
+  statut        StatutInventaire @default(EN_COURS)
+  utilisateurId String           @map("utilisateur_id")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  termineAt     DateTime?        @map("termine_at")
+
+  entreprise  Entreprise        @relation(fields: [entrepriseId], references: [id])
+  emplacement Emplacement       @relation(fields: [emplacementId], references: [id])
+  utilisateur Utilisateur       @relation(fields: [utilisateurId], references: [id])
+  lignes      InventaireLigne[]
+
+  @@index([entrepriseId, emplacementId])
+  @@map("inventaire")
+}
+
+/**
+ * Une ligne par produit du catalogue au moment de la création de
+ * l'inventaire. `quantiteComptee` reste nulle tant que personne n'a
+ * saisi de comptage. L'écart n'est jamais stocké : il est toujours
+ * recalculé face au stock RÉEL au moment de la validation (pas un
+ * instantané pris à la création), pour ne jamais valider une correction
+ * sur la base d'une donnée déjà périmée si du stock a bougé entre-temps.
+ */
+model InventaireLigne {
+  id               String                @id @default(uuid())
+  inventaireId     String                @map("inventaire_id")
+  produitId        String                @map("produit_id")
+  quantiteComptee  Int?                  @map("quantite_comptee")
+  statutAjustement StatutLigneInventaire @default(EN_ATTENTE) @map("statut_ajustement")
+  valideParId      String?               @map("valide_par_id")
+  valideAt         DateTime?             @map("valide_at")
+  createdAt        DateTime              @default(now()) @map("created_at")
+
+  inventaire Inventaire   @relation(fields: [inventaireId], references: [id])
+  produit    Produit      @relation(fields: [produitId], references: [id])
+  validePar  Utilisateur? @relation(fields: [valideParId], references: [id])
+
+  @@unique([inventaireId, produitId])
+  @@map("inventaire_ligne")
 }
