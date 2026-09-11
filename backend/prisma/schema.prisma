@@ -35,6 +35,13 @@ enum StatutLigneInventaire {
   IGNOREE
 }
 
+enum StatutCommande {
+  BROUILLON
+  ENVOYEE
+  RECUE
+  ANNULEE
+}
+
 enum TypeAlerte {
   STOCK_FAIBLE
   RUPTURE
@@ -60,6 +67,7 @@ model Entreprise {
   categories   Categorie[]
   marques      Marque[]
   inventaires  Inventaire[]
+  commandes    CommandeFournisseur[]
 
   @@map("entreprise")
 }
@@ -74,12 +82,13 @@ model Utilisateur {
   role         Role
   createdAt    DateTime @default(now()) @map("created_at")
 
-  entreprise               Entreprise        @relation(fields: [entrepriseId], references: [id])
+  entreprise               Entreprise            @relation(fields: [entrepriseId], references: [id])
   mouvements               Mouvement[]
   refreshTokens            RefreshToken[]
   invitationsEnvoyees      Invitation[]
   inventaires              Inventaire[]
   inventaireLignesValidees InventaireLigne[]
+  commandes                CommandeFournisseur[]
 
   @@index([entrepriseId])
   @@map("utilisateur")
@@ -137,14 +146,15 @@ model Emplacement {
   archive      Boolean  @default(false)
   createdAt    DateTime @default(now()) @map("created_at")
 
-  entreprise      Entreprise   @relation(fields: [entrepriseId], references: [id])
+  entreprise      Entreprise            @relation(fields: [entrepriseId], references: [id])
   stocks          Stock[]
   mouvements      Mouvement[]
   // Transferts dont cet emplacement est la destination (la relation
   // "mouvements" ci-dessus couvre déjà la source de tous les mouvements,
   // transferts inclus).
-  mouvementsRecus Mouvement[]  @relation("MouvementDestination")
+  mouvementsRecus Mouvement[]           @relation("MouvementDestination")
   inventaires     Inventaire[]
+  commandes       CommandeFournisseur[]
 
   @@index([entrepriseId])
   @@map("emplacement")
@@ -184,6 +194,7 @@ model Produit {
   alertes              Alerte[]
   fournisseursAssocies FournisseurProduit[]
   inventaireLignes     InventaireLigne[]
+  commandeLignes       CommandeLigne[]
 
   @@unique([entrepriseId, codeBarre])
   @@index([entrepriseId, nom])
@@ -231,9 +242,10 @@ model Fournisseur {
   delaiLivraisonJours Int?     @map("delai_livraison_jours")
   createdAt           DateTime @default(now()) @map("created_at")
 
-  entreprise       Entreprise           @relation(fields: [entrepriseId], references: [id])
+  entreprise       Entreprise            @relation(fields: [entrepriseId], references: [id])
   produitsAssocies FournisseurProduit[]
   mouvements       Mouvement[]
+  commandes        CommandeFournisseur[]
 
   @@index([entrepriseId])
   @@map("fournisseur")
@@ -361,4 +373,45 @@ model InventaireLigne {
 
   @@unique([inventaireId, produitId])
   @@map("inventaire_ligne")
+}
+
+/**
+ * Bon de commande fournisseur. Créée soit manuellement (produits choisis
+ * librement), soit pré-remplie depuis les alertes actives d'un
+ * fournisseur (décision validée) — les deux passent par la même route de
+ * création, la distinction n'existe que côté frontend selon l'origine
+ * de la saisie.
+ */
+model CommandeFournisseur {
+  id            String         @id @default(uuid())
+  entrepriseId  String         @map("entreprise_id")
+  fournisseurId String         @map("fournisseur_id")
+  emplacementId String         @map("emplacement_id")
+  statut        StatutCommande @default(BROUILLON)
+  utilisateurId String         @map("utilisateur_id")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  envoyeeAt     DateTime?      @map("envoyee_at")
+  recueAt       DateTime?      @map("recue_at")
+
+  entreprise  Entreprise      @relation(fields: [entrepriseId], references: [id])
+  fournisseur Fournisseur     @relation(fields: [fournisseurId], references: [id])
+  emplacement Emplacement     @relation(fields: [emplacementId], references: [id])
+  utilisateur Utilisateur     @relation(fields: [utilisateurId], references: [id])
+  lignes      CommandeLigne[]
+
+  @@index([entrepriseId, fournisseurId])
+  @@map("commande_fournisseur")
+}
+
+model CommandeLigne {
+  id                String @id @default(uuid())
+  commandeId        String @map("commande_id")
+  produitId         String @map("produit_id")
+  quantiteCommandee Int    @map("quantite_commandee")
+
+  commande CommandeFournisseur @relation(fields: [commandeId], references: [id])
+  produit  Produit             @relation(fields: [produitId], references: [id])
+
+  @@unique([commandeId, produitId])
+  @@map("commande_ligne")
 }

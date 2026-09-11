@@ -20,6 +20,7 @@ import { CategoriesModule } from './modules/categories/categories.module.js';
 import { MarquesModule } from './modules/marques/marques.module.js';
 import { UploadsModule } from './modules/uploads/uploads.module.js';
 import { InventairesModule } from './modules/inventaires/inventaires.module.js';
+import { CommandesModule } from './modules/commandes/commandes.module.js';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { InventairesModule } from './modules/inventaires/inventaires.module.js';
     MarquesModule,
     UploadsModule,
     InventairesModule,
+    CommandesModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: RolesGuard }],
