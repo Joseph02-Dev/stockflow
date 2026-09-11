@@ -2,6 +2,7 @@ import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { AppLayout } from '@/layouts/AppLayout';
 import { ConnexionPage } from '@/features/auth/ConnexionPage';
 import { InscriptionPage } from '@/features/auth/InscriptionPage';
+import { VerifierEmailPage } from '@/features/auth/VerifierEmailPage';
 import { InvitationPage } from '@/features/auth/InvitationPage';
 import { MotDePasseOubliePage } from '@/features/auth/MotDePasseOubliePage';
 import { ReinitialiserMotDePassePage } from '@/features/auth/ReinitialiserMotDePassePage';
@@ -59,6 +60,10 @@ export function App() {
         La page gère elle-même le cas d'un utilisateur déjà connecté.
       */}
       <Route path="/inscription" element={<InscriptionPage />} />
+      {/* Hors RoutePublique pour la même raison que /inscription : une
+          session existante (même dans un autre onglet) ne doit jamais
+          empêcher le traitement du lien de confirmation lui-même. */}
+      <Route path="/verifier-email" element={<VerifierEmailPage />} />
 
       <Route element={<RouteProtegee />}>
         <Route element={<AppLayout />}>

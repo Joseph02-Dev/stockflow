@@ -37,6 +37,9 @@ export function ConnexionPage() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [resterConnecte, setResterConnecte] = useState(true);
   const [connexionLente, setConnexionLente] = useState(false);
+  const [emailNonConfirme, setEmailNonConfirme] = useState<string | null>(null);
+  const [renvoiEnCours, setRenvoiEnCours] = useState(false);
+  const [renvoiConfirme, setRenvoiConfirme] = useState(false);
   const {
     register,
     handleSubmit,
@@ -45,6 +48,8 @@ export function ConnexionPage() {
 
   async function onSubmit(valeurs: Formulaire) {
     setErreur(null);
+    setEmailNonConfirme(null);
+    setRenvoiConfirme(false);
     setConnexionLente(false);
     const minuteur = setTimeout(() => setConnexionLente(true), SEUIL_CONNEXION_LENTE_MS);
     try {
@@ -52,10 +57,31 @@ export function ConnexionPage() {
       setSession(data, resterConnecte);
       navigate('/', { replace: true });
     } catch (error) {
-      setErreur(messageErreur(error, 'Email ou mot de passe incorrect.'));
+      const message = messageErreur(error, 'Email ou mot de passe incorrect.');
+      setErreur(message);
+      // Repère textuel simple plutôt qu'un code d'erreur structuré côté
+      // API — suffisant ici, ce message est le seul à contenir ce mot.
+      if (message.includes('Confirmez votre adresse email')) {
+        setEmailNonConfirme(valeurs.email);
+      }
     } finally {
       clearTimeout(minuteur);
       setConnexionLente(false);
+    }
+  }
+
+  async function renvoyerConfirmation() {
+    if (!emailNonConfirme) return;
+    setRenvoiEnCours(true);
+    try {
+      await api.post('/auth/resend-verification', { email: emailNonConfirme });
+      setRenvoiConfirme(true);
+    } catch {
+      // resend-verification ne renvoie normalement jamais d'erreur
+      // métier (même non-fuite que forgot-password) — rien de plus
+      // utile à afficher qu'un nouvel essai possible.
+    } finally {
+      setRenvoiEnCours(false);
     }
   }
 
@@ -106,6 +132,14 @@ export function ConnexionPage() {
           </Alert>
         )}
         {erreur && <Alert variant="error">{erreur}</Alert>}
+        {emailNonConfirme &&
+          (renvoiConfirme ? (
+            <Alert variant="success">Nouveau lien envoyé — vérifiez votre boîte mail.</Alert>
+          ) : (
+            <Button type="button" variant="secondary" onClick={renvoyerConfirmation} loading={renvoiEnCours}>
+              Renvoyer le lien de confirmation
+            </Button>
+          ))}
 
         <Input
           label="Adresse email"

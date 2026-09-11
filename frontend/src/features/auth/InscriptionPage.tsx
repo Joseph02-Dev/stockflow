@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -9,6 +10,7 @@ import {
   CheckCircle2,
   Hammer,
   Mail,
+  MailCheck,
   MapPin,
   Plus,
   ShieldCheck,
@@ -23,9 +25,8 @@ import { Alert } from '@/components/ui/Alert';
 import { ChampMotDePasse } from './ChampMotDePasse';
 import { IndicateurForceMotDePasse } from './IndicateurForceMotDePasse';
 import { api, messageErreur } from '@/lib/api';
-import { getSession, setSession } from '@/lib/session';
+import { getSession } from '@/lib/session';
 import { cn } from '@/lib/cn';
-import type { Session } from '@/lib/session';
 
 const schemaCompte = z.object({
   nomEntreprise: z.string().min(2, 'Le nom de l’entreprise doit contenir au moins 2 caractères.'),
@@ -52,15 +53,24 @@ const ETAPES = [
 
 export function InscriptionPage() {
   const navigate = useNavigate();
-  const [etape, setEtape] = useState<1 | 2>(1);
+  const [etape, setEtape] = useState<1 | 2 | 'attente'>(1);
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
+  const [emailInscrit, setEmailInscrit] = useState('');
+  const [renvoiEnCours, setRenvoiEnCours] = useState(false);
+  const [renvoiConfirme, setRenvoiConfirme] = useState(false);
 
-  // Évalué une seule fois au montage : un utilisateur déjà connecté n'a
-  // rien à faire ici et repart vers le dashboard. En revanche, la session
-  // créée à l'étape 1 ne doit PAS déclencher cette redirection, sinon le
-  // parcours serait interrompu avant l'étape 2.
-  const [dejaConnecteAuMontage] = useState(() => getSession() !== null);
+  // Une session peut déjà exister à l'arrivée sur cette page dans un seul
+  // cas légitime : la personne vient de cliquer le lien de confirmation
+  // reçu par email (qui connecte automatiquement). On vérifie alors si
+  // l'étape 2 reste à faire, plutôt que de la renvoyer systématiquement
+  // vers le dashboard.
+  const [sessionAuMontage] = useState(() => getSession() !== null);
+  const emplacementsExistants = useQuery({
+    queryKey: ['emplacements'],
+    queryFn: async () => (await api.get<unknown[]>('/emplacements')).data,
+    enabled: sessionAuMontage,
+  });
 
   const formCompte = useForm<FormulaireCompte>({ resolver: zodResolver(schemaCompte) });
   const motDePasseSaisi = useWatch({ control: formCompte.control, name: 'password' }) ?? '';
@@ -76,11 +86,26 @@ export function InscriptionPage() {
   async function creerCompte(valeurs: FormulaireCompte) {
     setErreur(null);
     try {
-      const { data } = await api.post<Session>('/auth/register', valeurs);
-      setSession(data);
-      setEtape(2);
+      await api.post('/auth/register', valeurs);
+      setEmailInscrit(valeurs.email);
+      setEtape('attente');
     } catch (error) {
       setErreur(messageErreur(error, 'La création du compte a échoué.'));
+    }
+  }
+
+  async function renvoyerConfirmation() {
+    setRenvoiEnCours(true);
+    try {
+      await api.post('/auth/resend-verification', { email: emailInscrit });
+      setRenvoiConfirme(true);
+    } catch {
+      // resend-verification ne renvoie normalement jamais d'erreur
+      // métier (message générique systématique, même non-fuite que
+      // forgot-password) — un échec ici serait réseau/serveur ; rien de
+      // plus utile à afficher qu'un nouvel essai possible.
+    } finally {
+      setRenvoiEnCours(false);
     }
   }
 
@@ -130,20 +155,38 @@ export function InscriptionPage() {
     }
   }
 
-  if (dejaConnecteAuMontage) {
+  // Une session existe mais on ne sait pas encore si l'étape 2 reste à
+  // faire : mieux vaut ne rien afficher qu'un écran qui clignote.
+  if (sessionAuMontage && emplacementsExistants.isLoading) {
+    return null;
+  }
+  if (sessionAuMontage && emplacementsExistants.data && emplacementsExistants.data.length > 0) {
     return <Navigate to="/" replace />;
   }
+  // Valeur dérivée plutôt qu'un setState en cours de rendu : la reprise
+  // après confirmation d'email saute directement à l'étape 2.
+  const etapeEffective = sessionAuMontage && emplacementsExistants.data ? 2 : etape;
+  // Pour la liste de repères du panneau gauche : "attente" doit afficher
+  // l'étape 1 comme terminée et l'étape 2 comme pas encore commencée,
+  // sans complexifier la comparaison numérique existante.
+  const etapeNumero = etapeEffective === 'attente' ? 1.5 : etapeEffective;
 
   const panneauGauche = (
     <div className="flex flex-col gap-8">
       <div>
         <h2 className="text-2xl font-semibold text-white">
-          {etape === 1 ? 'Deux étapes, et votre inventaire est prêt.' : 'Presque terminé.'}
+          {etapeEffective === 1
+            ? 'Deux étapes, et votre inventaire est prêt.'
+            : etapeEffective === 'attente'
+              ? 'Vérifiez votre boîte mail.'
+              : 'Presque terminé.'}
         </h2>
         <p className="mt-3 text-sm text-navy-text">
-          {etape === 1
+          {etapeEffective === 1
             ? 'Vous créez d’abord votre compte administrateur, puis vous décrivez votre activité et vos emplacements.'
-            : 'Ces réglages définissent vos catégories et vos alertes par défaut.'}
+            : etapeEffective === 'attente'
+              ? 'Un lien de confirmation vient de partir — cliquez dessus pour activer votre compte et continuer.'
+              : 'Ces réglages définissent vos catégories et vos alertes par défaut.'}
         </p>
       </div>
       <ul className="flex flex-col gap-1">
@@ -152,17 +195,17 @@ export function InscriptionPage() {
             <span
               className={
                 'mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ' +
-                (e.numero < etape
+                (e.numero < etapeNumero
                   ? 'bg-success text-white'
-                  : e.numero === etape
+                  : e.numero === etapeNumero
                     ? 'bg-primary text-white'
                     : 'bg-navy-light text-navy-text')
               }
             >
-              {e.numero < etape ? <CheckCircle2 className="size-4" aria-hidden="true" /> : e.numero}
+              {e.numero < etapeNumero ? <CheckCircle2 className="size-4" aria-hidden="true" /> : e.numero}
             </span>
             <div>
-              <p className={'text-sm font-medium ' + (e.numero <= etape ? 'text-white' : 'text-navy-text')}>
+              <p className={'text-sm font-medium ' + (e.numero <= etapeNumero ? 'text-white' : 'text-navy-text')}>
                 {e.titre}
               </p>
               <p className="text-xs text-navy-text">{e.description}</p>
@@ -177,7 +220,32 @@ export function InscriptionPage() {
     </div>
   );
 
-  if (etape === 2) {
+  if (etapeEffective === 'attente') {
+    return (
+      <AuthLayout titre="Confirmez votre email" description="Valable 24 heures." panneauGauche={panneauGauche}>
+        <div className="flex flex-col gap-4">
+          {erreur && <Alert variant="error">{erreur}</Alert>}
+          <div className="flex items-start gap-3 rounded-(--radius-button) bg-background p-4">
+            <MailCheck className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
+            <p className="text-sm text-text-secondary">
+              Un lien de confirmation part vers{' '}
+              <span className="font-medium text-text-primary">{emailInscrit}</span>. Cliquez dessus pour activer
+              votre compte administrateur et poursuivre vers l’étape suivante.
+            </p>
+          </div>
+          {renvoiConfirme ? (
+            <Alert variant="success">Nouveau lien envoyé — vérifiez votre boîte mail.</Alert>
+          ) : (
+            <Button variant="secondary" onClick={renvoyerConfirmation} loading={renvoiEnCours} className="w-full">
+              Renvoyer le lien
+            </Button>
+          )}
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  if (etapeEffective === 2) {
     return (
       <AuthLayout
         titre="Votre activité"
