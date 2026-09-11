@@ -30,6 +30,10 @@ describe('Alertes (ALERT-003, ALERT-004) — intégration réelle, base PostgreS
       await prisma.alerte.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
       await prisma.mouvement.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
       await prisma.stock.deleteMany({ where: { produit: { entrepriseId: { in: entrepriseIds } } } });
+      await prisma.fournisseurProduit.deleteMany({
+        where: { fournisseur: { entrepriseId: { in: entrepriseIds } } },
+      });
+      await prisma.fournisseur.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
       await prisma.refreshToken.deleteMany({ where: { utilisateurId: { in: utilisateurIds } } });
       await prisma.utilisateur.deleteMany({ where: { email: { in: emailsCrees } } });
       await prisma.produit.deleteMany({ where: { entrepriseId: { in: entrepriseIds } } });
@@ -231,5 +235,33 @@ describe('Alertes (ALERT-003, ALERT-004) — intégration réelle, base PostgreS
     const emailsEnvoyes = devEmail.getSentEmails();
     expect(emailsEnvoyes).toHaveLength(2);
     expect(emailsEnvoyes[1].subject).toContain('Rupture');
+  });
+
+  it("inclut le fournisseur associé au produit, pour permettre le regroupement en commande", async () => {
+    const { accessToken, produitId, emplacementId } = await creerContexte(20);
+    const fournisseur = await request(app.getHttpServer())
+      .post('/fournisseurs')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ nom: 'Sotragui SA' });
+    await request(app.getHttpServer())
+      .post(`/fournisseurs/${fournisseur.body.id}/produits`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ produitId });
+    await request(app.getHttpServer())
+      .post('/mouvements/entree')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ produitId, emplacementId, quantite: 25 });
+    await request(app.getHttpServer())
+      .post('/mouvements/sortie')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ produitId, emplacementId, quantite: 10 }); // stock = 15, sous le seuil (20) → alerte
+
+    const response = await request(app.getHttpServer())
+      .get('/alertes?statut=ACTIVE')
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    expect(response.body).toHaveLength(1);
+    expect(response.body[0].produit.fournisseursAssocies).toHaveLength(1);
+    expect(response.body[0].produit.fournisseursAssocies[0].fournisseur.nom).toBe('Sotragui SA');
   });
 });

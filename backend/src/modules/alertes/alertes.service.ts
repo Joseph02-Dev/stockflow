@@ -14,7 +14,16 @@ export class AlertesService {
   async lister(entrepriseId: string, statut?: 'ACTIVE' | 'RESOLUE') {
     return this.prisma.alerte.findMany({
       where: { entrepriseId, statut: statut ?? 'ACTIVE' },
-      include: { produit: true },
+      include: {
+        produit: {
+          include: {
+            // Nécessaire pour regrouper les alertes par fournisseur et
+            // proposer « Préparer la commande » directement depuis
+            // l'écran Alertes.
+            fournisseursAssocies: { include: { fournisseur: { select: { id: true, nom: true } } } },
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
