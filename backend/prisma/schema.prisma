@@ -52,10 +52,24 @@ enum StatutAlerte {
   RESOLUE
 }
 
+enum SecteurActivite {
+  MATERIAUX
+  COMMERCE
+  ARTISANAT
+  AUTRE
+}
+
 model Entreprise {
   id        String   @id @default(uuid())
   nom       String
   createdAt DateTime @default(now()) @map("created_at")
+
+  // Saisis à l'étape 2 de l'inscription. secteurActivite reste indicatif
+  // (aucune logique n'en dépend pour l'instant) ; tauxTvaParDefaut, lui,
+  // est réellement exploité : il pré-remplit le taux de TVA à la
+  // création d'un nouveau produit, au lieu d'un champ toujours vide.
+  secteurActivite  SecteurActivite? @map("secteur_activite")
+  tauxTvaParDefaut Int?             @map("taux_tva_par_defaut")
 
   utilisateurs Utilisateur[]
   emplacements Emplacement[]
@@ -82,16 +96,42 @@ model Utilisateur {
   role         Role
   createdAt    DateTime @default(now()) @map("created_at")
 
-  entreprise               Entreprise            @relation(fields: [entrepriseId], references: [id])
-  mouvements               Mouvement[]
-  refreshTokens            RefreshToken[]
-  invitationsEnvoyees      Invitation[]
-  inventaires              Inventaire[]
-  inventaireLignesValidees InventaireLigne[]
-  commandes                CommandeFournisseur[]
+  // Verrouillage temporaire après plusieurs échecs de connexion
+  // consécutifs (décision validée : 15 minutes après 5 tentatives).
+  // Réinitialisé à 0 dès qu'une connexion réussit.
+  tentativesEchouees Int       @default(0) @map("tentatives_echouees")
+  bloqueJusqua       DateTime? @map("bloque_jusqua")
+
+  entreprise                  Entreprise                   @relation(fields: [entrepriseId], references: [id])
+  mouvements                  Mouvement[]
+  refreshTokens               RefreshToken[]
+  invitationsEnvoyees         Invitation[]
+  inventaires                 Inventaire[]
+  inventaireLignesValidees    InventaireLigne[]
+  commandes                   CommandeFournisseur[]
+  reinitialisationsMotDePasse ReinitialisationMotDePasse[]
 
   @@index([entrepriseId])
   @@map("utilisateur")
+}
+
+/**
+ * Jeton de réinitialisation de mot de passe — même schéma qu'Invitation
+ * (hash du jeton, jamais le jeton en clair ; expiration ; usedAt plutôt
+ * qu'une suppression physique, pour garder un historique d'audit).
+ */
+model ReinitialisationMotDePasse {
+  id            String    @id @default(uuid())
+  utilisateurId String    @map("utilisateur_id")
+  tokenHash     String    @unique @map("token_hash")
+  expiresAt     DateTime  @map("expires_at")
+  usedAt        DateTime? @map("used_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id])
+
+  @@index([utilisateurId])
+  @@map("reinitialisation_mot_de_passe")
 }
 
 // AUTH-003 — Invitation d'un utilisateur par un Admin.

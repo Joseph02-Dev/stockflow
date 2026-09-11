@@ -68,7 +68,7 @@ describe('POST /auth/login et /auth/logout (intégration réelle, base PostgreSQ
     expect(response.body.message).toBe('Email ou mot de passe incorrect.');
   });
 
-  it('rejette avec 401 un mauvais mot de passe, avec le même message générique (pas de fuite d’information)', async () => {
+  it('rejette avec 401 un mauvais mot de passe, sans révéler lequel des deux champs est en cause', async () => {
     const { email } = await creerCompte();
 
     const response = await request(app.getHttpServer())
@@ -76,7 +76,30 @@ describe('POST /auth/login et /auth/logout (intégration réelle, base PostgreSQ
       .send({ email, password: 'mauvais-mot-de-passe' });
 
     expect(response.status).toBe(401);
-    expect(response.body.message).toBe('Email ou mot de passe incorrect.');
+    expect(response.body.message).toContain('Email ou mot de passe incorrect.');
+    // Compromis assumé et documenté dans le service : le compteur de
+    // tentatives n'apparaît que pour un compte réellement existant.
+    expect(response.body.message).toContain('tentative');
+  });
+
+  it('bloque temporairement le compte après 5 échecs consécutifs', async () => {
+    const { email, password } = await creerCompte();
+
+    for (let i = 0; i < 4; i++) {
+      await request(app.getHttpServer()).post('/auth/login').send({ email, password: 'mauvais-mot-de-passe' });
+    }
+    const cinquiemeEchec = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password: 'mauvais-mot-de-passe' });
+    expect(cinquiemeEchec.status).toBe(401);
+    expect(cinquiemeEchec.body.message).toContain('bloqué');
+
+    // Même avec le bon mot de passe, le compte reste bloqué.
+    const avecBonMotDePasse = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password });
+    expect(avecBonMotDePasse.status).toBe(401);
+    expect(avecBonMotDePasse.body.message).toContain('bloqué');
   });
 
   it('rejette /auth/logout sans authentification (401)', async () => {

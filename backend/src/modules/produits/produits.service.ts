@@ -45,6 +45,18 @@ export class ProduitsService {
 
   async creer(entrepriseId: string, dto: CreateProduitDto) {
     await this.verifierReferences(entrepriseId, dto);
+    // Si aucun taux n'est fourni, on reprend le défaut défini par
+    // l'entreprise (renseigné à l'inscription) plutôt que de laisser le
+    // champ vide à chaque nouveau produit — champ réellement exploité,
+    // pas seulement collecté à l'inscription pour la forme.
+    let tauxTva = dto.tauxTva;
+    if (tauxTva === undefined) {
+      const entreprise = await this.prisma.entreprise.findUnique({
+        where: { id: entrepriseId },
+        select: { tauxTvaParDefaut: true },
+      });
+      tauxTva = entreprise?.tauxTvaParDefaut ?? undefined;
+    }
     try {
       return await this.prisma.produit.create({
         data: {
@@ -55,7 +67,7 @@ export class ProduitsService {
           photoUrl: dto.photoUrl,
           prixAchat: dto.prixAchat,
           prixVente: dto.prixVente,
-          tauxTva: dto.tauxTva,
+          tauxTva,
           codeBarre: dto.codeBarre,
           uniteMesure: dto.uniteMesure,
           description: dto.description,

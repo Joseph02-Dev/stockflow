@@ -11,6 +11,13 @@ export class EntrepriseService {
   }
 
   async updateEntreprise(entrepriseId: string, dto: UpdateEntrepriseDto) {
-    return this.prisma.entreprise.update({ where: { id: entrepriseId }, data: { nom: dto.nom } });
+    return this.prisma.entreprise.update({
+      where: { id: entrepriseId },
+      data: {
+        ...(dto.nom !== undefined ? { nom: dto.nom } : {}),
+        ...(dto.secteurActivite !== undefined ? { secteurActivite: dto.secteurActivite } : {}),
+        ...(dto.tauxTvaParDefaut !== undefined ? { tauxTvaParDefaut: dto.tauxTvaParDefaut } : {}),
+      },
+    });
   }
 }
