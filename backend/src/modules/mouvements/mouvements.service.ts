@@ -3,6 +3,7 @@ import { PrismaService } from '../../config/prisma.service.js';
 import { AlerteNotificationService } from '../alertes/alerte-notification.service.js';
 import type { EntreeStockDto } from './dto/entree-stock.dto.js';
 import type { SortieStockDto } from './dto/sortie-stock.dto.js';
+import type { TransfertStockDto } from './dto/transfert-stock.dto.js';
 
 @Injectable()
 export class MouvementsService {
@@ -148,10 +149,92 @@ export class MouvementsService {
     return resultat.mouvement;
   }
 
+  /**
+   * Transfert de stock entre deux emplacements de la même entreprise.
+   * Un seul mouvement enregistré (type TRANSFERT, emplacementId = source,
+   * emplacementDestinationId = destination) plutôt que deux mouvements
+   * séparés, pour que l'historique affiche une ligne unique « Madina →
+   * Coyah » comme le prévoit le design.
+   *
+   * Aucun impact sur les alertes : elles sont calculées sur le stock
+   * total de l'entreprise (décision d'architecture déjà validée), et un
+   * transfert ne change jamais ce total — seule sa répartition entre
+   * emplacements change. Contrairement à entree()/sortie(), aucune
+   * vérification de seuil n'est donc nécessaire ici.
+   */
+  async transfert(entrepriseId: string, utilisateurId: string, dto: TransfertStockDto) {
+    if (dto.emplacementSourceId === dto.emplacementDestinationId) {
+      throw new ConflictException('L’emplacement de destination doit être différent de la source.');
+    }
+
+    await this.verifierProduitEtEmplacement(entrepriseId, dto.produitId, dto.emplacementSourceId);
+    const destination = await this.prisma.emplacement.findUnique({
+      where: { id: dto.emplacementDestinationId },
+    });
+    if (!destination || destination.entrepriseId !== entrepriseId) {
+      throw new NotFoundException('Emplacement de destination introuvable.');
+    }
+    if (destination.archive) {
+      throw new ConflictException('L’emplacement de destination est archivé.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const stockSource = await tx.stock.findUnique({
+        where: {
+          produitId_emplacementId: { produitId: dto.produitId, emplacementId: dto.emplacementSourceId },
+        },
+      });
+      if (!stockSource || stockSource.quantite < dto.quantite) {
+        throw new ConflictException('Stock insuffisant à l’emplacement source pour effectuer ce transfert.');
+      }
+
+      await tx.stock.update({
+        where: {
+          produitId_emplacementId: { produitId: dto.produitId, emplacementId: dto.emplacementSourceId },
+        },
+        data: { quantite: { decrement: dto.quantite } },
+      });
+
+      await tx.stock.upsert({
+        where: {
+          produitId_emplacementId: { produitId: dto.produitId, emplacementId: dto.emplacementDestinationId },
+        },
+        create: { produitId: dto.produitId, emplacementId: dto.emplacementDestinationId, quantite: dto.quantite },
+        update: { quantite: { increment: dto.quantite } },
+      });
+
+      return tx.mouvement.create({
+        data: {
+          entrepriseId,
+          produitId: dto.produitId,
+          emplacementId: dto.emplacementSourceId,
+          emplacementDestinationId: dto.emplacementDestinationId,
+          type: 'TRANSFERT',
+          quantite: dto.quantite,
+          utilisateurId,
+        },
+      });
+    });
+  }
+
   /** MVT-003 — Historique des mouvements, filtrable. */
   async listerMouvements(entrepriseId: string, filtres: { produitId?: string; emplacementId?: string }) {
     return this.prisma.mouvement.findMany({
-      where: { entrepriseId, produitId: filtres.produitId, emplacementId: filtres.emplacementId },
+      where: {
+        entrepriseId,
+        produitId: filtres.produitId,
+        // Un transfert doit apparaître dans l'historique filtré de son
+        // emplacement source ET de sa destination — sinon un utilisateur
+        // qui filtre sur "Coyah" ne verrait jamais les transferts reçus.
+        ...(filtres.emplacementId
+          ? {
+              OR: [
+                { emplacementId: filtres.emplacementId },
+                { emplacementDestinationId: filtres.emplacementId },
+              ],
+            }
+          : {}),
+      },
       // Les noms sont indispensables à l'affichage de l'historique : sans
       // eux, l'interface ne pourrait montrer que des identifiants bruts.
       // `select` explicite sur l'utilisateur pour ne jamais exposer son
@@ -159,6 +242,7 @@ export class MouvementsService {
       include: {
         produit: { select: { id: true, nom: true, reference: true } },
         emplacement: { select: { id: true, nom: true } },
+        emplacementDestination: { select: { id: true, nom: true } },
         utilisateur: { select: { id: true, nom: true } },
         fournisseur: { select: { id: true, nom: true } },
       },

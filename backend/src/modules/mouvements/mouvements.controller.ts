@@ -5,6 +5,7 @@ import type { RequestContext } from '../../common/context/tenant-context.service
 import { MouvementsService } from './mouvements.service.js';
 import { EntreeStockDto } from './dto/entree-stock.dto.js';
 import { SortieStockDto } from './dto/sortie-stock.dto.js';
+import { TransfertStockDto } from './dto/transfert-stock.dto.js';
 
 @Controller()
 export class MouvementsController {
@@ -28,6 +29,16 @@ export class MouvementsController {
     @Body() dto: SortieStockDto,
   ) {
     return this.mouvementsService.sortie(entrepriseId, user.utilisateurId, dto);
+  }
+
+  @Post('mouvements/transfert')
+  @HttpCode(HttpStatus.CREATED)
+  transfert(
+    @CurrentTenant() entrepriseId: string,
+    @CurrentUser() user: RequestContext,
+    @Body() dto: TransfertStockDto,
+  ) {
+    return this.mouvementsService.transfert(entrepriseId, user.utilisateurId, dto);
   }
 
   @Get('mouvements')

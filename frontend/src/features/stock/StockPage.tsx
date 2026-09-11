@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowDownToLine, ArrowUpFromLine, Download, Plus } from 'lucide-react';
+import { ArrowDownToLine, ArrowRightLeft, ArrowUpFromLine, Download, Plus } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { exporterCsv } from '@/lib/exporterCsv';
 import { Button } from '@/components/ui/Button';
@@ -20,11 +20,12 @@ interface LigneStock {
 
 interface Mouvement {
   id: string;
-  type: 'ENTREE' | 'SORTIE';
+  type: 'ENTREE' | 'SORTIE' | 'TRANSFERT';
   quantite: number;
   createdAt: string;
   produit: { nom: string };
   emplacement: { nom: string };
+  emplacementDestination: { nom: string } | null;
   utilisateur: { nom: string };
   fournisseur: { nom: string } | null;
 }
@@ -46,6 +47,13 @@ function statutStock(quantite: number, seuil: number) {
   if (quantite === 0) return { variante: 'error' as const, libelle: 'Rupture' };
   if (quantite < seuil) return { variante: 'warning' as const, libelle: 'Stock faible' };
   return { variante: 'success' as const, libelle: 'OK' };
+}
+
+/** Icône, libellé, couleur et signe pour chaque type de mouvement. */
+function infosTypeMouvement(type: Mouvement['type']) {
+  if (type === 'ENTREE') return { libelle: 'Entrée', Icone: ArrowDownToLine, classe: 'text-success', signe: '+' };
+  if (type === 'SORTIE') return { libelle: 'Sortie', Icone: ArrowUpFromLine, classe: 'text-warning', signe: '−' };
+  return { libelle: 'Transfert', Icone: ArrowRightLeft, classe: 'text-info', signe: '' };
 }
 
 export function StockPage() {
@@ -113,9 +121,13 @@ export function StockPage() {
                         entete: 'Date',
                         valeur: (m: Mouvement) => new Date(m.createdAt).toLocaleDateString('fr-FR'),
                       },
-                      { entete: 'Type', valeur: (m: Mouvement) => (m.type === 'ENTREE' ? 'Entrée' : 'Sortie') },
+                      { entete: 'Type', valeur: (m: Mouvement) => infosTypeMouvement(m.type).libelle },
                       { entete: 'Produit', valeur: (m: Mouvement) => m.produit.nom },
                       { entete: 'Emplacement', valeur: (m: Mouvement) => m.emplacement.nom },
+                      {
+                        entete: 'Emplacement destination',
+                        valeur: (m: Mouvement) => m.emplacementDestination?.nom ?? '',
+                      },
                       { entete: 'Quantité', valeur: (m: Mouvement) => m.quantite },
                       { entete: 'Utilisateur', valeur: (m: Mouvement) => m.utilisateur.nom },
                       {
@@ -270,37 +282,35 @@ export function StockPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle">
-                  {mouvements.data.map((mouvement) => (
-                    <tr key={mouvement.id}>
-                      <td className="px-4 py-3 whitespace-nowrap text-text-secondary">
-                        {new Date(mouvement.createdAt).toLocaleDateString('fr-FR')}
-                      </td>
-                      <td className="px-4 py-3">
-                        {/* Le type n'est jamais porté par la couleur seule :
-                            icône + libellé explicite. */}
-                        <span
-                          className={cn(
-                            'inline-flex items-center gap-1.5 text-sm font-medium',
-                            mouvement.type === 'ENTREE' ? 'text-success' : 'text-warning',
-                          )}
-                        >
-                          {mouvement.type === 'ENTREE' ? (
-                            <ArrowDownToLine className="size-4" aria-hidden="true" />
-                          ) : (
-                            <ArrowUpFromLine className="size-4" aria-hidden="true" />
-                          )}
-                          {mouvement.type === 'ENTREE' ? 'Entrée' : 'Sortie'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-medium text-text-primary">{mouvement.produit.nom}</td>
-                      <td className="px-4 py-3 text-text-secondary">{mouvement.emplacement.nom}</td>
-                      <td className="px-4 py-3 font-medium text-text-primary">
-                        {mouvement.type === 'ENTREE' ? '+' : '−'}
-                        {mouvement.quantite}
-                      </td>
-                      <td className="px-4 py-3 text-text-secondary">{mouvement.utilisateur.nom}</td>
-                    </tr>
-                  ))}
+                  {mouvements.data.map((mouvement) => {
+                    const infos = infosTypeMouvement(mouvement.type);
+                    return (
+                      <tr key={mouvement.id}>
+                        <td className="px-4 py-3 whitespace-nowrap text-text-secondary">
+                          {new Date(mouvement.createdAt).toLocaleDateString('fr-FR')}
+                        </td>
+                        <td className="px-4 py-3">
+                          {/* Le type n'est jamais porté par la couleur seule :
+                              icône + libellé explicite. */}
+                          <span className={cn('inline-flex items-center gap-1.5 text-sm font-medium', infos.classe)}>
+                            <infos.Icone className="size-4" aria-hidden="true" />
+                            {infos.libelle}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-medium text-text-primary">{mouvement.produit.nom}</td>
+                        <td className="px-4 py-3 text-text-secondary">
+                          {mouvement.type === 'TRANSFERT' && mouvement.emplacementDestination
+                            ? `${mouvement.emplacement.nom} → ${mouvement.emplacementDestination.nom}`
+                            : mouvement.emplacement.nom}
+                        </td>
+                        <td className="px-4 py-3 font-medium text-text-primary">
+                          {infos.signe}
+                          {mouvement.quantite}
+                        </td>
+                        <td className="px-4 py-3 text-text-secondary">{mouvement.utilisateur.nom}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             ) : (
@@ -312,31 +322,27 @@ export function StockPage() {
             )}
             {mouvements.data && mouvements.data.length > 0 && (
               <ul className="divide-y divide-border-subtle md:hidden">
-                {mouvements.data.map((mouvement) => (
-                  <li key={mouvement.id} className="flex flex-col gap-1 px-4 py-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-text-primary">{mouvement.produit.nom}</span>
-                      <span
-                        className={cn(
-                          'inline-flex items-center gap-1 text-sm font-medium',
-                          mouvement.type === 'ENTREE' ? 'text-success' : 'text-warning',
-                        )}
-                      >
-                        {mouvement.type === 'ENTREE' ? (
-                          <ArrowDownToLine className="size-4" aria-hidden="true" />
-                        ) : (
-                          <ArrowUpFromLine className="size-4" aria-hidden="true" />
-                        )}
-                        {mouvement.type === 'ENTREE' ? '+' : '−'}
-                        {mouvement.quantite}
-                      </span>
-                    </div>
-                    <p className="text-sm text-text-secondary">
-                      {mouvement.emplacement.nom} · {new Date(mouvement.createdAt).toLocaleDateString('fr-FR')} ·{' '}
-                      {mouvement.utilisateur.nom}
-                    </p>
-                  </li>
-                ))}
+                {mouvements.data.map((mouvement) => {
+                  const infos = infosTypeMouvement(mouvement.type);
+                  return (
+                    <li key={mouvement.id} className="flex flex-col gap-1 px-4 py-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-text-primary">{mouvement.produit.nom}</span>
+                        <span className={cn('inline-flex items-center gap-1 text-sm font-medium', infos.classe)}>
+                          <infos.Icone className="size-4" aria-hidden="true" />
+                          {infos.signe}
+                          {mouvement.quantite}
+                        </span>
+                      </div>
+                      <p className="text-sm text-text-secondary">
+                        {mouvement.type === 'TRANSFERT' && mouvement.emplacementDestination
+                          ? `${mouvement.emplacement.nom} → ${mouvement.emplacementDestination.nom}`
+                          : mouvement.emplacement.nom}{' '}
+                        · {new Date(mouvement.createdAt).toLocaleDateString('fr-FR')} · {mouvement.utilisateur.nom}
+                      </p>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </Card>

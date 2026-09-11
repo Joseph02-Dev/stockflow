@@ -20,6 +20,7 @@ enum Role {
 enum TypeMouvement {
   ENTREE
   SORTIE
+  TRANSFERT
 }
 
 enum TypeAlerte {
@@ -124,6 +125,10 @@ model Emplacement {
   entreprise Entreprise  @relation(fields: [entrepriseId], references: [id])
   stocks     Stock[]
   mouvements Mouvement[]
+  // Transferts dont cet emplacement est la destination (la relation
+  // "mouvements" ci-dessus couvre déjà la source de tous les mouvements,
+  // transferts inclus).
+  mouvementsRecus Mouvement[] @relation("MouvementDestination")
 
   @@index([entrepriseId])
   @@map("emplacement")
@@ -256,11 +261,17 @@ model Mouvement {
   utilisateurId String        @map("utilisateur_id")
   createdAt     DateTime      @default(now()) @map("created_at")
 
-  entreprise  Entreprise   @relation(fields: [entrepriseId], references: [id])
-  produit     Produit      @relation(fields: [produitId], references: [id])
-  emplacement Emplacement  @relation(fields: [emplacementId], references: [id])
-  fournisseur Fournisseur? @relation(fields: [fournisseurId], references: [id])
-  utilisateur Utilisateur  @relation(fields: [utilisateurId], references: [id])
+  // Uniquement renseigné pour un TRANSFERT — emplacementId joue alors le
+  // rôle de source. Relation nommée car deux relations distinctes
+  // pointent vers Emplacement depuis ce même modèle.
+  emplacementDestinationId String? @map("emplacement_destination_id")
+
+  entreprise             Entreprise   @relation(fields: [entrepriseId], references: [id])
+  produit                Produit      @relation(fields: [produitId], references: [id])
+  emplacement            Emplacement  @relation(fields: [emplacementId], references: [id])
+  emplacementDestination Emplacement? @relation("MouvementDestination", fields: [emplacementDestinationId], references: [id])
+  fournisseur            Fournisseur? @relation(fields: [fournisseurId], references: [id])
+  utilisateur            Utilisateur  @relation(fields: [utilisateurId], references: [id])
 
   @@index([produitId, createdAt])
   @@index([entrepriseId, createdAt])
