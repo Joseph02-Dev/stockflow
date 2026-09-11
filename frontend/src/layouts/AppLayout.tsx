@@ -20,6 +20,7 @@ import { clearSession, getSession } from '@/lib/session';
 import { useSession } from '@/lib/useSession';
 import { cn } from '@/lib/cn';
 import { Badge } from '@/components/ui/Badge';
+import { Logo } from '@/components/patterns/Logo';
 import { ProfilModal } from '@/features/profil/ProfilModal';
 import { useSynchronisation } from '@/lib/useSynchronisation';
 
@@ -156,9 +157,7 @@ export function AppLayout() {
       {/* Sidebar desktop — bleu nuit, conforme au nouveau design */}
       <aside className="hidden w-64 shrink-0 flex-col bg-navy md:flex">
         <div className="flex items-center gap-2.5 px-5 py-5">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-primary text-base font-bold text-white">
-            S
-          </span>
+          <Logo taille={36} />
           <div className="min-w-0 leading-tight">
             <p className="truncate text-[15px] font-semibold text-white">StockFlow</p>
             <p className="truncate text-xs text-navy-text">{session?.entreprise.nom}</p>
@@ -238,9 +237,7 @@ export function AppLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between gap-2 border-b border-border-subtle bg-surface px-4 py-3 md:px-6">
           <div className="flex min-w-0 items-center gap-2 md:hidden">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-[9px] bg-primary text-sm font-bold text-white">
-              S
-            </span>
+            <Logo taille={28} />
             <span className="truncate text-sm font-medium text-text-primary">{session?.entreprise.nom}</span>
           </div>
           <span className="hidden truncate text-sm font-medium text-text-secondary md:block">

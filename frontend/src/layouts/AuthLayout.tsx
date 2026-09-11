@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Boxes } from 'lucide-react';
+import { Logo } from '@/components/patterns/Logo';
 
 export function AuthLayout({
   panneauGauche,
@@ -24,9 +24,7 @@ export function AuthLayout({
         {/* Panneau navy — masqué sur mobile au profit d'un bandeau compact */}
         <div className="hidden flex-col justify-between bg-navy p-8 text-white md:flex">
           <div className="flex items-center gap-2">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-primary text-base font-bold text-white">
-              S
-            </span>
+            <Logo taille={36} />
             <span className="text-lg font-semibold">StockFlow</span>
           </div>
           {panneauGauche}
@@ -34,7 +32,7 @@ export function AuthLayout({
 
         {/* Bandeau compact mobile */}
         <div className="flex items-center gap-2 bg-navy px-5 py-4 text-white md:hidden">
-          <Boxes className="size-6 text-primary" aria-hidden="true" />
+          <Logo taille={28} />
           <span className="font-semibold">StockFlow</span>
         </div>
 
