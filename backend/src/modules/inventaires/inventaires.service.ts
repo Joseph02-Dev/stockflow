@@ -64,6 +64,10 @@ export class InventairesService {
    */
   async obtenir(entrepriseId: string, inventaireId: string) {
     const inventaire = await this.trouverOuEchouer(entrepriseId, inventaireId);
+    const emplacement = await this.prisma.emplacement.findUniqueOrThrow({
+      where: { id: inventaire.emplacementId },
+      select: { id: true, nom: true },
+    });
 
     const lignes = await this.prisma.inventaireLigne.findMany({
       where: { inventaireId },
@@ -78,6 +82,7 @@ export class InventairesService {
 
     return {
       ...inventaire,
+      emplacement,
       lignes: lignes.map((ligne) => {
         const quantiteSysteme = stockParProduit.get(ligne.produitId) ?? 0;
         return {

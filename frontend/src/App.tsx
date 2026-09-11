@@ -7,6 +7,7 @@ import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { ProduitsPage } from '@/features/produits/ProduitsPage';
 import { ProduitFormPage } from '@/features/produits/ProduitFormPage';
 import { StockPage } from '@/features/stock/StockPage';
+import { InventaireDetailPage } from '@/features/stock/InventaireDetailPage';
 import { AlertesPage } from '@/features/alertes/AlertesPage';
 import { FournisseursPage } from '@/features/fournisseurs/FournisseursPage';
 import { FournisseurDetailPage } from '@/features/fournisseurs/FournisseurDetailPage';
@@ -59,6 +60,7 @@ export function App() {
           <Route path="/produits/nouveau" element={<ProduitFormPage />} />
           <Route path="/produits/:id" element={<ProduitFormPage />} />
           <Route path="/stock" element={<StockPage />} />
+          <Route path="/inventaires/:id" element={<InventaireDetailPage />} />
           <Route path="/alertes" element={<AlertesPage />} />
           <Route path="/fournisseurs" element={<FournisseursPage />} />
           <Route path="/fournisseurs/:id" element={<FournisseurDetailPage />} />

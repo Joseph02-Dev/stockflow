@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card, PageHeader } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { MouvementModal } from './MouvementModal';
+import { InventairesTab } from './InventairesTab';
 import { cn } from '@/lib/cn';
 
 interface LigneStock {
@@ -38,6 +39,7 @@ interface Emplacement {
 const onglets = [
   { cle: 'stock', libelle: 'Stock actuel' },
   { cle: 'mouvements', libelle: 'Historique des mouvements' },
+  { cle: 'inventaires', libelle: 'Inventaires' },
 ] as const;
 
 type CleOnglet = (typeof onglets)[number]['cle'];
@@ -93,7 +95,8 @@ export function StockPage() {
         description="L’état de votre stock et la traçabilité de chaque entrée et sortie."
         action={
           <div className="flex gap-2">
-            <Button
+            {actif !== 'inventaires' && (
+              <Button
               variant="secondary"
               disabled={actif === 'stock' ? !stock.data?.length : !mouvements.data?.length}
               onClick={() => {
@@ -142,11 +145,14 @@ export function StockPage() {
             >
               <Download className="size-4" aria-hidden="true" />
               Exporter CSV
-            </Button>
-            <Button onClick={() => setModaleOuverte(true)}>
-              <Plus className="size-4" aria-hidden="true" />
-              Nouveau mouvement
-            </Button>
+              </Button>
+            )}
+            {actif !== 'inventaires' && (
+              <Button onClick={() => setModaleOuverte(true)}>
+                <Plus className="size-4" aria-hidden="true" />
+                Nouveau mouvement
+              </Button>
+            )}
           </div>
         }
       />
@@ -347,6 +353,8 @@ export function StockPage() {
             )}
           </Card>
         )}
+
+        {actif === 'inventaires' && <InventairesTab emplacements={emplacements.data} />}
       </div>
 
       {/* Monté seulement à l'ouverture : garantit un formulaire vierge

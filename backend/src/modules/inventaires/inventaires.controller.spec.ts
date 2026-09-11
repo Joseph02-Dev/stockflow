@@ -73,6 +73,21 @@ describe('Inventaires — intégration réelle, base PostgreSQL', () => {
     };
   }
 
+  it("GET /inventaires/:id inclut le nom de l'emplacement", async () => {
+    const { accessToken, emplacementId } = await creerContexte();
+    const inventaire = await request(app.getHttpServer())
+      .post('/inventaires')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ emplacementId });
+
+    const detail = await request(app.getHttpServer())
+      .get(`/inventaires/${inventaire.body.id}`)
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    expect(detail.body.emplacement).toBeDefined();
+    expect(detail.body.emplacement.nom).toBe('Dépôt Madina');
+  });
+
   it('crée un inventaire avec une ligne par produit actif du catalogue', async () => {
     const { accessToken, emplacementId } = await creerContexte();
 
