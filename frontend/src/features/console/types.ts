@@ -22,7 +22,12 @@ export interface Page<T> {
   elements: T[];
 }
 
-export type ActionAudit = 'CONNEXION' | 'CONSULTATION_ENTREPRISE' | 'SUSPENSION' | 'RETABLISSEMENT';
+export type ActionAudit =
+  | 'CONNEXION'
+  | 'CONSULTATION_ENTREPRISE'
+  | 'SUSPENSION'
+  | 'RETABLISSEMENT'
+  | 'MODIFICATION_REGLAGES';
 
 export const LIBELLES_ETAT: Record<EtatEntreprise, string> = {
   ACTIVE: 'Active',

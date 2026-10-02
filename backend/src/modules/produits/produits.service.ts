@@ -1,11 +1,15 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
+import { LimitesService } from '../../common/limites/limites.service.js';
 import type { CreateProduitDto } from './dto/create-produit.dto.js';
 import type { UpdateProduitDto } from './dto/update-produit.dto.js';
 
 @Injectable()
 export class ProduitsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly limites: LimitesService,
+  ) {}
 
   /**
    * PROD-003 — Recherche / filtre. `search` filtre sur le nom (insensible
@@ -44,6 +48,7 @@ export class ProduitsService {
   }
 
   async creer(entrepriseId: string, dto: CreateProduitDto) {
+    await this.limites.exigerPlace(entrepriseId, 'references');
     await this.verifierReferences(entrepriseId, dto);
     // Si aucun taux n'est fourni, on reprend le défaut défini par
     // l'entreprise (renseigné à l'inscription) plutôt que de laisser le

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Eye, Lock, LogIn, Unlock, X } from 'lucide-react';
+import { Eye, Lock, LogIn, SlidersHorizontal, Unlock, X } from 'lucide-react';
 import { messageErreur } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { Card, PageHeader } from '@/components/patterns/Page';
@@ -25,10 +25,23 @@ const ACTIONS: Record<ActionAudit, { libelle: string; verbe: string; Icone: type
   CONNEXION: { libelle: 'Connexion', verbe: 'a ouvert une session', Icone: LogIn, fond: 'bg-paper text-steel-700' },
   CONSULTATION_ENTREPRISE: { libelle: 'Consultation', verbe: 'a consulté', Icone: Eye, fond: 'bg-console-wash text-console' },
   SUSPENSION: { libelle: 'Suspension', verbe: 'a suspendu l’accès de', Icone: Lock, fond: 'bg-rupture-wash text-rupture' },
+  MODIFICATION_REGLAGES: {
+    libelle: 'Réglages',
+    verbe: 'a modifié les réglages de',
+    Icone: SlidersHorizontal,
+    fond: 'bg-accent-wash text-accent',
+  },
   RETABLISSEMENT: { libelle: 'Rétablissement', verbe: 'a rétabli l’accès de', Icone: Unlock, fond: 'bg-ok-wash text-ok' },
 };
 
-const FILTRES: (ActionAudit | 'TOUTES')[] = ['TOUTES', 'SUSPENSION', 'RETABLISSEMENT', 'CONSULTATION_ENTREPRISE', 'CONNEXION'];
+const FILTRES: (ActionAudit | 'TOUTES')[] = [
+  'TOUTES',
+  'SUSPENSION',
+  'RETABLISSEMENT',
+  'MODIFICATION_REGLAGES',
+  'CONSULTATION_ENTREPRISE',
+  'CONNEXION',
+];
 
 export function ConsoleJournalPage() {
   const [parametres, setParametres] = useSearchParams();

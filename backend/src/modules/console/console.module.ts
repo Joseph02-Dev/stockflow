@@ -5,6 +5,7 @@ import { ConsoleEntreprisesController } from './console-entreprises.controller.j
 import { ConsoleJournalController } from './console-journal.controller.js';
 import { ConsoleEntreprisesService } from './console-entreprises.service.js';
 import { ConsoleSuspensionService } from './console-suspension.service.js';
+import { ConsoleReglagesService } from './console-reglages.service.js';
 import { JournalService } from './journal.service.js';
 import { ConsoleGuard } from './securite/console.guard.js';
 import { consoleJwtProvider } from './securite/console-jwt.js';
@@ -24,6 +25,7 @@ import { consoleJwtProvider } from './securite/console-jwt.js';
     ConsoleAuthService,
     ConsoleEntreprisesService,
     ConsoleSuspensionService,
+    ConsoleReglagesService,
   ],
 })
 export class ConsoleModule {}

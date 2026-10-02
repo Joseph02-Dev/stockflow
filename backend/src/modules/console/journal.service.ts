@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 
-type ActionAudit = 'CONNEXION' | 'CONSULTATION_ENTREPRISE' | 'SUSPENSION' | 'RETABLISSEMENT';
+type ActionAudit = 'CONNEXION' | 'CONSULTATION_ENTREPRISE' | 'SUSPENSION' | 'RETABLISSEMENT' | 'MODIFICATION_REGLAGES';
 
 export interface EntreeJournal {
   operateurId: string;

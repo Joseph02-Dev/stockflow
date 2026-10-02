@@ -21,6 +21,8 @@ import { apiConsole } from './api';
 import { EtatBadge } from './EtatBadge';
 import { ModaleSuspension } from './ModaleSuspension';
 import { Pagination } from './Pagination';
+import { OngletReglages } from './OngletReglages';
+import type { Reglages } from './OngletReglages';
 import type { Page } from './types';
 
 interface Fiche {
@@ -45,6 +47,7 @@ interface Fiche {
     commandesEnCours: number;
     derniereActivite: string | null;
   };
+  reglages: Reglages;
   emplacements: {
     id: string;
     nom: string;
@@ -92,7 +95,7 @@ const ONGLETS = [
   { cle: 'utilisateurs', libelle: 'Utilisateurs' },
   { cle: 'stock', libelle: 'Stock' },
   { cle: 'mouvements', libelle: 'Mouvements' },
-  { cle: 'reglages', libelle: 'Réglages', desactive: true, raison: 'Disponible en phase 2' },
+  { cle: 'reglages', libelle: 'Réglages' },
 ] as const;
 type Onglet = (typeof ONGLETS)[number]['cle'];
 
@@ -186,6 +189,9 @@ export function ConsoleEntreprisePage() {
       {onglet === 'utilisateurs' && <Utilisateurs fiche={fiche.data} maintenant={fiche.dataUpdatedAt} />}
       {onglet === 'stock' && <Stock entrepriseId={id} />}
       {onglet === 'mouvements' && <Mouvements entrepriseId={id} />}
+      {onglet === 'reglages' && (
+        <OngletReglages entrepriseId={id} reglages={fiche.data.reglages} />
+      )}
 
       {suspensionOuverte && (
         <ModaleSuspension

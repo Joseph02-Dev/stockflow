@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
 import { JournalService } from './journal.service.js';
+import { ConsoleReglagesService } from './console-reglages.service.js';
 import type { PaginationDto } from './dto/pagination.dto.js';
 
 const JOUR_MS = 24 * 60 * 60 * 1000;
@@ -43,6 +44,7 @@ export class ConsoleEntreprisesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly journal: JournalService,
+    private readonly reglages: ConsoleReglagesService,
   ) {}
 
   /** Agrégats de toutes les entreprises, en une poignée de requêtes groupées (jamais N+1). */
@@ -205,6 +207,7 @@ export class ConsoleEntreprisesService {
       commandesEnCours,
       stockParEmplacement,
       dernierMouvement,
+      reglages,
     ] = await Promise.all([
       // Champs choisis un à un : jamais de hash de mot de passe ni de jeton.
       this.prisma.utilisateur.findMany({
@@ -239,6 +242,7 @@ export class ConsoleEntreprisesService {
         _sum: { quantite: true },
       }),
       this.prisma.mouvement.findFirst({ where, orderBy: { createdAt: 'desc' }, select: { createdAt: true } }),
+      this.reglages.lire(entrepriseId),
     ]);
 
     await this.journal.inscrire({ operateurId, action: 'CONSULTATION_ENTREPRISE', entrepriseId, detail: 'Fiche entreprise' });
@@ -269,6 +273,7 @@ export class ConsoleEntreprisesService {
         commandesEnCours,
         derniereActivite: dates.length > 0 ? new Date(Math.max(...dates.map((d) => d.getTime()))) : null,
       },
+      reglages,
       emplacements: emplacements.map((e) => ({
         ...e,
         referencesEnStock: stock.get(e.id)?._count._all ?? 0,

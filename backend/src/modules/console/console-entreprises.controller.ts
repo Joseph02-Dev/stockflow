@@ -1,6 +1,8 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ConsoleEntreprisesService } from './console-entreprises.service.js';
 import { ConsoleSuspensionService } from './console-suspension.service.js';
+import { ConsoleReglagesService } from './console-reglages.service.js';
+import { ReglagesDto } from './dto/reglages.dto.js';
 import { RetablirDto, SuspendreDto } from './dto/suspension.dto.js';
 import { ListeEntreprisesDto } from './dto/liste-entreprises.dto.js';
 import { PaginationDto } from './dto/pagination.dto.js';
@@ -18,6 +20,7 @@ export class ConsoleEntreprisesController {
   constructor(
     private readonly service: ConsoleEntreprisesService,
     private readonly suspension: ConsoleSuspensionService,
+    private readonly reglages: ConsoleReglagesService,
   ) {}
 
   @Get('apercu')
@@ -71,5 +74,15 @@ export class ConsoleEntreprisesController {
     @Body() dto: RetablirDto,
   ) {
     return this.suspension.retablir(operateur.id, id, dto.motif);
+  }
+
+  /** Phase 2 : limites et modules à la carte, refusés sous l'usage actuel. */
+  @Patch('entreprises/:id/reglages')
+  modifierReglages(
+    @OperateurCourant() operateur: OperateurConnecte,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReglagesDto,
+  ) {
+    return this.reglages.modifier(operateur.id, id, dto);
   }
 }
