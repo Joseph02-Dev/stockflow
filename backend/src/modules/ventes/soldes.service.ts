@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
+import type { TransactionPrisma } from '../mouvements/mouvements.service.js';
 
 export interface VenteNonSoldee {
   venteId: string;
@@ -31,8 +32,9 @@ export class SoldesService {
   async ventesNonSoldees(
     entrepriseId: string,
     clientId?: string,
+    tx?: TransactionPrisma,
   ): Promise<VenteNonSoldee[]> {
-    const lignes = await this.prisma.$queryRaw<
+    const lignes = await (tx ?? this.prisma).$queryRaw<
       {
         vente_id: string;
         client_id: string;

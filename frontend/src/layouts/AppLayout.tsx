@@ -6,6 +6,7 @@ import {
   Bell,
   ChevronRight,
   ClipboardList,
+  HandCoins,
   LayoutDashboard,
   LogOut,
   MoreHorizontal,
@@ -30,6 +31,7 @@ import { BarreProgression } from '@/components/patterns/BarreProgression';
 const sectionPilotage = [
   { to: '/', libelle: 'Tableau de bord', Icone: LayoutDashboard, exact: true },
   { to: '/ventes', libelle: 'Ventes', Icone: Receipt },
+  { to: '/creances', libelle: 'Créances', Icone: HandCoins },
   { to: '/alertes', libelle: 'Alertes', Icone: Bell },
   { to: '/stock', libelle: 'Stock & mouvements', Icone: Warehouse },
   { to: '/commandes', libelle: 'Commandes fournisseur', Icone: ClipboardList },
@@ -72,6 +74,7 @@ function filAriane(chemin: string, recherche: string): { libelle: string; to?: s
     fournisseurs: 'Fournisseurs',
     clients: 'Clients',
     ventes: 'Ventes',
+    creances: 'Créances',
     parametres: 'Paramètres',
   };
   const [racine, detail] = chemin.split('/').filter(Boolean);
@@ -415,6 +418,10 @@ export function AppLayout() {
           <div className="absolute inset-0 bg-ink-900/50" onClick={() => setPlusOuvert(false)} aria-hidden="true" />
           <div className="absolute inset-x-0 bottom-0 rounded-t-xl bg-surface p-3 pb-6 shadow-pop">
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-rule-strong" />
+            <NavLink to="/creances" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
+              <HandCoins className="size-5 text-steel-500" aria-hidden="true" />
+              Créances
+            </NavLink>
             <NavLink to="/produits" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
               <Package className="size-5 text-steel-500" aria-hidden="true" />
               Produits
