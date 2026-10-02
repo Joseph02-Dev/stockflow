@@ -81,7 +81,7 @@ export function CommandeDetailPage() {
     onError: (err) => setErreur(messageErreur(err, 'L’annulation a échoué.')),
   });
 
-  if (commande.isLoading) return <LoadingState />;
+  if (commande.isLoading) return <LoadingState variante="page" />;
   if (commande.isError || !commande.data) {
     return (
       <ErrorState

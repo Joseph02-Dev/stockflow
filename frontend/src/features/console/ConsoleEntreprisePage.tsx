@@ -125,7 +125,7 @@ export function ConsoleEntreprisePage() {
     onError: (e) => setErreur(messageErreur(e, 'Le rétablissement a échoué.')),
   });
 
-  if (fiche.isLoading) return <LoadingState />;
+  if (fiche.isLoading) return <LoadingState variante="page" />;
   if (fiche.isError || !fiche.data) {
     return <ErrorState message={messageErreur(fiche.error, 'Entreprise introuvable.')} onRetry={() => fiche.refetch()} />;
   }

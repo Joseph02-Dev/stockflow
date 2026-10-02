@@ -15,7 +15,7 @@ import { cn } from '@/lib/cn';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, PanneauEntete } from '@/components/patterns/Page';
-import { ErrorState, LoadingState } from '@/components/patterns/States';
+import { ErrorState, LoadingState, Squelette } from '@/components/patterns/States';
 import { NiveauStock } from '@/components/patterns/NiveauStock';
 import { Vignette } from '@/components/patterns/Vignette';
 import { libelleStatut, statutStock, varianteStatut } from '@/components/patterns/statutStock';
@@ -200,7 +200,7 @@ export function DashboardPage() {
     };
   }, [stock.data, mouvements.data, fournisseurs.data, alertes.data, commandes.data, maintenant]);
 
-  if (overview.isLoading || alertes.isLoading || stock.isLoading) return <LoadingState />;
+  if (overview.isLoading || alertes.isLoading || stock.isLoading) return <SqueletteTableauDeBord />;
   if (overview.isError) {
     return <ErrorState message={messageErreur(overview.error)} onRetry={() => overview.refetch()} />;
   }
@@ -467,6 +467,55 @@ export function DashboardPage() {
             </ul>
           )}
         </Card>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Squelette du tableau de bord : mêmes blocs, mêmes proportions que
+ * l'écran réel (bandeau, bande de mesures, deux panneaux). Les blocs
+ * apparaissent l'un après l'autre, puis cèdent la place au contenu.
+ */
+function SqueletteTableauDeBord() {
+  return (
+    <div className="flex flex-col gap-5" role="status" aria-live="polite">
+      <span className="sr-only">Chargement du tableau de bord…</span>
+      <div className="bandeau-action flex flex-col gap-6 rounded-lg px-5 py-6 sm:px-[26px]">
+        <div className="flex flex-col gap-2.5">
+          <span className="block h-6 w-72 max-w-full rounded-sm bg-white/10" />
+          <span className="block h-3 w-56 max-w-full rounded-sm bg-white/[0.07]" />
+        </div>
+        <div className="flex gap-8">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex flex-col gap-2 border-l-2 border-white/14 pl-3">
+              <span className="block h-6 w-8 rounded-sm bg-white/10" />
+              <span className="block h-2.5 w-20 rounded-sm bg-white/[0.07]" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rule bg-rule shadow-card lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className={i === 0 ? 'col-span-2 bg-surface px-5 py-4 lg:col-span-1' : 'bg-surface px-5 py-4'}>
+            <Squelette className="h-2.5 w-24" />
+            <Squelette className="mt-3 h-6 w-28" />
+            <Squelette className="mt-3 h-2.5 w-32" />
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.35fr_1fr]">
+        {[6, 5].map((lignes, i) => (
+          <Card key={i}>
+            <div className="border-b border-rule px-5 py-4">
+              <Squelette className="h-3 w-36" />
+              <Squelette className="mt-2 h-2.5 w-48" />
+            </div>
+            <LoadingState lignes={lignes} />
+          </Card>
+        ))}
       </div>
     </div>
   );

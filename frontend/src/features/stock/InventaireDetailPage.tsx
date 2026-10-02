@@ -105,7 +105,7 @@ export function InventaireDetailPage() {
     onError: (err) => setErreur(messageErreur(err, 'L’action a échoué.')),
   });
 
-  if (inventaire.isLoading) return <LoadingState />;
+  if (inventaire.isLoading) return <LoadingState variante="page" />;
   if (inventaire.isError || !inventaire.data) {
     return (
       <ErrorState

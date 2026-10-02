@@ -23,6 +23,7 @@ import { cn } from '@/lib/cn';
 import { Logo } from '@/components/patterns/Logo';
 import { ProfilModal } from '@/features/profil/ProfilModal';
 import { useSynchronisation } from '@/lib/useSynchronisation';
+import { BarreProgression } from '@/components/patterns/BarreProgression';
 
 const sectionPilotage = [
   { to: '/', libelle: 'Tableau de bord', Icone: LayoutDashboard, exact: true },
@@ -218,6 +219,7 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-full">
+      <BarreProgression />
       {/* Sidebar desktop — encre, collée à la hauteur de l'écran. */}
       <aside className="sticky top-0 hidden h-dvh w-[232px] shrink-0 flex-col bg-ink-800 md:flex">
         <div className="flex h-[60px] items-center gap-2.5 border-b border-white/[0.06] px-4">
@@ -352,7 +354,8 @@ export function AppLayout() {
         </header>
 
         <main className="flex-1 px-4 pt-5 pb-24 md:px-7 md:pt-7 md:pb-10">
-          <div className="mx-auto w-full max-w-[1280px]">
+          {/* Clé = route : chaque changement d'écran rejoue l'entrée échelonnée des blocs. */}
+          <div key={location.pathname} className="entree-page mx-auto w-full max-w-[1280px]">
             <Outlet />
           </div>
         </main>

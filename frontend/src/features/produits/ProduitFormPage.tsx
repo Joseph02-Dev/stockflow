@@ -204,7 +204,7 @@ export function ProduitFormPage() {
     ...(marques.data ?? []).map((m) => ({ valeur: m.id, libelle: m.nom })),
   ];
 
-  if (enEdition && produit.isLoading) return <LoadingState />;
+  if (enEdition && produit.isLoading) return <LoadingState variante="fiche" lignes={6} />;
   if (enEdition && produit.isError) {
     return (
       <ErrorState message={messageErreur(produit.error, 'Produit introuvable.')} onRetry={() => produit.refetch()} />

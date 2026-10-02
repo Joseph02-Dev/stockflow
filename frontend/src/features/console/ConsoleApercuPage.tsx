@@ -85,7 +85,7 @@ export function ConsoleApercuPage() {
     staleTime: 60_000,
   });
 
-  if (isLoading) return <LoadingState />;
+  if (isLoading) return <LoadingState variante="cartes" lignes={6} />;
   if (isError || !data) return <ErrorState message={messageErreur(error)} onRetry={() => refetch()} />;
 
   const { kpi, repartitionMouvements: r, aSurveiller } = data;
