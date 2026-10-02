@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
@@ -21,6 +21,7 @@ import { MarquesModule } from './modules/marques/marques.module.js';
 import { UploadsModule } from './modules/uploads/uploads.module.js';
 import { InventairesModule } from './modules/inventaires/inventaires.module.js';
 import { CommandesModule } from './modules/commandes/commandes.module.js';
+import { ConsoleModule } from './modules/console/console.module.js';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { CommandesModule } from './modules/commandes/commandes.module.js';
     UploadsModule,
     InventairesModule,
     CommandesModule,
+    ConsoleModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: RolesGuard }],
@@ -49,6 +51,12 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     // Appliqué à toutes les routes : le middleware lui-même décide de ne
     // rien faire en l'absence de token (cf. TenantContextMiddleware).
-    consumer.apply(TenantContextMiddleware).forRoutes('*');
+    // Seule exception : la console opérateur, qui a son propre secret JWT
+    // et sa propre garde. Sans cette exclusion, tout token opérateur y
+    // serait rejeté par le middleware client (mauvais secret).
+    consumer
+      .apply(TenantContextMiddleware)
+      .exclude({ path: 'console', method: RequestMethod.ALL }, { path: 'console/{*chemin}', method: RequestMethod.ALL })
+      .forRoutes('*');
   }
 }

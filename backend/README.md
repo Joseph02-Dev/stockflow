@@ -161,6 +161,28 @@ login() { ... }
 inviterUtilisateur() { ... }
 ```
 
+## Console opérateur
+
+Espace réservé au propriétaire de la plateforme, sous `/console/*`. C'est le **seul** endroit qui traverse volontairement l'isolation multi-tenant ; il est donc cloisonné de l'application cliente à tous les niveaux :
+
+- **Authentification séparée** : modèle `Operateur` (distinct d'`Utilisateur`, rattaché à aucune entreprise), token signé avec `JWT_CONSOLE_SECRET` et portant `typ: "console"`. Un token client est refusé sur `/console/*`, un token opérateur est refusé sur les routes clientes (401 dans les deux cas, tests à l'appui).
+- **Garde propre** : `@RouteConsole()` applique `ConsoleGuard` ; `TenantContextMiddleware` et `RolesGuard` ne s'exécutent pas sur ces routes. Ne jamais y utiliser `@CurrentTenant()`.
+- **Fermée par défaut** : si `JWT_CONSOLE_SECRET` est absent ou identique à un autre secret JWT, la console refuse toute connexion.
+- **Journal d'audit** : toute lecture ou modification des données d'une entreprise par un opérateur est inscrite dans `journal_audit`.
+- **Lecture seule** sur les données métier : un opérateur consulte et suspend, rien d'autre.
+
+### Créer un opérateur
+
+Aucune interface ne permet de créer un opérateur — uniquement en ligne de commande, depuis un accès au serveur (ou `railway run` en production) :
+
+```bash
+npm run --silent console:creer-operateur -- --email=vous@exemple.com --nom="Votre Nom" --motdepasse='au-moins-12-caracteres'
+```
+
+- `--silent` évite que npm réaffiche la commande (et donc le mot de passe) dans la sortie.
+- Le mot de passe est haché avec argon2 ; il reste en revanche dans l'historique du shell : préférez un terminal éphémère ou effacez la ligne après coup.
+- Refuse de créer un opérateur dont l'email existe déjà (jamais d'écrasement).
+
 ## Base de données
 
 ORM : **Prisma 7** (adaptateur `@prisma/adapter-pg`). Schéma : `prisma/schema.prisma` — reflète les 11 entités validées en architecture (`archive` sur `emplacement`/`produit` ; `categorie` et `marque` ajoutées pour la fiche produit enrichie).
