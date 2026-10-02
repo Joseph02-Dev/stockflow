@@ -11,7 +11,7 @@ export function Onglets<C extends string>({
   onChange,
   libelle,
 }: {
-  onglets: readonly { cle: C; libelle: string }[];
+  onglets: readonly { cle: C; libelle: string; desactive?: boolean; raison?: string }[];
   actif: C;
   onChange: (cle: C) => void;
   libelle: string;
@@ -44,9 +44,12 @@ export function Onglets<C extends string>({
           role="tab"
           aria-selected={actif === onglet.cle}
           onClick={() => onChange(onglet.cle)}
+          disabled={onglet.desactive}
+          title={onglet.desactive ? onglet.raison : undefined}
           className={cn(
             'h-8 shrink-0 rounded-sm px-3 text-corps font-medium whitespace-nowrap transition-colors',
             actif === onglet.cle ? 'bg-ink-800 text-white' : 'text-steel-500 hover:text-ink-900',
+            'disabled:cursor-not-allowed disabled:text-steel-400 disabled:hover:text-steel-400',
           )}
         >
           {onglet.libelle}

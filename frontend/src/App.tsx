@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { AppLayout } from '@/layouts/AppLayout';
 import { ConnexionPage } from '@/features/auth/ConnexionPage';
@@ -19,6 +20,11 @@ import { FournisseursPage } from '@/features/fournisseurs/FournisseursPage';
 import { FournisseurDetailPage } from '@/features/fournisseurs/FournisseurDetailPage';
 import { ParametresPage } from '@/features/parametres/ParametresPage';
 import { useSession } from '@/lib/useSession';
+import { LoadingState } from '@/components/patterns/States';
+
+// Console opérateur : chargée à la demande, jamais embarquée dans le
+// bundle de l'application cliente.
+const ConsoleApp = lazy(() => import('@/features/console/ConsoleApp'));
 
 /** Redirige vers la connexion si aucune session valide n'est présente. */
 function RouteProtegee() {
@@ -84,6 +90,17 @@ export function App() {
           </Route>
         </Route>
       </Route>
+
+      {/* Console opérateur : hors de toutes les gardes clientes, avec sa
+          propre session (stockflow.console-session) et sa propre garde. */}
+      <Route
+        path="/console/*"
+        element={
+          <Suspense fallback={<LoadingState />}>
+            <ConsoleApp />
+          </Suspense>
+        }
+      />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

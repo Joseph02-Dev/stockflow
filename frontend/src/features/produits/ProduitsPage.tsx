@@ -235,7 +235,7 @@ export function ProduitsPage() {
           <ErrorState message={messageErreur(error)} onRetry={() => refetch()} />
         ) : produitsAffiches.length > 0 ? (
           <>
-            <div className="hidden overflow-x-auto lg:block">
+            <div className="relative hidden overflow-x-auto lg:block">
               <table className="w-full text-corps">
                 <thead className="border-b border-rule bg-entete-tableau text-left text-meta font-medium text-steel-500">
                   <tr>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -33,6 +33,7 @@ const SEUIL_CONNEXION_LENTE_MS = 2500;
 
 export function ConnexionPage() {
   const navigate = useNavigate();
+  const [parametres] = useSearchParams();
   const enLigne = useEnLigne();
   const [erreur, setErreur] = useState<string | null>(null);
   const [resterConnecte, setResterConnecte] = useState(true);
@@ -130,6 +131,9 @@ export function ConnexionPage() {
               Vous êtes hors-ligne. La connexion nécessite une première synchronisation réseau.
             </span>
           </Alert>
+        )}
+        {parametres.get('suspendue') && !erreur && (
+          <Alert variant="error">L’accès de votre entreprise a été suspendu. Contactez votre administrateur.</Alert>
         )}
         {erreur && <Alert variant="error">{erreur}</Alert>}
         {emailNonConfirme &&

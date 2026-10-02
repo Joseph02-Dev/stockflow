@@ -54,6 +54,25 @@
   /* Ultramarine éclaircie : icônes d’action posées sur l’encre (contraste AA). */
   --color-action-clair: #9aabf5;
 
+  /*
+   * Console opérateur — le violet signale partout le contexte privilégié.
+   * Jamais le bleu de l'espace client : c'est un garde-fou, pas un goût.
+   */
+  --color-console: #6d4fc4;
+  --color-console-dark: #5a3dae;
+  --color-console-wash: #f0ecfb;
+  --color-console-rail: #16122a; /* sidebar */
+  --color-console-deep: #241e42; /* bloc bas de sidebar */
+  --color-console-fond: #16122a; /* écran de connexion */
+  --color-console-clair: #b9a9f0; /* texte violet lisible sur le rail */
+
+  /* Anneau des mouvements : palette catégorielle validée (daltonisme). */
+  --color-serie-1: #6d4fc4;
+  --color-serie-2: #eb6834;
+  --color-serie-3: #1baf7a;
+  --color-serie-4: #eda100;
+  --color-serie-5: #e87ba4;
+
   --radius-sm: 6px;
   --radius-md: 9px;
   --radius-lg: 14px;
@@ -141,4 +160,16 @@ body {
   border-radius: 9999px;
   background: radial-gradient(closest-side, rgba(34, 66, 199, 0.42), rgba(34, 66, 199, 0));
   pointer-events: none;
+}
+
+/*
+ * Garde-fou de la console : à l'intérieur de .zone-console, la couleur
+ * « action » de l'application devient le violet console. Tout composant
+ * partagé (bouton principal, focus, champ actif, lien) bascule ainsi de
+ * lui-même — aucun bleu client ne peut apparaître par mégarde.
+ */
+.zone-console {
+  --color-action: var(--color-console);
+  --color-action-dark: var(--color-console-dark);
+  --color-action-wash: var(--color-console-wash);
 }
