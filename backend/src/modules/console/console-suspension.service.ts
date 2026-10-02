@@ -2,6 +2,9 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { PrismaService } from '../../config/prisma.service.js';
 import { JournalService } from './journal.service.js';
 
+// Le détail du journal est lu tel quel par un humain : date française, heure de Conakry.
+const FORMAT_DATE = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Africa/Conakry' });
+
 /**
  * Suspension et rétablissement — les deux seules écritures de la console,
  * et elles ne touchent qu'au statut de l'entreprise et aux sessions : les
@@ -70,7 +73,7 @@ export class ConsoleSuspensionService {
           action: 'RETABLISSEMENT',
           entrepriseId,
           motif: motif || null,
-          detail: `Suspendue depuis le ${entreprise.suspendueAt?.toISOString() ?? '?'} pour : ${entreprise.motifSuspension ?? '?'}`,
+          detail: `Suspendue depuis le ${entreprise.suspendueAt ? FORMAT_DATE.format(entreprise.suspendueAt) : '?'} pour : ${entreprise.motifSuspension ?? '?'}`,
         },
         tx,
       );
