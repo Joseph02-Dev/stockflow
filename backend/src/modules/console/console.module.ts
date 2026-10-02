@@ -3,6 +3,7 @@ import { ConsoleAuthController } from './console-auth.controller.js';
 import { ConsoleAuthService } from './console-auth.service.js';
 import { ConsoleEntreprisesController } from './console-entreprises.controller.js';
 import { ConsoleEntreprisesService } from './console-entreprises.service.js';
+import { ConsoleSuspensionService } from './console-suspension.service.js';
 import { JournalService } from './journal.service.js';
 import { ConsoleGuard } from './securite/console.guard.js';
 import { consoleJwtProvider } from './securite/console-jwt.js';
@@ -15,6 +16,13 @@ import { consoleJwtProvider } from './securite/console-jwt.js';
  */
 @Module({
   controllers: [ConsoleAuthController, ConsoleEntreprisesController],
-  providers: [consoleJwtProvider, ConsoleGuard, JournalService, ConsoleAuthService, ConsoleEntreprisesService],
+  providers: [
+    consoleJwtProvider,
+    ConsoleGuard,
+    JournalService,
+    ConsoleAuthService,
+    ConsoleEntreprisesService,
+    ConsoleSuspensionService,
+  ],
 })
 export class ConsoleModule {}
