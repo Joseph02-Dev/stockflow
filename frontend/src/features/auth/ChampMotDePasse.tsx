@@ -28,7 +28,7 @@ export const ChampMotDePasse = forwardRef<HTMLInputElement, ChampMotDePasseProps
           type="button"
           onClick={() => setVisible((v) => !v)}
           aria-label={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-          className="text-text-secondary hover:text-text-primary"
+          className="text-steel-500 hover:text-ink-900"
         >
           {visible ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
         </button>

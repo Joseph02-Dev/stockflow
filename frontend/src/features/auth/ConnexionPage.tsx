@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -33,6 +33,7 @@ const SEUIL_CONNEXION_LENTE_MS = 2500;
 
 export function ConnexionPage() {
   const navigate = useNavigate();
+  const [parametres] = useSearchParams();
   const enLigne = useEnLigne();
   const [erreur, setErreur] = useState<string | null>(null);
   const [resterConnecte, setResterConnecte] = useState(true);
@@ -92,21 +93,21 @@ export function ConnexionPage() {
       panneauGauche={
         <div className="flex flex-col gap-8">
           <div>
-            <h2 className="text-2xl font-semibold text-white">
+            <h2 className="text-titre text-white">
               Votre stock, à jour à chaque ouverture de boutique.
             </h2>
-            <p className="mt-3 text-sm text-navy-text">
+            <p className="mt-3 text-corps text-white/65">
               Entrées, sorties, seuils d’alerte et fournisseurs au même endroit. Conçu pour fonctionner même
               quand la connexion faiblit.
             </p>
           </div>
           <ul className="flex flex-col gap-2">
             {REPERES.map(({ Icone, titre, description }) => (
-              <li key={titre} className="flex items-start gap-3 rounded-(--radius-button) bg-navy-light p-3">
-                <Icone className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+              <li key={titre} className="flex items-start gap-3 rounded-md border border-white/10 bg-white/[0.05] p-3">
+                <Icone className="mt-0.5 size-4 shrink-0 text-action-clair" aria-hidden="true" />
                 <div>
-                  <p className="text-sm font-medium text-white">{titre}</p>
-                  <p className="text-xs text-navy-text">{description}</p>
+                  <p className="text-corps font-medium text-white">{titre}</p>
+                  <p className="text-meta text-white/65">{description}</p>
                 </div>
               </li>
             ))}
@@ -116,7 +117,7 @@ export function ConnexionPage() {
       pied={
         <>
           Pas encore de compte ?{' '}
-          <Link to="/inscription" className="font-medium text-primary hover:underline">
+          <Link to="/inscription" className="font-medium text-action hover:underline">
             Créer une entreprise
           </Link>
         </>
@@ -130,6 +131,9 @@ export function ConnexionPage() {
               Vous êtes hors-ligne. La connexion nécessite une première synchronisation réseau.
             </span>
           </Alert>
+        )}
+        {parametres.get('suspendue') && !erreur && (
+          <Alert variant="error">L’accès de votre entreprise a été suspendu. Contactez votre administrateur.</Alert>
         )}
         {erreur && <Alert variant="error">{erreur}</Alert>}
         {emailNonConfirme &&
@@ -151,10 +155,10 @@ export function ConnexionPage() {
         />
         <div className="flex flex-col gap-1.5">
           <div className="flex items-baseline justify-between">
-            <label htmlFor="password" className="text-sm font-medium text-text-primary">
+            <label htmlFor="password" className="text-corps font-medium text-ink-900">
               Mot de passe
             </label>
-            <Link to="/mot-de-passe-oublie" className="text-xs font-medium text-primary hover:underline">
+            <Link to="/mot-de-passe-oublie" className="text-meta font-medium text-action hover:underline">
               Mot de passe oublié ?
             </Link>
           </div>
@@ -167,12 +171,12 @@ export function ConnexionPage() {
           />
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-text-secondary">
+        <label className="flex items-center gap-2 text-corps text-steel-500">
           <input
             type="checkbox"
             checked={resterConnecte}
             onChange={(event) => setResterConnecte(event.target.checked)}
-            className="size-4 rounded border-border-subtle text-primary"
+            className="size-4 accent-action"
           />
           Rester connectée sur cet appareil
         </label>

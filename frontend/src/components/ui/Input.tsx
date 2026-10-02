@@ -23,13 +23,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label htmlFor={inputId} className="text-sm font-medium text-text-primary">
+        <label htmlFor={inputId} className="text-corps font-medium text-ink-900">
           {label}
         </label>
       )}
       <div className="relative">
         {icone && (
-          <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-secondary">
+          <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-steel-400">
             {icone}
           </span>
         )}
@@ -39,11 +39,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           aria-invalid={error ? true : undefined}
           aria-describedby={describedById}
           className={cn(
-            'w-full rounded-(--radius-button) border bg-surface py-2 text-sm text-text-primary',
+            'h-9 w-full rounded-md border bg-surface text-corps text-ink-900 transition-colors',
             icone ? 'pl-9' : 'pl-3',
             actionDroite ? 'pr-9' : 'pr-3',
-            'placeholder:text-text-secondary disabled:cursor-not-allowed disabled:opacity-50',
-            error ? 'border-error' : 'border-border-subtle',
+            'placeholder:text-steel-400 hover:border-steel-400 focus:border-action focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-action/25 disabled:cursor-not-allowed disabled:opacity-50',
+            error ? 'border-rupture' : 'border-rule-strong',
             className,
           )}
           {...props}
@@ -53,11 +53,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         )}
       </div>
       {error ? (
-        <p id={`${inputId}-error`} className="text-xs text-error">
+        <p id={`${inputId}-error`} className="text-meta text-rupture">
           {error}
         </p>
       ) : hint ? (
-        <p id={`${inputId}-hint`} className="text-xs text-text-secondary">
+        <p id={`${inputId}-hint`} className="text-meta text-steel-500">
           {hint}
         </p>
       ) : null}

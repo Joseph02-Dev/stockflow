@@ -8,6 +8,7 @@ import { PrismaService } from '../../config/prisma.service.js';
 import { EMAIL_SERVICE, type EmailService } from '../../common/email/email.service.js';
 import { domaineEmailExiste } from '../../common/email/domaine-email.util.js';
 import { hashToken } from './token-hash.util.js';
+import { erreurEntrepriseSuspendue } from '../../common/entreprise-suspendue.js';
 import type { RegisterDto } from './dto/register.dto.js';
 import type { LoginDto } from './dto/login.dto.js';
 import type { LogoutDto } from './dto/logout.dto.js';
@@ -239,9 +240,15 @@ export class AuthService {
       throw new BadRequestException("Cette adresse email semble invalide : son domaine n'accepte pas de courrier.");
     }
 
-    const utilisateur = await this.prisma.utilisateur.findUnique({ where: { email: dto.email } });
+    const utilisateur = await this.prisma.utilisateur.findUnique({
+      where: { email: dto.email },
+      include: { entreprise: { select: { statut: true } } },
+    });
 
-    if (utilisateur) {
+    // Entreprise suspendue : aucun email ne part (la suspension promet que
+    // les emails cessent), mais la réponse reste identique pour ne rien
+    // révéler à qui ne connaît que l'adresse.
+    if (utilisateur && utilisateur.entreprise.statut !== 'SUSPENDUE') {
       const token = randomBytes(32).toString('hex');
       const expiration = (process.env.PASSWORD_RESET_EXPIRATION ?? '30m') as StringValue;
 
@@ -331,8 +338,11 @@ export class AuthService {
    * vérifié, soit inconnu.
    */
   async resendVerification(dto: ResendVerificationDto): Promise<{ message: string }> {
-    const utilisateur = await this.prisma.utilisateur.findUnique({ where: { email: dto.email } });
-    if (utilisateur && !utilisateur.emailVerifieAt) {
+    const utilisateur = await this.prisma.utilisateur.findUnique({
+      where: { email: dto.email },
+      include: { entreprise: { select: { statut: true } } },
+    });
+    if (utilisateur && !utilisateur.emailVerifieAt && utilisateur.entreprise.statut !== 'SUSPENDUE') {
       await this.envoyerEmailVerification(utilisateur.id, utilisateur.email);
     }
     return { message: 'Si un compte en attente de confirmation existe, un nouveau lien vient d’être envoyé.' };
@@ -360,8 +370,16 @@ export class AuthService {
 
   private async construireReponseAuth(
     utilisateur: { id: string; email: string; nom: string; role: 'ADMIN' | 'GESTIONNAIRE'; photoUrl: string | null },
-    entreprise: { id: string; nom: string },
+    entreprise: { id: string; nom: string; statut: 'ACTIVE' | 'SUSPENDUE' },
   ): Promise<AuthResult> {
+    // Point de passage obligé de toute émission de tokens (connexion,
+    // invitation acceptée, email confirmé). Dans login(), il n'est atteint
+    // qu'après la vérification du mot de passe : une suspension ne se
+    // révèle jamais à qui n'a pas les bons identifiants.
+    if (entreprise.statut === 'SUSPENDUE') {
+      throw erreurEntrepriseSuspendue();
+    }
+
     const payload = { sub: utilisateur.id, entrepriseId: entreprise.id, role: utilisateur.role };
     const accessToken = this.jwtService.sign({ ...payload, jti: randomUUID() });
     const refreshExpiration = (process.env.JWT_REFRESH_EXPIRATION ?? '7d') as StringValue;

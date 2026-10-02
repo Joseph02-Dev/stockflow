@@ -4,6 +4,7 @@ import type { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
 import { ROLES_KEY } from '../decorators/roles.decorator.js';
 import type { RequestContext } from '../context/tenant-context.service.js';
+import { IS_CONSOLE_KEY } from '../../modules/console/securite/console.metadata.js';
 
 /**
  * TECH-004 — Guard de rôles.
@@ -31,6 +32,17 @@ export class RolesGuard implements CanActivate {
       context.getClass(),
     ]);
     if (isPublic) {
+      return true;
+    }
+
+    // Routes de la console opérateur : elles n'ont pas de contexte client
+    // et sont protégées par leur propre garde (ConsoleGuard). Les ignorer
+    // ici n'ouvre rien : sans ConsoleGuard satisfait, elles restent fermées.
+    const estConsole = this.reflector.getAllAndOverride<boolean>(IS_CONSOLE_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (estConsole) {
       return true;
     }
 

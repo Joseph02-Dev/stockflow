@@ -20,14 +20,14 @@ type Formulaire = z.infer<typeof schema>;
 const panneauGauche = (
   <div className="flex flex-col gap-8">
     <div>
-      <h2 className="text-2xl font-semibold text-white">Choisissez un nouveau mot de passe.</h2>
-      <p className="mt-3 text-sm text-navy-text">
+      <h2 className="text-titre text-white">Choisissez un nouveau mot de passe.</h2>
+      <p className="mt-3 text-corps text-white/65">
         Toutes vos sessions actives seront déconnectées par sécurité — vous devrez vous reconnecter partout.
       </p>
     </div>
-    <div className="flex items-start gap-3 rounded-(--radius-button) bg-navy-light p-3">
-      <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
-      <p className="text-xs text-navy-text">Ce lien n’est valable que 30 minutes et ne peut servir qu’une seule fois.</p>
+    <div className="flex items-start gap-3 rounded-md border border-white/10 bg-white/[0.05] p-3">
+      <ShieldCheck className="mt-0.5 size-4 shrink-0 text-action-clair" aria-hidden="true" />
+      <p className="text-meta text-white/65">Ce lien n’est valable que 30 minutes et ne peut servir qu’une seule fois.</p>
     </div>
   </div>
 );
@@ -61,8 +61,8 @@ export function ReinitialiserMotDePassePage() {
     return (
       <AuthLayout titre="Mot de passe modifié" panneauGauche={panneauGauche}>
         <div className="flex flex-col items-center gap-3 py-4 text-center">
-          <CheckCircle2 className="size-10 text-success" aria-hidden="true" />
-          <p className="text-sm text-text-secondary">Redirection vers la connexion…</p>
+          <CheckCircle2 className="size-10 text-ok" aria-hidden="true" />
+          <p className="text-corps text-steel-500">Redirection vers la connexion…</p>
         </div>
       </AuthLayout>
     );
@@ -74,7 +74,7 @@ export function ReinitialiserMotDePassePage() {
       description="Choisissez un nouveau mot de passe pour votre compte."
       panneauGauche={panneauGauche}
       pied={
-        <Link to="/connexion" className="font-medium text-primary hover:underline">
+        <Link to="/connexion" className="font-medium text-action hover:underline">
           Retour à la connexion
         </Link>
       }
@@ -98,7 +98,7 @@ export function ReinitialiserMotDePassePage() {
           {!formState.errors.password && (
             <>
               <IndicateurForceMotDePasse motDePasse={motDePasseSaisi} />
-              <p className="text-xs text-text-secondary">Au moins 8 caractères.</p>
+              <p className="text-meta text-steel-500">Au moins 8 caractères.</p>
             </>
           )}
         </div>

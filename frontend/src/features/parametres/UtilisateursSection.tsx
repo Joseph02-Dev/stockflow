@@ -84,7 +84,8 @@ export function UtilisateursSection() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="min-w-0 flex-1 basis-56 text-corps text-steel-500">Les personnes qui peuvent saisir et consulter le stock.</p>
         <Button
           onClick={() => {
             setErreur(null);
@@ -106,21 +107,21 @@ export function UtilisateursSection() {
         ) : isError ? (
           <ErrorState message={messageErreur(error)} onRetry={() => refetch()} />
         ) : data && data.length > 0 ? (
-          <ul className="divide-y divide-border-subtle">
+          <ul className="divide-y divide-rule">
             {data.map((utilisateur) => (
-              <li key={utilisateur.id} className="flex items-center justify-between gap-4 px-4 py-3">
+              <li key={utilisateur.id} className="flex items-center justify-between gap-4 px-4 py-3 sm:px-5">
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-text-primary">
+                  <p className="truncate text-corps font-medium text-ink-900">
                     {utilisateur.nom}
                     {utilisateur.id === session?.utilisateur.id && (
-                      <span className="ml-2 text-sm font-normal text-text-secondary">(vous)</span>
+                      <span className="ml-2 text-corps font-normal text-steel-500">(vous)</span>
                     )}
                   </p>
-                  <p className="truncate text-sm text-text-secondary">{utilisateur.email}</p>
+                  <p className="truncate text-corps text-steel-500">{utilisateur.email}</p>
                 </div>
 
                 <div className="flex shrink-0 items-center gap-3">
-                  <Badge variant={utilisateur.role === 'ADMIN' ? 'info' : 'neutral'}>
+                  <Badge variant={utilisateur.role === 'ADMIN' ? 'action' : 'neutral'}>
                     {utilisateur.role === 'ADMIN' ? 'Administrateur' : 'Gestionnaire'}
                   </Badge>
                   <select
@@ -133,7 +134,7 @@ export function UtilisateursSection() {
                         role: event.target.value as 'ADMIN' | 'GESTIONNAIRE',
                       })
                     }
-                    className="rounded-(--radius-button) border border-border-subtle bg-surface px-2 py-1 text-sm text-text-primary disabled:opacity-50"
+                    className="rounded-md border border-rule bg-surface px-2 py-1 text-corps text-ink-900 disabled:opacity-50"
                   >
                     <option value="GESTIONNAIRE">Gestionnaire</option>
                     <option value="ADMIN">Administrateur</option>

@@ -1,5 +1,4 @@
-import { Link, useParams } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import { useParams } from 'react-router-dom';
 import { FournisseurDetail } from './FournisseurDetail';
 
 /**
@@ -14,13 +13,7 @@ export function FournisseurDetailPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <nav aria-label="Fil d’Ariane" className="flex items-center gap-1 text-sm text-text-secondary">
-        <Link to="/fournisseurs" className="hover:text-text-primary hover:underline">
-          Fournisseurs
-        </Link>
-        <ChevronRight className="size-4" aria-hidden="true" />
-        <span className="text-text-primary">Détail</span>
-      </nav>
+      <h1 className="sr-only">Fiche fournisseur</h1>
       <FournisseurDetail fournisseurId={id} />
     </div>
   );

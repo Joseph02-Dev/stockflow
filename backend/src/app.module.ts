@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
@@ -15,12 +15,14 @@ import { JwtConfigModule } from './config/jwt.module.js';
 import { TenantContextModule } from './common/context/tenant-context.module.js';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
+import { EntrepriseActiveGuard } from './common/guards/entreprise-active.guard.js';
 import { EmailModule } from './common/email/email.module.js';
 import { CategoriesModule } from './modules/categories/categories.module.js';
 import { MarquesModule } from './modules/marques/marques.module.js';
 import { UploadsModule } from './modules/uploads/uploads.module.js';
 import { InventairesModule } from './modules/inventaires/inventaires.module.js';
 import { CommandesModule } from './modules/commandes/commandes.module.js';
+import { ConsoleModule } from './modules/console/console.module.js';
 
 @Module({
   imports: [
@@ -41,14 +43,27 @@ import { CommandesModule } from './modules/commandes/commandes.module.js';
     UploadsModule,
     InventairesModule,
     CommandesModule,
+    ConsoleModule,
   ],
   controllers: [AppController],
-  providers: [AppService, { provide: APP_GUARD, useClass: RolesGuard }],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: RolesGuard },
+    // Après RolesGuard (ordre d'exécution = ordre de déclaration) : une
+    // requête non authentifiée reçoit d'abord son 401.
+    { provide: APP_GUARD, useClass: EntrepriseActiveGuard },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     // Appliqué à toutes les routes : le middleware lui-même décide de ne
     // rien faire en l'absence de token (cf. TenantContextMiddleware).
-    consumer.apply(TenantContextMiddleware).forRoutes('*');
+    // Seule exception : la console opérateur, qui a son propre secret JWT
+    // et sa propre garde. Sans cette exclusion, tout token opérateur y
+    // serait rejeté par le middleware client (mauvais secret).
+    consumer
+      .apply(TenantContextMiddleware)
+      .exclude({ path: 'console', method: RequestMethod.ALL }, { path: 'console/{*chemin}', method: RequestMethod.ALL })
+      .forRoutes('*');
   }
 }

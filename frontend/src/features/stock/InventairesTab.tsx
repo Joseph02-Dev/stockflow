@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { ClipboardList, Plus } from 'lucide-react';
+import { ChevronRight, ClipboardList, Plus } from 'lucide-react';
+import { cn } from '@/lib/cn';
 import { api, messageErreur } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -62,7 +63,8 @@ export function InventairesTab({ emplacements }: { emplacements: Emplacement[] |
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-corps text-steel-500">Comptages physiques par emplacement.</p>
         <Button onClick={ouvrirCreation}>
           <Plus className="size-4" aria-hidden="true" />
           Nouvel inventaire
@@ -75,27 +77,34 @@ export function InventairesTab({ emplacements }: { emplacements: Emplacement[] |
         ) : inventaires.isError ? (
           <ErrorState message={messageErreur(inventaires.error)} onRetry={() => inventaires.refetch()} />
         ) : inventaires.data && inventaires.data.length > 0 ? (
-          <ul className="divide-y divide-border-subtle">
+          <ul className="divide-y divide-rule">
             {inventaires.data.map((inv) => (
               <li key={inv.id}>
                 <button
                   type="button"
                   onClick={() => navigate(`/inventaires/${inv.id}`)}
-                  className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-background"
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-entete-tableau sm:px-5"
                 >
-                  <div className="flex items-center gap-3">
-                    <ClipboardList className="size-5 shrink-0 text-text-secondary" aria-hidden="true" />
-                    <div>
-                      <p className="font-medium text-text-primary">{inv.emplacement.nom}</p>
-                      <p className="text-sm text-text-secondary">
-                        {inv._count.lignes} produit(s) · {inv.utilisateur.nom} ·{' '}
-                        {new Date(inv.createdAt).toLocaleDateString('fr-FR')}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant={inv.statut === 'EN_COURS' ? 'warning' : 'success'}>
+                  <span
+                    className={cn(
+                      'flex size-[26px] shrink-0 items-center justify-center rounded-sm',
+                      inv.statut === 'EN_COURS' ? 'bg-faible-wash text-faible' : 'bg-ok-wash text-ok',
+                    )}
+                    aria-hidden="true"
+                  >
+                    <ClipboardList className="size-3.5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-corps font-medium text-ink-900">{inv.emplacement.nom}</span>
+                    <span className="block truncate text-meta text-steel-500">
+                      {inv._count.lignes} {inv._count.lignes > 1 ? 'produits' : 'produit'} à compter, lancé par{' '}
+                      {inv.utilisateur.nom} le {new Date(inv.createdAt).toLocaleDateString('fr-FR')}
+                    </span>
+                  </span>
+                  <Badge variant={inv.statut === 'EN_COURS' ? 'faible' : 'ok'}>
                     {inv.statut === 'EN_COURS' ? 'En cours' : 'Terminé'}
                   </Badge>
+                  <ChevronRight className="size-4 shrink-0 text-steel-400" aria-hidden="true" />
                 </button>
               </li>
             ))}

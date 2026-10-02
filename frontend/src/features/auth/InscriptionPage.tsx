@@ -174,14 +174,14 @@ export function InscriptionPage() {
   const panneauGauche = (
     <div className="flex flex-col gap-8">
       <div>
-        <h2 className="text-2xl font-semibold text-white">
+        <h2 className="text-titre text-white">
           {etapeEffective === 1
             ? 'Deux étapes, et votre inventaire est prêt.'
             : etapeEffective === 'attente'
               ? 'Vérifiez votre boîte mail.'
               : 'Presque terminé.'}
         </h2>
-        <p className="mt-3 text-sm text-navy-text">
+        <p className="mt-3 text-corps text-white/65">
           {etapeEffective === 1
             ? 'Vous créez d’abord votre compte administrateur, puis vous décrivez votre activité et vos emplacements.'
             : etapeEffective === 'attente'
@@ -194,27 +194,27 @@ export function InscriptionPage() {
           <li key={e.numero} className="flex items-start gap-3 py-2">
             <span
               className={
-                'mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ' +
+                'mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-meta font-semibold ' +
                 (e.numero < etapeNumero
-                  ? 'bg-success text-white'
+                  ? 'bg-ok text-white'
                   : e.numero === etapeNumero
-                    ? 'bg-primary text-white'
-                    : 'bg-navy-light text-navy-text')
+                    ? 'bg-action text-white'
+                    : 'bg-white/10 text-white/65')
               }
             >
               {e.numero < etapeNumero ? <CheckCircle2 className="size-4" aria-hidden="true" /> : e.numero}
             </span>
             <div>
-              <p className={'text-sm font-medium ' + (e.numero <= etapeNumero ? 'text-white' : 'text-navy-text')}>
+              <p className={'text-corps font-medium ' + (e.numero <= etapeNumero ? 'text-white' : 'text-white/65')}>
                 {e.titre}
               </p>
-              <p className="text-xs text-navy-text">{e.description}</p>
+              <p className="text-meta text-white/65">{e.description}</p>
             </div>
           </li>
         ))}
       </ul>
-      <div className="flex items-start gap-2 rounded-(--radius-button) bg-navy-light p-3 text-xs text-navy-text">
-        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+      <div className="flex items-start gap-2 rounded-md border border-white/10 bg-white/[0.05] p-3 text-meta text-white/65">
+        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-action-clair" aria-hidden="true" />
         Vos données restent hébergées sur votre espace, exportables à tout moment.
       </div>
     </div>
@@ -225,11 +225,11 @@ export function InscriptionPage() {
       <AuthLayout titre="Confirmez votre email" description="Valable 24 heures." panneauGauche={panneauGauche}>
         <div className="flex flex-col gap-4">
           {erreur && <Alert variant="error">{erreur}</Alert>}
-          <div className="flex items-start gap-3 rounded-(--radius-button) bg-background p-4">
-            <MailCheck className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
-            <p className="text-sm text-text-secondary">
+          <div className="flex items-start gap-3 rounded-md bg-paper p-4">
+            <MailCheck className="mt-0.5 size-5 shrink-0 text-action" aria-hidden="true" />
+            <p className="text-corps text-steel-500">
               Un lien de confirmation part vers{' '}
-              <span className="font-medium text-text-primary">{emailInscrit}</span>. Cliquez dessus pour activer
+              <span className="font-medium text-ink-900">{emailInscrit}</span>. Cliquez dessus pour activer
               votre compte administrateur et poursuivre vers l’étape suivante.
             </p>
           </div>
@@ -257,7 +257,7 @@ export function InscriptionPage() {
           {erreur && <Alert variant="error">{erreur}</Alert>}
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-text-primary">Secteur d’activité</span>
+            <span className="text-corps font-medium text-ink-900">Secteur d’activité</span>
             <div className="grid grid-cols-2 gap-2">
               {SECTEURS.map(({ valeur, libelle, Icone }) => (
                 <button
@@ -266,10 +266,10 @@ export function InscriptionPage() {
                   onClick={() => setSecteurActivite(valeur)}
                   aria-pressed={secteurActivite === valeur}
                   className={cn(
-                    'flex items-center gap-2 rounded-(--radius-button) border px-3 py-2 text-sm font-medium transition-colors',
+                    'flex items-center gap-2 rounded-md border px-3 py-2 text-corps font-medium transition-colors',
                     secteurActivite === valeur
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border-subtle text-text-secondary hover:bg-background',
+                      ? 'border-action bg-action-wash text-action'
+                      : 'border-rule text-steel-500 hover:bg-paper',
                   )}
                 >
                   <Icone className="size-4 shrink-0" aria-hidden="true" />
@@ -280,20 +280,20 @@ export function InscriptionPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-text-primary">Emplacements de stock</span>
+            <span className="text-corps font-medium text-ink-900">Emplacements de stock</span>
             {emplacements.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {emplacements.map((nom) => (
                   <span
                     key={nom}
-                    className="flex items-center gap-1.5 rounded-full bg-primary/10 py-1 pr-1.5 pl-3 text-sm font-medium text-primary"
+                    className="flex items-center gap-1.5 rounded-full bg-action-wash py-1 pr-1.5 pl-3 text-corps font-medium text-action"
                   >
                     {nom}
                     <button
                       type="button"
                       onClick={() => retirerEmplacement(nom)}
                       aria-label={`Retirer ${nom}`}
-                      className="rounded-full p-0.5 hover:bg-primary/20"
+                      className="rounded-full p-0.5 hover:bg-action/20"
                     >
                       <X className="size-3.5" aria-hidden="true" />
                     </button>
@@ -325,13 +325,13 @@ export function InscriptionPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium text-text-primary">Devise</span>
-              <div className="flex h-9 items-center rounded-(--radius-button) border border-border-subtle bg-background px-3 text-sm text-text-secondary">
+              <span className="text-corps font-medium text-ink-900">Devise</span>
+              <div className="flex h-9 items-center rounded-md border border-rule bg-paper px-3 text-corps text-steel-500">
                 GNF · Franc guinéen
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium text-text-primary">TVA par défaut</span>
+              <span className="text-corps font-medium text-ink-900">TVA par défaut</span>
               <div className="flex gap-2">
                 {[18, 0].map((valeur) => (
                   <button
@@ -340,10 +340,10 @@ export function InscriptionPage() {
                     onClick={() => setTauxTvaParDefaut(valeur as 0 | 18)}
                     aria-pressed={tauxTvaParDefaut === valeur}
                     className={cn(
-                      'flex-1 rounded-(--radius-button) border px-3 py-2 text-sm font-medium transition-colors',
+                      'flex-1 rounded-md border px-3 py-2 text-corps font-medium transition-colors',
                       tauxTvaParDefaut === valeur
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border-subtle text-text-secondary hover:bg-background',
+                        ? 'border-action bg-action-wash text-action'
+                        : 'border-rule text-steel-500 hover:bg-paper',
                     )}
                   >
                     {valeur}%
@@ -370,7 +370,7 @@ export function InscriptionPage() {
       pied={
         <>
           Vous avez déjà un compte ?{' '}
-          <Link to="/connexion" className="font-medium text-primary hover:underline">
+          <Link to="/connexion" className="font-medium text-action hover:underline">
             Se connecter
           </Link>
         </>
@@ -410,7 +410,7 @@ export function InscriptionPage() {
           {!formCompte.formState.errors.password && (
             <>
               <IndicateurForceMotDePasse motDePasse={motDePasseSaisi} />
-              <p className="text-xs text-text-secondary">Au moins 8 caractères.</p>
+              <p className="text-meta text-steel-500">Au moins 8 caractères.</p>
             </>
           )}
         </div>

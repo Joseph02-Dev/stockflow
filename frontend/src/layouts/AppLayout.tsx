@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Fragment, useState } from 'react';
+import type { ReactNode } from 'react';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
-  Boxes,
+  ChevronRight,
   ClipboardList,
   LayoutDashboard,
   LogOut,
@@ -12,23 +13,22 @@ import {
   Settings,
   Tag,
   Truck,
+  UserRound,
   Warehouse,
-  Wifi,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { clearSession, getSession } from '@/lib/session';
 import { useSession } from '@/lib/useSession';
 import { cn } from '@/lib/cn';
-import { Badge } from '@/components/ui/Badge';
 import { Logo } from '@/components/patterns/Logo';
 import { ProfilModal } from '@/features/profil/ProfilModal';
 import { useSynchronisation } from '@/lib/useSynchronisation';
 
 const sectionPilotage = [
   { to: '/', libelle: 'Tableau de bord', Icone: LayoutDashboard, exact: true },
-  { to: '/produits', libelle: 'Produits', Icone: Package },
-  { to: '/stock', libelle: 'Stock & mouvements', Icone: Warehouse },
   { to: '/alertes', libelle: 'Alertes', Icone: Bell },
+  { to: '/stock', libelle: 'Stock & mouvements', Icone: Warehouse },
+  { to: '/commandes', libelle: 'Commandes fournisseur', Icone: ClipboardList },
 ];
 
 // Fournisseurs reste accessible à tous (comme Produits) ; Catégories &
@@ -37,8 +37,8 @@ const sectionPilotage = [
 // Gestionnaire qui cliquerait dessus serait silencieusement renvoyé à
 // l'accueil.
 const sectionReferentiel = [
+  { to: '/produits', libelle: 'Produits', Icone: Package },
   { to: '/fournisseurs', libelle: 'Fournisseurs', Icone: Truck },
-  { to: '/commandes', libelle: 'Commandes fournisseur', Icone: ClipboardList },
 ];
 
 // Les 4 destinations les plus fréquentes uniquement : la barre mobile
@@ -50,6 +50,46 @@ const navMobile = [
   { to: '/stock', libelle: 'Mouvements', Icone: Warehouse },
   { to: '/alertes', libelle: 'Alertes', Icone: Bell },
 ];
+
+/**
+ * Fil d'Ariane : libellé de la section courante, et le niveau de détail
+ * éventuel (création, fiche). Dérivé du chemin pour ne pas obliger
+ * chaque page à le déclarer.
+ */
+function filAriane(chemin: string, recherche: string): { libelle: string; to?: string }[] {
+  const sections: Record<string, string> = {
+    produits: 'Produits',
+    stock: 'Stock & mouvements',
+    inventaires: 'Stock & mouvements',
+    alertes: 'Alertes',
+    commandes: 'Commandes fournisseur',
+    fournisseurs: 'Fournisseurs',
+    parametres: 'Paramètres',
+  };
+  const [racine, detail] = chemin.split('/').filter(Boolean);
+  if (!racine) return [{ libelle: 'Tableau de bord' }];
+  if (racine === 'parametres' && new URLSearchParams(recherche).get('onglet') === 'categories') {
+    return [{ libelle: 'Catégories & marques' }];
+  }
+  const section = sections[racine] ?? 'StockFlow';
+  if (!detail) return [{ libelle: section }];
+
+  const parent = racine === 'inventaires' ? '/stock' : `/${racine}`;
+  const libelleDetail =
+    detail === 'nouveau' || detail === 'nouvelle'
+      ? racine === 'commandes'
+        ? 'Nouvelle commande'
+        : 'Nouveau produit'
+      : (
+          {
+            inventaires: 'Inventaire',
+            commandes: 'Commande',
+            fournisseurs: 'Fournisseur',
+            produits: 'Fiche produit',
+          } as Record<string, string>
+        )[racine] ?? 'Fiche';
+  return [{ libelle: section, to: parent }, { libelle: libelleDetail }];
+}
 
 function LienNav({
   to,
@@ -77,17 +117,18 @@ function LienNav({
   const estAlertes = to === '/alertes';
   const classes = (actif: boolean) =>
     cn(
-      'flex items-center gap-3 rounded-(--radius-button) px-3 py-2.5 text-sm font-medium transition-colors',
-      actif ? 'bg-primary text-white' : 'text-navy-text hover:bg-white/5 hover:text-white',
+      'flex h-9 items-center gap-2.5 rounded-md px-2.5 text-corps font-medium transition-colors',
+      'focus-visible:outline-white/70',
+      actif ? 'bg-action text-white' : 'text-white/70 hover:bg-white/5 hover:text-white',
     );
 
   const contenu = (
     <>
-      <Icone className="size-[18px] shrink-0" aria-hidden="true" />
+      <Icone className="size-[17px] shrink-0" aria-hidden="true" />
       <span className="flex-1 truncate">{libelle}</span>
       {estAlertes && nombreAlertes > 0 && (
         <span
-          className="inline-flex min-w-5 items-center justify-center rounded-full bg-error px-1.5 py-0.5 text-xs font-semibold text-white"
+          className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rupture px-1.5 text-meta font-semibold text-white"
           aria-label={`${nombreAlertes} alerte${nombreAlertes > 1 ? 's' : ''} active${nombreAlertes > 1 ? 's' : ''}`}
         >
           {nombreAlertes}
@@ -98,7 +139,7 @@ function LienNav({
 
   if (actifForce !== undefined) {
     return (
-      <NavLink to={to} onClick={onNaviguer} className={classes(actifForce)}>
+      <NavLink to={to} onClick={onNaviguer} className={classes(actifForce)} aria-current={actifForce ? 'page' : undefined}>
         {contenu}
       </NavLink>
     );
@@ -111,6 +152,19 @@ function LienNav({
   );
 }
 
+function SectionNav({ titre, children }: { titre: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      {/* Intitulé de section en casse normale : un repère discret, pas un cri. */}
+      <span className="px-2.5 pb-1.5 text-meta font-medium text-steel-400">{titre}</span>
+      {children}
+    </div>
+  );
+}
+
+const classesLienPlus =
+  'flex h-12 items-center gap-3 rounded-md px-3 text-corps font-medium text-ink-900 hover:bg-paper';
+
 export function AppLayout() {
   const session = useSession();
   const navigate = useNavigate();
@@ -121,6 +175,7 @@ export function AppLayout() {
 
   const surParametres = location.pathname === '/parametres';
   const ongletCategoriesActif = surParametres && new URLSearchParams(location.search).get('onglet') === 'categories';
+  const ariane = filAriane(location.pathname, location.search);
 
   // Compteur d'alertes actives — partage la clé de cache avec la page
   // Alertes, donc tout mouvement de stock qui l'invalide met aussi la
@@ -152,32 +207,35 @@ export function AppLayout() {
     .join('')
     .toUpperCase();
 
+  const libelleReseau =
+    statutSynchro === 'hors-ligne'
+      ? nombreEnAttente > 0
+        ? `Hors ligne, ${nombreEnAttente} en attente`
+        : 'Hors ligne'
+      : statutSynchro === 'synchronisation'
+        ? 'Synchronisation…'
+        : 'En ligne';
+
   return (
     <div className="flex min-h-full">
-      {/* Sidebar desktop — bleu nuit, conforme au nouveau design */}
-      <aside className="hidden w-64 shrink-0 flex-col bg-navy md:flex">
-        <div className="flex items-center gap-2.5 px-5 py-5">
-          <Logo taille={36} />
+      {/* Sidebar desktop — encre, collée à la hauteur de l'écran. */}
+      <aside className="sticky top-0 hidden h-dvh w-[232px] shrink-0 flex-col bg-ink-800 md:flex">
+        <div className="flex h-[60px] items-center gap-2.5 border-b border-white/[0.06] px-4">
+          <Logo taille={30} />
           <div className="min-w-0 leading-tight">
-            <p className="truncate text-[15px] font-semibold text-white">StockFlow</p>
-            <p className="truncate text-xs text-navy-text">{session?.entreprise.nom}</p>
+            <p className="truncate text-panneau text-white">StockFlow</p>
+            <p className="truncate text-meta text-steel-400">{session?.entreprise.nom}</p>
           </div>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3 pt-2" aria-label="Navigation principale">
-          <div className="flex flex-col gap-1">
-            <span className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-navy-text/70 uppercase">
-              Pilotage
-            </span>
+        <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3 pt-5" aria-label="Navigation principale">
+          <SectionNav titre="Pilotage">
             {sectionPilotage.map((lien) => (
               <LienNav key={lien.to} {...lien} nombreAlertes={nombreAlertes} />
             ))}
-          </div>
+          </SectionNav>
 
-          <div className="flex flex-col gap-1">
-            <span className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-navy-text/70 uppercase">
-              Référentiel
-            </span>
+          <SectionNav titre="Référentiel">
             {sectionReferentiel.map((lien) => (
               <LienNav key={lien.to} {...lien} nombreAlertes={nombreAlertes} />
             ))}
@@ -199,91 +257,110 @@ export function AppLayout() {
                 />
               </>
             )}
-          </div>
+          </SectionNav>
         </nav>
 
         <div className="p-3">
           <div
             className={cn(
-              'flex items-center gap-2 rounded-(--radius-button) px-3 py-2.5 text-xs',
-              statutSynchro === 'hors-ligne' ? 'bg-error/20 text-white' : 'bg-navy-light text-navy-text',
+              'flex items-center gap-2.5 rounded-md px-3 py-2.5 text-meta',
+              statutSynchro === 'hors-ligne' ? 'bg-rupture/25 text-white' : 'bg-ink-600 text-steel-400',
             )}
+            role="status"
           >
             <span
               className={cn(
                 'inline-flex size-2 shrink-0 rounded-full',
                 statutSynchro === 'hors-ligne'
-                  ? 'bg-error'
+                  ? 'bg-rupture shadow-[0_0_0_3px_rgba(195,43,30,0.3)]'
                   : statutSynchro === 'synchronisation'
-                    ? 'animate-pulse bg-warning'
-                    : 'bg-success',
+                    ? 'animate-pulse bg-faible shadow-[0_0_0_3px_rgba(180,105,14,0.3)]'
+                    : 'bg-reseau shadow-[0_0_0_3px_rgba(44,196,138,0.22)]',
               )}
               aria-hidden="true"
             />
-            <Wifi className="size-3.5 shrink-0" aria-hidden="true" />
-            <span className="truncate">
-              {statutSynchro === 'hors-ligne'
-                ? nombreEnAttente > 0
-                  ? `Hors ligne · ${nombreEnAttente} en attente`
-                  : 'Hors ligne'
-                : statutSynchro === 'synchronisation'
-                  ? 'Synchronisation…'
-                  : 'En ligne'}
-            </span>
+            <span className="truncate">{libelleReseau}</span>
           </div>
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-2 border-b border-border-subtle bg-surface px-4 py-3 md:px-6">
-          <div className="flex min-w-0 items-center gap-2 md:hidden">
-            <Logo taille={28} />
-            <span className="truncate text-sm font-medium text-text-primary">{session?.entreprise.nom}</span>
+        <header className="sticky top-0 z-30 flex h-[60px] shrink-0 items-center justify-between gap-3 border-b border-rule bg-surface px-4 md:px-7">
+          <div className="flex min-w-0 items-center gap-2.5 md:hidden">
+            <Logo taille={26} />
+            <span className="truncate text-panneau text-ink-900">{ariane[ariane.length - 1].libelle}</span>
           </div>
-          <span className="hidden truncate text-sm font-medium text-text-secondary md:block">
-            {session?.entreprise.nom}
-          </span>
 
-          <div className="flex shrink-0 items-center gap-3">
+          <nav aria-label="Fil d’Ariane" className="hidden min-w-0 md:block">
+            <ol className="flex items-center gap-1.5 text-corps">
+              <li className="truncate text-steel-500">{session?.entreprise.nom}</li>
+              {ariane.map((etape, index) => (
+                <Fragment key={etape.libelle}>
+                  <ChevronRight className="size-3.5 shrink-0 text-steel-400" aria-hidden="true" />
+                  <li className="truncate">
+                    {etape.to ? (
+                      <Link to={etape.to} className="text-steel-500 hover:text-ink-900">
+                        {etape.libelle}
+                      </Link>
+                    ) : (
+                      <span
+                        className="font-medium text-ink-900"
+                        aria-current={index === ariane.length - 1 ? 'page' : undefined}
+                      >
+                        {etape.libelle}
+                      </span>
+                    )}
+                  </li>
+                </Fragment>
+              ))}
+            </ol>
+          </nav>
+
+          <div className="flex shrink-0 items-center gap-1">
             <button
               type="button"
               onClick={() => setProfilOuvert(true)}
-              className="hidden items-center gap-2 rounded-(--radius-button) px-1 py-1 sm:flex hover:bg-background"
+              className="hidden items-center gap-2.5 rounded-md py-1 pr-2 pl-1 hover:bg-paper sm:flex"
             >
-              <span className="flex size-8 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-xs font-semibold text-primary">
+              <span className="flex size-8 items-center justify-center overflow-hidden rounded-full bg-ink-800 text-meta font-semibold text-white">
                 {session?.utilisateur.photoUrl ? (
                   <img src={session.utilisateur.photoUrl} alt="" className="size-full object-cover" />
                 ) : (
                   initiales
                 )}
               </span>
-              <div className="flex flex-col leading-tight text-left">
-                <span className="text-sm text-text-primary">{session?.utilisateur.nom}</span>
-                <Badge variant="neutral">
+              <span className="flex flex-col text-left">
+                <span className="text-corps font-medium text-ink-900">{session?.utilisateur.nom}</span>
+                <span className="text-meta text-steel-500">
                   {session?.utilisateur.role === 'ADMIN' ? 'Administrateur' : 'Gestionnaire'}
-                </Badge>
-              </div>
+                </span>
+              </span>
             </button>
+
+            <span className="mx-1 hidden h-6 w-px bg-rule sm:block" aria-hidden="true" />
 
             <button
               type="button"
               onClick={seDeconnecter}
-              className="flex items-center gap-2 rounded-(--radius-button) px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-background hover:text-text-primary"
+              className="flex h-9 items-center gap-2 rounded-md px-2.5 text-corps text-steel-500 transition-colors hover:bg-paper hover:text-ink-900"
             >
               <LogOut className="size-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Déconnexion</span>
+              <span className="hidden lg:inline">Déconnexion</span>
+              <span className="sr-only lg:hidden">Déconnexion</span>
             </button>
           </div>
         </header>
 
-        <main className="flex-1 p-4 pb-20 md:p-6 md:pb-6">
-          <Outlet />
+        <main className="flex-1 px-4 pt-5 pb-24 md:px-7 md:pt-7 md:pb-10">
+          <div className="mx-auto w-full max-w-[1280px]">
+            <Outlet />
+          </div>
         </main>
       </div>
 
       {/* Barre de navigation mobile — remplace l'ancien menu plein écran */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border-subtle bg-surface md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-rule bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
         aria-label="Navigation principale"
       >
         {navMobile.map(({ to, libelle, Icone, exact }) => (
@@ -293,8 +370,8 @@ export function AppLayout() {
             end={exact}
             className={({ isActive }) =>
               cn(
-                'relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium',
-                isActive ? 'text-primary' : 'text-text-secondary',
+                'relative flex flex-1 flex-col items-center gap-0.5 py-2 text-meta font-medium',
+                isActive ? 'text-action' : 'text-steel-500',
               )
             }
           >
@@ -302,16 +379,18 @@ export function AppLayout() {
             {libelle}
             {to === '/alertes' && nombreAlertes > 0 && (
               <span
-                className="absolute top-1 right-[calc(50%-18px)] inline-flex size-2 rounded-full bg-error"
-                aria-hidden="true"
-              />
+                className="absolute top-1 right-[calc(50%-20px)] inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rupture px-1 text-[10px] leading-none font-semibold text-white"
+                aria-label={`${nombreAlertes} alerte${nombreAlertes > 1 ? 's' : ''} active${nombreAlertes > 1 ? 's' : ''}`}
+              >
+                {nombreAlertes}
+              </span>
             )}
           </NavLink>
         ))}
         <button
           type="button"
           onClick={() => setPlusOuvert(true)}
-          className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-text-secondary"
+          className="flex flex-1 flex-col items-center gap-0.5 py-2 text-meta font-medium text-steel-500"
         >
           <MoreHorizontal className="size-5" aria-hidden="true" />
           Plus
@@ -320,41 +399,29 @@ export function AppLayout() {
 
       {plusOuvert && (
         <div className="fixed inset-0 z-50 md:hidden">
-          <div className="absolute inset-0 bg-secondary/40" onClick={() => setPlusOuvert(false)} aria-hidden="true" />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-(--radius-modal) bg-surface p-3 pb-6">
-            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border-subtle" />
-            <NavLink
-              to="/fournisseurs"
-              onClick={() => setPlusOuvert(false)}
-              className="flex items-center gap-3 rounded-(--radius-button) px-3 py-3 text-sm font-medium text-text-primary hover:bg-background"
-            >
-              <Truck className="size-5 text-text-secondary" aria-hidden="true" />
-              Fournisseurs
-            </NavLink>
-            <NavLink
-              to="/commandes"
-              onClick={() => setPlusOuvert(false)}
-              className="flex items-center gap-3 rounded-(--radius-button) px-3 py-3 text-sm font-medium text-text-primary hover:bg-background"
-            >
-              <ClipboardList className="size-5 text-text-secondary" aria-hidden="true" />
+          <div className="absolute inset-0 bg-ink-900/50" onClick={() => setPlusOuvert(false)} aria-hidden="true" />
+          <div className="absolute inset-x-0 bottom-0 rounded-t-xl bg-surface p-3 pb-6 shadow-pop">
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-rule-strong" />
+            <NavLink to="/commandes" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
+              <ClipboardList className="size-5 text-steel-500" aria-hidden="true" />
               Commandes fournisseur
+            </NavLink>
+            <NavLink to="/fournisseurs" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
+              <Truck className="size-5 text-steel-500" aria-hidden="true" />
+              Fournisseurs
             </NavLink>
             {session?.utilisateur.role === 'ADMIN' && (
               <>
                 <NavLink
                   to="/parametres?onglet=categories"
                   onClick={() => setPlusOuvert(false)}
-                  className="flex items-center gap-3 rounded-(--radius-button) px-3 py-3 text-sm font-medium text-text-primary hover:bg-background"
+                  className={classesLienPlus}
                 >
-                  <Tag className="size-5 text-text-secondary" aria-hidden="true" />
+                  <Tag className="size-5 text-steel-500" aria-hidden="true" />
                   Catégories & marques
                 </NavLink>
-                <NavLink
-                  to="/parametres"
-                  onClick={() => setPlusOuvert(false)}
-                  className="flex items-center gap-3 rounded-(--radius-button) px-3 py-3 text-sm font-medium text-text-primary hover:bg-background"
-                >
-                  <Settings className="size-5 text-text-secondary" aria-hidden="true" />
+                <NavLink to="/parametres" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
+                  <Settings className="size-5 text-steel-500" aria-hidden="true" />
                   Paramètres
                 </NavLink>
               </>
@@ -365,11 +432,25 @@ export function AppLayout() {
                 setPlusOuvert(false);
                 setProfilOuvert(true);
               }}
-              className="flex w-full items-center gap-3 rounded-(--radius-button) px-3 py-3 text-left text-sm font-medium text-text-primary hover:bg-background"
+              className={cn(classesLienPlus, 'w-full text-left')}
             >
-              <Boxes className="size-5 text-text-secondary" aria-hidden="true" />
+              <UserRound className="size-5 text-steel-500" aria-hidden="true" />
               Mon profil
             </button>
+            <div className="mt-2 flex items-center gap-2 border-t border-rule px-3 pt-3 text-meta text-steel-500">
+              <span
+                className={cn(
+                  'inline-flex size-2 rounded-full',
+                  statutSynchro === 'hors-ligne'
+                    ? 'bg-rupture'
+                    : statutSynchro === 'synchronisation'
+                      ? 'bg-faible'
+                      : 'bg-ok',
+                )}
+                aria-hidden="true"
+              />
+              {libelleReseau}
+            </div>
           </div>
         </div>
       )}

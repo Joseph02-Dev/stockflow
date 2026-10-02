@@ -5,7 +5,7 @@ import { EntrepriseSection } from './EntrepriseSection';
 import { EmplacementsSection } from './EmplacementsSection';
 import { UtilisateursSection } from './UtilisateursSection';
 import { ReferenceListSection } from './ReferenceListSection';
-import { cn } from '@/lib/cn';
+import { Onglets } from '@/components/patterns/Onglets';
 
 const onglets = [
   { cle: 'entreprise', libelle: 'Entreprise' },
@@ -29,30 +29,10 @@ export function ParametresPage() {
   );
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader titre="Paramètres" description="Configuration de votre entreprise." />
+    <div className="flex flex-col gap-5">
+      <PageHeader titre="Paramètres" description="Votre entreprise, vos dépôts, votre équipe et vos référentiels." />
 
-      <div className="border-b border-border-subtle" role="tablist" aria-label="Sections des paramètres">
-        <div className="flex gap-1 overflow-x-auto">
-          {onglets.map((onglet) => (
-            <button
-              key={onglet.cle}
-              type="button"
-              role="tab"
-              aria-selected={actif === onglet.cle}
-              onClick={() => setActif(onglet.cle)}
-              className={cn(
-                '-mb-px border-b-2 px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors',
-                actif === onglet.cle
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-text-secondary hover:text-text-primary',
-              )}
-            >
-              {onglet.libelle}
-            </button>
-          ))}
-        </div>
-      </div>
+      <Onglets onglets={onglets} actif={actif} onChange={setActif} libelle="Sections des paramètres" />
 
       <div role="tabpanel">
         {actif === 'entreprise' && <EntrepriseSection />}

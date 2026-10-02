@@ -52,6 +52,21 @@ enum StatutAlerte {
   RESOLUE
 }
 
+// Console opérateur — une entreprise suspendue garde toutes ses données
+// (jamais de suppression physique) mais plus aucun de ses utilisateurs ne
+// peut se connecter ni utiliser un token encore valide.
+enum StatutEntreprise {
+  ACTIVE
+  SUSPENDUE
+}
+
+enum ActionAudit {
+  CONNEXION
+  CONSULTATION_ENTREPRISE
+  SUSPENSION
+  RETABLISSEMENT
+}
+
 enum SecteurActivite {
   MATERIAUX
   COMMERCE
@@ -70,6 +85,11 @@ model Entreprise {
   // création d'un nouveau produit, au lieu d'un champ toujours vide.
   secteurActivite  SecteurActivite? @map("secteur_activite")
   tauxTvaParDefaut Int?             @map("taux_tva_par_defaut")
+
+  // Suspension d'accès par un opérateur de la plateforme (console).
+  statut          StatutEntreprise @default(ACTIVE)
+  suspendueAt     DateTime?        @map("suspendue_at")
+  motifSuspension String?          @map("motif_suspension")
 
   utilisateurs Utilisateur[]
   emplacements Emplacement[]
@@ -479,4 +499,45 @@ model CommandeLigne {
 
   @@unique([commandeId, produitId])
   @@map("commande_ligne")
+}
+
+/**
+ * Opérateur de la plateforme (console). Volontairement distinct
+ * d'Utilisateur : un opérateur n'appartient à aucune entreprise, et son
+ * authentification utilise un secret JWT séparé (JWT_CONSOLE_SECRET).
+ * Aucune interface ne permet d'en créer : script CLI uniquement.
+ */
+model Operateur {
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  nom                 String
+  passwordHash        String    @map("password_hash")
+  derniereConnexionAt DateTime? @map("derniere_connexion_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  journalEntrees JournalAudit[]
+
+  @@map("operateur")
+}
+
+/**
+ * Journal d'audit de la console : toute lecture ou modification des
+ * données d'une entreprise par un opérateur y est inscrite. entrepriseId
+ * est volontairement sans clé étrangère — le journal doit survivre même
+ * si une entreprise disparaissait un jour.
+ */
+model JournalAudit {
+  id           String      @id @default(uuid())
+  operateurId  String      @map("operateur_id")
+  action       ActionAudit
+  entrepriseId String?     @map("entreprise_id")
+  motif        String?
+  detail       String?
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  operateur Operateur @relation(fields: [operateurId], references: [id])
+
+  @@index([operateurId, createdAt])
+  @@index([entrepriseId, createdAt])
+  @@map("journal_audit")
 }

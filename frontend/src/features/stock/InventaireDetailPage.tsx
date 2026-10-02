@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, Check, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Alert } from '@/components/ui/Alert';
 import { Modal } from '@/components/ui/Modal';
-import { Card } from '@/components/patterns/Page';
+import { Card, PageHeader } from '@/components/patterns/Page';
+import { cn } from '@/lib/cn';
 import { ErrorState, LoadingState } from '@/components/patterns/States';
 
 interface Ligne {
@@ -51,7 +52,7 @@ function ChampComptage({
       value={valeur}
       onChange={(e) => setValeur(e.target.value)}
       onBlur={sauvegarderSiValide}
-      className="w-24 rounded-(--radius-button) border border-border-subtle bg-surface px-2 py-1.5 text-sm text-text-primary"
+      className="h-9 w-24 rounded-md border border-rule-strong bg-surface px-2.5 text-right text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-action"
       placeholder="—"
       aria-label={`Quantité comptée pour ${ligne.produit.nom}`}
     />
@@ -121,118 +122,141 @@ export function InventaireDetailPage() {
     (l) => l.statutAjustement === 'EN_ATTENTE' && l.ecart !== null && l.ecart !== 0,
   ).length;
 
-  return (
-    <div className="flex flex-col gap-6">
-      <nav aria-label="Fil d’Ariane" className="flex items-center gap-1 text-sm text-text-secondary">
-        <Link to="/stock" className="hover:text-text-primary hover:underline">
-          Stock & Mouvements
-        </Link>
-        <ChevronRight className="size-4" aria-hidden="true" />
-        <span className="text-text-primary">Inventaire</span>
-      </nav>
+  const progression = Math.round((nombreComptees / Math.max(data.lignes.length, 1)) * 100);
+  // Une seule grille pour tous les écrans : le champ de comptage n'existe
+  // qu'une fois dans le DOM (pas de double saisie desktop / mobile).
+  const colonnes = enCours
+    ? 'md:grid-cols-[minmax(0,1fr)_110px_130px]'
+    : 'md:grid-cols-[minmax(0,1fr)_100px_100px_110px_200px]';
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-text-primary">{data.emplacement.nom}</h1>
-          <p className="text-sm text-text-secondary">
-            {enCours
-              ? `${nombreComptees} / ${data.lignes.length} produit(s) compté(s)`
-              : `${nombreEcartsEnAttente} écart(s) en attente de traitement`}
-          </p>
+  return (
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        titre={`Inventaire ${data.emplacement.nom}`}
+        description={
+          enCours
+            ? `${nombreComptees} sur ${data.lignes.length} ${data.lignes.length > 1 ? 'produits comptés' : 'produit compté'}, saisie enregistrée à chaque champ quitté`
+            : nombreEcartsEnAttente > 0
+              ? `${nombreEcartsEnAttente} ${nombreEcartsEnAttente > 1 ? 'écarts attendent' : 'écart attend'} votre décision`
+              : 'Tous les écarts ont été traités'
+        }
+        action={
+          <>
+            <Badge variant={enCours ? 'faible' : 'ok'}>{enCours ? 'En cours' : 'Terminé'}</Badge>
+            {enCours && (
+              <Button onClick={() => setConfirmationTerminer(true)}>
+                <Check className="size-4" aria-hidden="true" />
+                Terminer l’inventaire
+              </Button>
+            )}
+          </>
+        }
+      />
+
+      {enCours && (
+        <div className="flex items-center gap-3" aria-hidden="true">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-rule">
+            <div className="h-full rounded-full bg-action transition-[width]" style={{ width: `${progression}%` }} />
+          </div>
+          <span className="text-meta font-medium text-steel-500">{progression} %</span>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={enCours ? 'warning' : 'success'}>{enCours ? 'En cours' : 'Terminé'}</Badge>
-          {enCours && <Button onClick={() => setConfirmationTerminer(true)}>Terminer l’inventaire</Button>}
-        </div>
-      </div>
+      )}
 
       {erreur && <Alert variant="error">{erreur}</Alert>}
 
       <Card>
-        <table className="w-full text-sm">
-          <thead className="border-b border-border-subtle bg-background text-left">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Produit</th>
-              <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Quantité système</th>
-              <th scope="col" className="px-4 py-3 font-medium text-text-secondary">
-                {enCours ? 'Quantité comptée' : 'Comptée'}
-              </th>
-              {!enCours && <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Écart</th>}
-              {!enCours && (
-                <th scope="col" className="px-4 py-3 text-right font-medium text-text-secondary">Action</th>
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border-subtle">
-            {data.lignes.map((ligne) => (
-              <tr key={ligne.id}>
-                <td className="px-4 py-3">
-                  <span className="font-medium text-text-primary">{ligne.produit.nom}</span>
+        <div
+          className={cn(
+            'hidden gap-4 border-b border-rule bg-entete-tableau px-5 py-2.5 text-meta font-medium text-steel-500 md:grid',
+            colonnes,
+          )}
+          aria-hidden="true"
+        >
+          <span>Produit</span>
+          <span className="text-right">Système</span>
+          <span className="text-right">Comptée</span>
+          {!enCours && <span className="text-right">Écart</span>}
+          {!enCours && <span className="text-right">Décision</span>}
+        </div>
+        <ul className="divide-y divide-rule">
+          {data.lignes.map((ligne) => {
+            const unite = ligne.produit.uniteMesure;
+            return (
+              <li
+                key={ligne.id}
+                className={cn('grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-5', colonnes)}
+              >
+                <div className="min-w-0">
+                  <p className="line-clamp-2 text-corps font-medium text-ink-900 md:truncate">{ligne.produit.nom}</p>
                   {ligne.produit.reference && (
-                    <span className="ml-2 text-xs text-text-secondary">{ligne.produit.reference}</span>
+                    <p className="font-mono text-meta text-steel-500">{ligne.produit.reference}</p>
                   )}
-                </td>
-                <td className="px-4 py-3 text-text-secondary">
+                </div>
+                <p className="text-right text-corps whitespace-nowrap text-steel-700">
+                  <span className="block text-meta text-steel-400 md:hidden">Système</span>
                   {ligne.quantiteSysteme}
-                  {ligne.produit.uniteMesure ? ` ${ligne.produit.uniteMesure.toLowerCase()}` : ''}
-                </td>
-                <td className="px-4 py-3">
+                  {unite && <span className="text-meta text-steel-400"> {unite}</span>}
+                </p>
+                <div className="col-span-2 flex items-center justify-between gap-3 md:col-span-1 md:justify-end">
+                  <span className="text-meta text-steel-500 md:hidden">Quantité comptée</span>
                   {enCours ? (
                     <ChampComptage
                       ligne={ligne}
                       onSauvegarder={(quantiteComptee) => saisir.mutate({ ligneId: ligne.id, quantiteComptee })}
                     />
                   ) : ligne.quantiteComptee !== null ? (
-                    ligne.quantiteComptee
+                    <span className="text-corps font-semibold text-ink-900">{ligne.quantiteComptee}</span>
                   ) : (
-                    <span className="text-text-secondary">Non compté</span>
+                    <span className="text-corps text-steel-400">Non compté</span>
                   )}
-                </td>
+                </div>
                 {!enCours && (
-                  <td className="px-4 py-3">
+                  <div className="flex items-center gap-2 md:justify-end">
+                    <span className="text-meta text-steel-500 md:hidden">Écart</span>
                     {ligne.ecart === null ? (
-                      <span className="text-text-secondary">—</span>
+                      <span className="text-steel-400">—</span>
                     ) : ligne.ecart === 0 ? (
-                      <Badge variant="success">Aucun écart</Badge>
+                      <Badge variant="ok">Aucun écart</Badge>
                     ) : (
-                      <Badge variant={ligne.ecart > 0 ? 'info' : 'error'}>
-                        {ligne.ecart > 0 ? `+${ligne.ecart}` : ligne.ecart}
+                      <Badge variant={ligne.ecart > 0 ? 'action' : 'rupture'}>
+                        {ligne.ecart > 0 ? `+${ligne.ecart}` : `−${Math.abs(ligne.ecart)}`}
+                        {ligne.ecart > 0 ? ' en trop' : ' manquant'}
                       </Badge>
                     )}
-                  </td>
+                  </div>
                 )}
                 {!enCours && (
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-1">
-                      {ligne.statutAjustement === 'VALIDEE' && <Badge variant="success">Validé</Badge>}
-                      {ligne.statutAjustement === 'IGNOREE' && <Badge variant="neutral">Ignoré</Badge>}
-                      {ligne.statutAjustement === 'EN_ATTENTE' && ligne.ecart !== null && ligne.ecart !== 0 && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            onClick={() => ignorer.mutate(ligne.id)}
-                            disabled={ignorer.isPending || valider.isPending}
-                          >
-                            <X className="size-4" aria-hidden="true" />
-                            Ignorer
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            onClick={() => valider.mutate(ligne.id)}
-                            disabled={ignorer.isPending || valider.isPending}
-                          >
-                            <Check className="size-4" aria-hidden="true" />
-                            Valider
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
+                  <div className="flex justify-end gap-1">
+                    {ligne.statutAjustement === 'VALIDEE' && <Badge variant="ok">Stock corrigé</Badge>}
+                    {ligne.statutAjustement === 'IGNOREE' && <Badge variant="neutral">Ignoré</Badge>}
+                    {ligne.statutAjustement === 'EN_ATTENTE' && ligne.ecart !== null && ligne.ecart !== 0 && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          taille="sm"
+                          onClick={() => ignorer.mutate(ligne.id)}
+                          disabled={ignorer.isPending || valider.isPending}
+                        >
+                          <X className="size-4" aria-hidden="true" />
+                          Ignorer
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          taille="sm"
+                          onClick={() => valider.mutate(ligne.id)}
+                          disabled={ignorer.isPending || valider.isPending}
+                        >
+                          <Check className="size-4" aria-hidden="true" />
+                          Valider
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              </li>
+            );
+          })}
+        </ul>
       </Card>
 
       <Modal
@@ -252,7 +276,7 @@ export function InventaireDetailPage() {
         }
       >
         {nombreComptees < data.lignes.length && (
-          <p className="text-sm text-text-secondary">
+          <p className="text-corps text-steel-500">
             {data.lignes.length - nombreComptees} produit(s) n’ont pas encore été comptés et resteront sans écart
             calculable.
           </p>

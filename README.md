@@ -112,6 +112,7 @@ Les emails d'alerte ne sont pas réellement envoyés en développement (`EMAIL_P
    ```
    JWT_ACCESS_SECRET=...       # openssl rand -hex 32
    JWT_REFRESH_SECRET=...      # openssl rand -hex 32
+   JWT_CONSOLE_SECRET=...      # openssl rand -hex 32 — distinct des deux précédents
    EMAIL_PROVIDER=dev
    FRONTEND_URL=https://votre-site.netlify.app
    CLOUDINARY_CLOUD_NAME=...

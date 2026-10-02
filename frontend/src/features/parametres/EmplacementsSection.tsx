@@ -87,7 +87,8 @@ export function EmplacementsSection() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="min-w-0 flex-1 basis-56 text-corps text-steel-500">Dépôts, magasins et ateliers où vous stockez.</p>
         <Button onClick={ouvrirCreation}>
           <Plus className="size-4" aria-hidden="true" />
           Nouvel emplacement
@@ -102,21 +103,21 @@ export function EmplacementsSection() {
         ) : isError ? (
           <ErrorState message={messageErreur(error)} onRetry={() => refetch()} />
         ) : data && data.length > 0 ? (
-          <ul className="divide-y divide-border-subtle">
+          <ul className="divide-y divide-rule">
             {data.map((emplacement) => (
-              <li key={emplacement.id} className="flex items-center justify-between gap-4 px-4 py-3">
+              <li key={emplacement.id} className="flex items-center justify-between gap-4 px-4 py-3 sm:px-5">
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-text-primary">{emplacement.nom}</p>
+                  <p className="truncate text-corps font-medium text-ink-900">{emplacement.nom}</p>
                   {emplacement.adresse && (
-                    <p className="truncate text-sm text-text-secondary">{emplacement.adresse}</p>
+                    <p className="truncate text-corps text-steel-500">{emplacement.adresse}</p>
                   )}
                 </div>
                 <div className="flex shrink-0 gap-1">
-                  <Button variant="ghost" onClick={() => ouvrirEdition(emplacement)}>
+                  <Button variant="ghost" taille="sm" onClick={() => ouvrirEdition(emplacement)}>
                     <Pencil className="size-4" aria-hidden="true" />
                     <span className="sr-only sm:not-sr-only">Modifier</span>
                   </Button>
-                  <Button variant="ghost" onClick={() => setAArchiver(emplacement)}>
+                  <Button variant="ghost" taille="sm" onClick={() => setAArchiver(emplacement)}>
                     <Archive className="size-4" aria-hidden="true" />
                     <span className="sr-only sm:not-sr-only">Archiver</span>
                   </Button>
@@ -181,7 +182,7 @@ export function EmplacementsSection() {
           </>
         }
       >
-        <p className="text-sm text-text-secondary">Cette action reste réversible côté base de données.</p>
+        <p className="text-corps text-steel-500">Cette action reste réversible côté base de données.</p>
       </Modal>
     </div>
   );

@@ -11,8 +11,8 @@ import type { Session } from '@/lib/session';
 const panneauGauche = (
   <div className="flex flex-col gap-8">
     <div>
-      <h2 className="text-2xl font-semibold text-white">Dernière étape.</h2>
-      <p className="mt-3 text-sm text-navy-text">
+      <h2 className="text-titre text-white">Dernière étape.</h2>
+      <p className="mt-3 text-corps text-white/65">
         Un instant pendant que nous confirmons votre adresse email et activons votre compte.
       </p>
     </div>
@@ -58,19 +58,19 @@ export function VerifierEmailPage() {
       <div className="flex flex-col items-center gap-4 py-4 text-center">
         {statut === 'en-cours' && (
           <>
-            <div className="size-10 animate-spin rounded-full border-4 border-border-subtle border-t-primary" />
-            <p className="text-sm text-text-secondary">Confirmation en cours…</p>
+            <div className="size-10 animate-spin rounded-full border-4 border-rule border-t-primary" />
+            <p className="text-corps text-steel-500">Confirmation en cours…</p>
           </>
         )}
         {statut === 'reussi' && (
           <>
-            <CheckCircle2 className="size-10 text-success" aria-hidden="true" />
-            <p className="text-sm text-text-secondary">Compte activé. Redirection…</p>
+            <CheckCircle2 className="size-10 text-ok" aria-hidden="true" />
+            <p className="text-corps text-steel-500">Compte activé. Redirection…</p>
           </>
         )}
         {statut === 'echec' && (
           <>
-            <XCircle className="size-10 text-error" aria-hidden="true" />
+            <XCircle className="size-10 text-rupture" aria-hidden="true" />
             {erreur && (
               <div className="w-full">
                 <Alert variant="error">{erreur}</Alert>

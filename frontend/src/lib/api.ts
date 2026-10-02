@@ -26,6 +26,17 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       clearSession();
     }
+    // Entreprise suspendue par la console : la session est inutilisable,
+    // on la purge et on renvoie vers la connexion, qui explique pourquoi.
+    // Pas de redirection depuis la connexion elle-même (elle affiche déjà
+    // le message renvoyé par le serveur).
+    const corps = error.response?.data as { code?: string } | undefined;
+    if (error.response?.status === 403 && corps?.code === 'ENTREPRISE_SUSPENDUE') {
+      clearSession();
+      if (window.location.pathname !== '/connexion') {
+        window.location.replace('/connexion?suspendue=1');
+      }
+    }
     return Promise.reject(error);
   },
 );
