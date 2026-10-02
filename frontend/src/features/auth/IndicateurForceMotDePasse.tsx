@@ -17,10 +17,10 @@ function evaluerForce(motDePasse: string): 0 | 1 | 2 | 3 {
 }
 
 const NIVEAUX = [
-  { libelle: '', classe: 'bg-border-subtle' },
-  { libelle: 'Faible', classe: 'bg-error' },
-  { libelle: 'Moyen', classe: 'bg-warning' },
-  { libelle: 'Solide', classe: 'bg-success' },
+  { libelle: '', classe: 'bg-rule' },
+  { libelle: 'Faible', classe: 'bg-rupture' },
+  { libelle: 'Moyen', classe: 'bg-faible' },
+  { libelle: 'Solide', classe: 'bg-ok' },
 ] as const;
 
 export function IndicateurForceMotDePasse({ motDePasse }: { motDePasse: string }) {
@@ -35,7 +35,7 @@ export function IndicateurForceMotDePasse({ motDePasse }: { motDePasse: string }
             key={segment}
             className={cn(
               'h-1 flex-1 rounded-full transition-colors',
-              segment <= force ? niveau.classe : 'bg-border-subtle',
+              segment <= force ? niveau.classe : 'bg-rule',
             )}
           />
         ))}
@@ -43,8 +43,8 @@ export function IndicateurForceMotDePasse({ motDePasse }: { motDePasse: string }
       {force > 0 && (
         <span
           className={cn(
-            'text-xs font-medium',
-            force === 1 ? 'text-error' : force === 2 ? 'text-warning' : 'text-success',
+            'text-meta font-medium',
+            force === 1 ? 'text-rupture' : force === 2 ? 'text-faible' : 'text-ok',
           )}
         >
           {niveau.libelle}

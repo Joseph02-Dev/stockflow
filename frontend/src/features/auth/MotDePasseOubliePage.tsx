@@ -19,14 +19,14 @@ type Formulaire = z.infer<typeof schema>;
 const panneauGauche = (
   <div className="flex flex-col gap-8">
     <div>
-      <h2 className="text-2xl font-semibold text-white">Ça arrive à tout le monde.</h2>
-      <p className="mt-3 text-sm text-navy-text">
+      <h2 className="text-titre text-white">Ça arrive à tout le monde.</h2>
+      <p className="mt-3 text-corps text-white/65">
         Indiquez votre adresse email : si un compte existe, un lien de réinitialisation vous sera envoyé.
       </p>
     </div>
-    <div className="flex items-start gap-3 rounded-(--radius-button) bg-navy-light p-3">
-      <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
-      <p className="text-xs text-navy-text">
+    <div className="flex items-start gap-3 rounded-md border border-white/10 bg-white/[0.05] p-3">
+      <ShieldCheck className="mt-0.5 size-4 shrink-0 text-action-clair" aria-hidden="true" />
+      <p className="text-meta text-white/65">
         Par sécurité, nous ne confirmons jamais si une adresse est associée à un compte — le message reste le
         même dans tous les cas.
       </p>
@@ -61,10 +61,10 @@ export function MotDePasseOubliePage() {
     return (
       <AuthLayout titre="Lien envoyé" description="Valable 30 minutes." panneauGauche={panneauGauche}>
         <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-3 rounded-(--radius-button) bg-background p-4">
-            <MailCheck className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
-            <p className="text-sm text-text-secondary">
-              Un lien de réinitialisation part vers <span className="font-medium text-text-primary">{emailEnvoye}</span>{' '}
+          <div className="flex items-start gap-3 rounded-md bg-paper p-4">
+            <MailCheck className="mt-0.5 size-5 shrink-0 text-action" aria-hidden="true" />
+            <p className="text-corps text-steel-500">
+              Un lien de réinitialisation part vers <span className="font-medium text-ink-900">{emailEnvoye}</span>{' '}
               si un compte y est associé. Si vous n’y avez pas accès, votre administrateur peut réinitialiser votre
               accès depuis les paramètres de l’entreprise.
             </p>
@@ -90,7 +90,7 @@ export function MotDePasseOubliePage() {
       description="Nous vous enverrons un lien pour en choisir un nouveau."
       panneauGauche={panneauGauche}
       pied={
-        <Link to="/connexion" className="font-medium text-primary hover:underline">
+        <Link to="/connexion" className="font-medium text-action hover:underline">
           Retour à la connexion
         </Link>
       }

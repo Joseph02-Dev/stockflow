@@ -51,6 +51,8 @@
 
   /* Voyant « en ligne » de la sidebar — vert lumineux lisible sur l'encre. */
   --color-reseau: #2cc48a;
+  /* Ultramarine éclaircie : icônes d’action posées sur l’encre (contraste AA). */
+  --color-action-clair: #9aabf5;
 
   /*
    * Alias de transition — les écrans pas encore refondus consomment

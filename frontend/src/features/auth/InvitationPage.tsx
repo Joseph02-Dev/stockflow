@@ -56,15 +56,15 @@ export function InvitationPage() {
       panneauGauche={
         <div className="flex flex-col gap-8">
           <div>
-            <h2 className="text-2xl font-semibold text-white">Vous avez été invité(e).</h2>
-            <p className="mt-3 text-sm text-navy-text">
+            <h2 className="text-titre text-white">Vous avez été invité(e).</h2>
+            <p className="mt-3 text-corps text-white/65">
               Un administrateur vous a ouvert un accès à son espace StockFlow. Activez votre compte en quelques
               secondes pour commencer à suivre le stock avec le reste de l’équipe.
             </p>
           </div>
-          <div className="flex items-start gap-3 rounded-(--radius-button) bg-navy-light p-3">
-            <Users className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
-            <p className="text-xs text-navy-text">
+          <div className="flex items-start gap-3 rounded-md border border-white/10 bg-white/[0.05] p-3">
+            <Users className="mt-0.5 size-4 shrink-0 text-action-clair" aria-hidden="true" />
+            <p className="text-meta text-white/65">
               Votre rôle a déjà été défini par l’administrateur — vous verrez uniquement ce dont vous avez besoin
               au quotidien.
             </p>
@@ -74,7 +74,7 @@ export function InvitationPage() {
       pied={
         <>
           Vous avez déjà un compte ?{' '}
-          <Link to="/connexion" className="font-medium text-primary hover:underline">
+          <Link to="/connexion" className="font-medium text-action hover:underline">
             Se connecter
           </Link>
         </>
@@ -110,7 +110,7 @@ export function InvitationPage() {
           {!formState.errors.password && (
             <>
               <IndicateurForceMotDePasse motDePasse={motDePasseSaisi} />
-              <p className="text-xs text-text-secondary">Au moins 8 caractères.</p>
+              <p className="text-meta text-steel-500">Au moins 8 caractères.</p>
             </>
           )}
         </div>
