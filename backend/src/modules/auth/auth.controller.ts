@@ -6,17 +6,20 @@ import { AuthService, type AuthResult } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { LogoutDto } from './dto/logout.dto.js';
+import { RefreshDto } from './dto/refresh.dto.js';
 import { AcceptInviteDto } from './dto/accept-invite.dto.js';
 import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { VerifyEmailDto } from './dto/verify-email.dto.js';
 import { ResendVerificationDto } from './dto/resend-verification.dto.js';
+import { LIMITES_STRICTES, LimiteStricte } from '../../common/limitation/limitation.js';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Public()
+  @LimiteStricte(LIMITES_STRICTES.inscription)
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   register(@Body() dto: RegisterDto): Promise<{ message: string }> {
@@ -24,6 +27,7 @@ export class AuthController {
   }
 
   @Public()
+  @LimiteStricte(LIMITES_STRICTES.connexion)
   @Post('login')
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto): Promise<AuthResult> {
@@ -38,6 +42,7 @@ export class AuthController {
   }
 
   @Public()
+  @LimiteStricte(LIMITES_STRICTES.renvoiVerification)
   @Post('resend-verification')
   @HttpCode(HttpStatus.OK)
   resendVerification(@Body() dto: ResendVerificationDto): Promise<{ message: string }> {
@@ -45,6 +50,7 @@ export class AuthController {
   }
 
   @Public()
+  @LimiteStricte(LIMITES_STRICTES.motDePasseOublie)
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   forgotPassword(@Body() dto: ForgotPasswordDto): Promise<{ message: string }> {
@@ -52,6 +58,7 @@ export class AuthController {
   }
 
   @Public()
+  @LimiteStricte(LIMITES_STRICTES.reinitialisation)
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   resetPassword(@Body() dto: ResetPasswordDto): Promise<{ message: string }> {
@@ -59,10 +66,20 @@ export class AuthController {
   }
 
   @Public()
+  @LimiteStricte(LIMITES_STRICTES.acceptationInvitation)
   @Post('accept-invite')
   @HttpCode(HttpStatus.CREATED)
   acceptInvite(@Body() dto: AcceptInviteDto): Promise<AuthResult> {
     return this.authService.acceptInvite(dto);
+  }
+
+  // Publique : l'access token est justement expiré quand on l'appelle.
+  // Le refresh token du corps fait office de preuve d'identité.
+  @Public()
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  refresh(@Body() dto: RefreshDto): Promise<AuthResult> {
+    return this.authService.refresh(dto);
   }
 
   // Route protégée (pas de @Public()) : nécessite un access token valide

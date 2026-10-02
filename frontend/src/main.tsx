@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
+import { estTropDeRequetes } from './lib/api';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -11,7 +12,9 @@ const queryClient = new QueryClient({
       // Évite de relancer une requête à chaque retour sur l'onglet :
       // les données de stock n'évoluent pas à la seconde près.
       refetchOnWindowFocus: false,
-      retry: 1,
+      // Une seule nouvelle tentative, jamais sur un 429 : relancer
+      // aussitôt consommerait le quota sans aucune chance d'aboutir.
+      retry: (tentatives, erreur) => tentatives < 1 && !estTropDeRequetes(erreur),
     },
   },
 });
