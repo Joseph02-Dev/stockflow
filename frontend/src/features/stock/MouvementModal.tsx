@@ -85,6 +85,12 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
     emplacementSourceChoisi === emplacementDestinationChoisi;
 
   const enregistrer = useMutation({
+    // Par défaut, React Query met la mutation en pause quand le navigateur
+    // se déclare hors ligne : la mise en file locale ci-dessous ne
+    // s'exécutait alors jamais, et le mouvement était perdu au
+    // rechargement. Le hors-ligne est géré ici, la mutation doit toujours
+    // s'exécuter.
+    networkMode: 'always',
     mutationFn: async (valeurs: Formulaire): Promise<{ horsLigne: boolean }> => {
       const route =
         type === 'ENTREE' ? '/mouvements/entree' : type === 'SORTIE' ? '/mouvements/sortie' : '/mouvements/transfert';

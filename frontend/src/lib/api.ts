@@ -8,6 +8,7 @@ import {
   setSession,
   type Session,
 } from './session';
+import { signalerEchecReseau } from './connectivite';
 
 // En développement local, /api est redirigé vers le backend par le proxy
 // Vite (voir vite.config.ts) — ce proxy n'existe pas une fois le site
@@ -60,11 +61,15 @@ function traiterSuspension(error: unknown): void {
  * toutes les sessions seraient révoquées. Sous verrou, un onglet qui
  * constate que la session a déjà été renouvelée la reprend telle quelle.
  */
-async function renouvelerSession(): Promise<Session | null> {
+/** Le renouvellement n'a pas pu joindre le serveur : ce n'est pas un refus. */
+const RESEAU_INDISPONIBLE = Symbol('RESEAU_INDISPONIBLE');
+type IssueRenouvellement = Session | null | typeof RESEAU_INDISPONIBLE;
+
+async function renouvelerSession(): Promise<IssueRenouvellement> {
   const refreshAvant = getSession()?.refreshToken;
   if (!refreshAvant) return null;
 
-  const renouveler = async (): Promise<Session | null> => {
+  const renouveler = async (): Promise<IssueRenouvellement> => {
     const courante = getSession();
     if (!courante) return null;
     if (courante.refreshToken !== refreshAvant) return courante;
@@ -78,6 +83,12 @@ async function renouvelerSession(): Promise<Session | null> {
       setSession(data, persistante);
       return data;
     } catch (erreur) {
+      // Coupure réseau pendant le renouvellement : la session reste
+      // valable, on ne déconnecte pas une personne simplement hors ligne.
+      if (axios.isAxiosError(erreur) && !erreur.response) {
+        signalerEchecReseau();
+        return RESEAU_INDISPONIBLE;
+      }
       traiterSuspension(erreur);
       return null;
     }
@@ -91,9 +102,9 @@ async function renouvelerSession(): Promise<Session | null> {
 
 // Un seul renouvellement à la fois dans l'onglet : les requêtes qui
 // échouent ensemble attendent toutes la même promesse.
-let renouvellementEnCours: Promise<Session | null> | null = null;
+let renouvellementEnCours: Promise<IssueRenouvellement> | null = null;
 
-function renouvelerUneFois(): Promise<Session | null> {
+function renouvelerUneFois(): Promise<IssueRenouvellement> {
   renouvellementEnCours ??= renouvelerSession().finally(() => {
     renouvellementEnCours = null;
   });
@@ -103,6 +114,11 @@ function renouvelerUneFois(): Promise<Session | null> {
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
+    // Aucune réponse du serveur (et pas une annulation volontaire) : le
+    // réseau est tombé, même si navigator.onLine affirme le contraire.
+    if (!error.response && !axios.isCancel(error)) {
+      signalerEchecReseau();
+    }
     // Access token expiré : on tente un renouvellement, puis on rejoue la
     // requête une seule fois. La session n'est purgée que si le
     // renouvellement échoue. Sans session (écran de connexion), un 401
@@ -117,6 +133,9 @@ api.interceptors.response.use(
         courante && requete.headers.Authorization !== `Bearer ${courante.accessToken}`
           ? courante
           : await renouvelerUneFois();
+      if (session === RESEAU_INDISPONIBLE) {
+        return Promise.reject(error);
+      }
       if (session) {
         requete.headers.Authorization = `Bearer ${session.accessToken}`;
         // La déconnexion doit révoquer le token en vigueur, pas celui
