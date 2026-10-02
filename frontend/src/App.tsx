@@ -19,6 +19,9 @@ import { AlertesPage } from '@/features/alertes/AlertesPage';
 import { FournisseursPage } from '@/features/fournisseurs/FournisseursPage';
 import { FournisseurDetailPage } from '@/features/fournisseurs/FournisseurDetailPage';
 import { ClientsPage } from '@/features/clients/ClientsPage';
+import { VentesPage } from '@/features/ventes/VentesPage';
+import { NouvelleVentePage } from '@/features/ventes/NouvelleVentePage';
+import { VenteDetailPage } from '@/features/ventes/VenteDetailPage';
 import { ParametresPage } from '@/features/parametres/ParametresPage';
 import { useSession } from '@/lib/useSession';
 import { LoadingState } from '@/components/patterns/States';
@@ -87,6 +90,9 @@ export function App() {
           <Route path="/fournisseurs" element={<FournisseursPage />} />
           <Route path="/fournisseurs/:id" element={<FournisseurDetailPage />} />
           <Route path="/clients" element={<ClientsPage />} />
+          <Route path="/ventes" element={<VentesPage />} />
+          <Route path="/ventes/nouvelle" element={<NouvelleVentePage />} />
+          <Route path="/ventes/:id" element={<VenteDetailPage />} />
           <Route element={<RouteAdmin />}>
             <Route path="/parametres" element={<ParametresPage />} />
           </Route>

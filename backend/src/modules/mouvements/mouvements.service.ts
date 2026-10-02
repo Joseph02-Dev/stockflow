@@ -1,9 +1,24 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
 import { AlerteNotificationService } from '../alertes/alerte-notification.service.js';
 import type { EntreeStockDto } from './dto/entree-stock.dto.js';
 import type { SortieStockDto } from './dto/sortie-stock.dto.js';
 import type { TransfertStockDto } from './dto/transfert-stock.dto.js';
+
+/** Client Prisma d'une transaction en cours. */
+export type TransactionPrisma = Parameters<
+  Parameters<PrismaService['$transaction']>[0]
+>[0];
+
+export interface AlerteANotifier {
+  type: 'STOCK_FAIBLE' | 'RUPTURE';
+  produitNom: string;
+  quantite: number;
+}
 
 @Injectable()
 export class MouvementsService {
@@ -19,16 +34,50 @@ export class MouvementsService {
    * total repasse au-dessus du seuil (décision validée en audit Lead
    * Developer — résolution symétrique au déclenchement de MVT-002).
    */
-  async entree(entrepriseId: string, utilisateurId: string, dto: EntreeStockDto) {
-    await this.verifierProduitEtEmplacement(entrepriseId, dto.produitId, dto.emplacementId);
+  async entree(
+    entrepriseId: string,
+    utilisateurId: string,
+    dto: EntreeStockDto,
+  ) {
+    await this.verifierProduitEtEmplacement(
+      entrepriseId,
+      dto.produitId,
+      dto.emplacementId,
+    );
     if (dto.fournisseurId) {
       await this.verifierFournisseur(entrepriseId, dto.fournisseurId);
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction((tx) =>
+      this.entreeDansTransaction(tx, entrepriseId, utilisateurId, dto),
+    );
+  }
+
+  /**
+   * Cœur de entree(), exécuté dans une transaction fournie par l'appelant
+   * — pour qu'une opération composée (annulation de vente) applique
+   * plusieurs mouvements de façon atomique. Aucune vérification
+   * d'appartenance ici : c'est à l'appelant de l'avoir faite.
+   */
+  async entreeDansTransaction(
+    tx: TransactionPrisma,
+    entrepriseId: string,
+    utilisateurId: string,
+    dto: EntreeStockDto,
+  ) {
+    {
       await tx.stock.upsert({
-        where: { produitId_emplacementId: { produitId: dto.produitId, emplacementId: dto.emplacementId } },
-        create: { produitId: dto.produitId, emplacementId: dto.emplacementId, quantite: dto.quantite },
+        where: {
+          produitId_emplacementId: {
+            produitId: dto.produitId,
+            emplacementId: dto.emplacementId,
+          },
+        },
+        create: {
+          produitId: dto.produitId,
+          emplacementId: dto.emplacementId,
+          quantite: dto.quantite,
+        },
         update: { quantite: { increment: dto.quantite } },
       });
 
@@ -45,7 +94,9 @@ export class MouvementsService {
       });
 
       const stockTotal = await this.stockTotalProduit(tx, dto.produitId);
-      const produit = await tx.produit.findUniqueOrThrow({ where: { id: dto.produitId } });
+      const produit = await tx.produit.findUniqueOrThrow({
+        where: { id: dto.produitId },
+      });
 
       if (stockTotal >= produit.seuilAlerte) {
         const alerteActive = await tx.alerte.findFirst({
@@ -60,7 +111,7 @@ export class MouvementsService {
       }
 
       return mouvement;
-    });
+    }
   }
 
   /**
@@ -69,22 +120,61 @@ export class MouvementsService {
    * d'intégrité validée en architecture). Déclenche une alerte si le
    * nouveau stock total passe sous le seuil du produit.
    */
-  async sortie(entrepriseId: string, utilisateurId: string, dto: SortieStockDto) {
-    await this.verifierProduitEtEmplacement(entrepriseId, dto.produitId, dto.emplacementId);
+  async sortie(
+    entrepriseId: string,
+    utilisateurId: string,
+    dto: SortieStockDto,
+  ) {
+    await this.verifierProduitEtEmplacement(
+      entrepriseId,
+      dto.produitId,
+      dto.emplacementId,
+    );
 
-    const resultat = await this.prisma.$transaction(async (tx) => {
-      const stockActuel = await tx.stock.findUnique({
-        where: { produitId_emplacementId: { produitId: dto.produitId, emplacementId: dto.emplacementId } },
-      });
+    const resultat = await this.prisma.$transaction((tx) =>
+      this.sortieDansTransaction(tx, entrepriseId, utilisateurId, dto),
+    );
 
-      if (!stockActuel || stockActuel.quantite < dto.quantite) {
-        throw new ConflictException('Stock insuffisant pour effectuer cette sortie.');
-      }
+    // ALERT-004 — Notification envoyée APRÈS le commit de la transaction :
+    // un échec d'email ne doit jamais annuler un mouvement déjà validé.
+    if (resultat.alerteANotifier) {
+      await this.notifierAlerte(entrepriseId, resultat.alerteANotifier);
+    }
 
-      await tx.stock.update({
-        where: { produitId_emplacementId: { produitId: dto.produitId, emplacementId: dto.emplacementId } },
+    return resultat.mouvement;
+  }
+
+  /**
+   * Cœur de sortie(), exécuté dans une transaction fournie par l'appelant
+   * (vente : toutes les lignes ou aucune). Renvoie l'alerte à notifier,
+   * que l'appelant envoie APRÈS le commit via notifierAlerte(). Aucune
+   * vérification d'appartenance ici : c'est à l'appelant de l'avoir faite.
+   *
+   * Décrément conditionnel (quantite >= demandée) en une seule requête :
+   * deux sorties simultanées ne peuvent jamais faire passer le stock sous
+   * zéro, contrairement à une lecture suivie d'une écriture.
+   */
+  async sortieDansTransaction(
+    tx: TransactionPrisma,
+    entrepriseId: string,
+    utilisateurId: string,
+    dto: SortieStockDto,
+  ) {
+    {
+      const { count } = await tx.stock.updateMany({
+        where: {
+          produitId: dto.produitId,
+          emplacementId: dto.emplacementId,
+          quantite: { gte: dto.quantite },
+        },
         data: { quantite: { decrement: dto.quantite } },
       });
+
+      if (count === 0) {
+        throw new ConflictException(
+          'Stock insuffisant pour effectuer cette sortie.',
+        );
+      }
 
       const mouvement = await tx.mouvement.create({
         data: {
@@ -98,9 +188,10 @@ export class MouvementsService {
       });
 
       const stockTotal = await this.stockTotalProduit(tx, dto.produitId);
-      const produit = await tx.produit.findUniqueOrThrow({ where: { id: dto.produitId } });
-      let alerteANotifier: { type: 'STOCK_FAIBLE' | 'RUPTURE'; produitNom: string; quantite: number } | null =
-        null;
+      const produit = await tx.produit.findUniqueOrThrow({
+        where: { id: dto.produitId },
+      });
+      let alerteANotifier: AlerteANotifier | null = null;
 
       if (stockTotal < produit.seuilAlerte || stockTotal === 0) {
         const typeAlerte = stockTotal === 0 ? 'RUPTURE' : 'STOCK_FAIBLE';
@@ -117,7 +208,11 @@ export class MouvementsService {
               where: { id: alerteActive.id },
               data: { type: typeAlerte, quantiteAuDeclenchement: stockTotal },
             });
-            alerteANotifier = { type: typeAlerte, produitNom: produit.nom, quantite: stockTotal };
+            alerteANotifier = {
+              type: typeAlerte,
+              produitNom: produit.nom,
+              quantite: stockTotal,
+            };
           }
         } else {
           await tx.alerte.create({
@@ -128,25 +223,26 @@ export class MouvementsService {
               quantiteAuDeclenchement: stockTotal,
             },
           });
-          alerteANotifier = { type: typeAlerte, produitNom: produit.nom, quantite: stockTotal };
+          alerteANotifier = {
+            type: typeAlerte,
+            produitNom: produit.nom,
+            quantite: stockTotal,
+          };
         }
       }
 
       return { mouvement, alerteANotifier };
-    });
-
-    // ALERT-004 — Notification envoyée APRÈS le commit de la transaction :
-    // un échec d'email ne doit jamais annuler un mouvement déjà validé.
-    if (resultat.alerteANotifier) {
-      await this.alerteNotification.notifierAlerte(
-        entrepriseId,
-        resultat.alerteANotifier.produitNom,
-        resultat.alerteANotifier.type,
-        resultat.alerteANotifier.quantite,
-      );
     }
+  }
 
-    return resultat.mouvement;
+  /** Envoie la notification d'une alerte déclenchée par une sortie déjà validée. */
+  async notifierAlerte(entrepriseId: string, alerte: AlerteANotifier) {
+    await this.alerteNotification.notifierAlerte(
+      entrepriseId,
+      alerte.produitNom,
+      alerte.type,
+      alerte.quantite,
+    );
   }
 
   /**
@@ -162,12 +258,22 @@ export class MouvementsService {
    * emplacements change. Contrairement à entree()/sortie(), aucune
    * vérification de seuil n'est donc nécessaire ici.
    */
-  async transfert(entrepriseId: string, utilisateurId: string, dto: TransfertStockDto) {
+  async transfert(
+    entrepriseId: string,
+    utilisateurId: string,
+    dto: TransfertStockDto,
+  ) {
     if (dto.emplacementSourceId === dto.emplacementDestinationId) {
-      throw new ConflictException('L’emplacement de destination doit être différent de la source.');
+      throw new ConflictException(
+        'L’emplacement de destination doit être différent de la source.',
+      );
     }
 
-    await this.verifierProduitEtEmplacement(entrepriseId, dto.produitId, dto.emplacementSourceId);
+    await this.verifierProduitEtEmplacement(
+      entrepriseId,
+      dto.produitId,
+      dto.emplacementSourceId,
+    );
     const destination = await this.prisma.emplacement.findUnique({
       where: { id: dto.emplacementDestinationId },
     });
@@ -181,25 +287,40 @@ export class MouvementsService {
     return this.prisma.$transaction(async (tx) => {
       const stockSource = await tx.stock.findUnique({
         where: {
-          produitId_emplacementId: { produitId: dto.produitId, emplacementId: dto.emplacementSourceId },
+          produitId_emplacementId: {
+            produitId: dto.produitId,
+            emplacementId: dto.emplacementSourceId,
+          },
         },
       });
       if (!stockSource || stockSource.quantite < dto.quantite) {
-        throw new ConflictException('Stock insuffisant à l’emplacement source pour effectuer ce transfert.');
+        throw new ConflictException(
+          'Stock insuffisant à l’emplacement source pour effectuer ce transfert.',
+        );
       }
 
       await tx.stock.update({
         where: {
-          produitId_emplacementId: { produitId: dto.produitId, emplacementId: dto.emplacementSourceId },
+          produitId_emplacementId: {
+            produitId: dto.produitId,
+            emplacementId: dto.emplacementSourceId,
+          },
         },
         data: { quantite: { decrement: dto.quantite } },
       });
 
       await tx.stock.upsert({
         where: {
-          produitId_emplacementId: { produitId: dto.produitId, emplacementId: dto.emplacementDestinationId },
+          produitId_emplacementId: {
+            produitId: dto.produitId,
+            emplacementId: dto.emplacementDestinationId,
+          },
         },
-        create: { produitId: dto.produitId, emplacementId: dto.emplacementDestinationId, quantite: dto.quantite },
+        create: {
+          produitId: dto.produitId,
+          emplacementId: dto.emplacementDestinationId,
+          quantite: dto.quantite,
+        },
         update: { quantite: { increment: dto.quantite } },
       });
 
@@ -218,7 +339,10 @@ export class MouvementsService {
   }
 
   /** MVT-003 — Historique des mouvements, filtrable. */
-  async listerMouvements(entrepriseId: string, filtres: { produitId?: string; emplacementId?: string }) {
+  async listerMouvements(
+    entrepriseId: string,
+    filtres: { produitId?: string; emplacementId?: string },
+  ) {
     return this.prisma.mouvement.findMany({
       where: {
         entrepriseId,
@@ -251,7 +375,10 @@ export class MouvementsService {
   }
 
   /** MVT-004 — Stock actuel par emplacement, filtrable. */
-  async listerStock(entrepriseId: string, filtres: { produitId?: string; emplacementId?: string }) {
+  async listerStock(
+    entrepriseId: string,
+    filtres: { produitId?: string; emplacementId?: string },
+  ) {
     return this.prisma.stock.findMany({
       where: {
         produit: { entrepriseId },
@@ -263,33 +390,53 @@ export class MouvementsService {
   }
 
   private async stockTotalProduit(
-    tx: Parameters<Parameters<PrismaService['$transaction']>[0]>[0],
+    tx: TransactionPrisma,
     produitId: string,
   ): Promise<number> {
-    const result = await tx.stock.aggregate({ where: { produitId }, _sum: { quantite: true } });
+    const result = await tx.stock.aggregate({
+      where: { produitId },
+      _sum: { quantite: true },
+    });
     return result._sum.quantite ?? 0;
   }
 
-  private async verifierProduitEtEmplacement(entrepriseId: string, produitId: string, emplacementId: string) {
-    const produit = await this.prisma.produit.findUnique({ where: { id: produitId } });
+  async verifierProduitEtEmplacement(
+    entrepriseId: string,
+    produitId: string,
+    emplacementId: string,
+  ) {
+    const produit = await this.prisma.produit.findUnique({
+      where: { id: produitId },
+    });
     if (!produit || produit.entrepriseId !== entrepriseId) {
       throw new NotFoundException('Produit introuvable.');
     }
     if (produit.archive) {
-      throw new ConflictException('Ce produit est archivé et ne peut plus faire l’objet de mouvements.');
+      throw new ConflictException(
+        'Ce produit est archivé et ne peut plus faire l’objet de mouvements.',
+      );
     }
 
-    const emplacement = await this.prisma.emplacement.findUnique({ where: { id: emplacementId } });
+    const emplacement = await this.prisma.emplacement.findUnique({
+      where: { id: emplacementId },
+    });
     if (!emplacement || emplacement.entrepriseId !== entrepriseId) {
       throw new NotFoundException('Emplacement introuvable.');
     }
     if (emplacement.archive) {
-      throw new ConflictException('Cet emplacement est archivé et ne peut plus faire l’objet de mouvements.');
+      throw new ConflictException(
+        'Cet emplacement est archivé et ne peut plus faire l’objet de mouvements.',
+      );
     }
   }
 
-  private async verifierFournisseur(entrepriseId: string, fournisseurId: string) {
-    const fournisseur = await this.prisma.fournisseur.findUnique({ where: { id: fournisseurId } });
+  private async verifierFournisseur(
+    entrepriseId: string,
+    fournisseurId: string,
+  ) {
+    const fournisseur = await this.prisma.fournisseur.findUnique({
+      where: { id: fournisseurId },
+    });
     if (!fournisseur || fournisseur.entrepriseId !== entrepriseId) {
       throw new NotFoundException('Fournisseur introuvable.');
     }
