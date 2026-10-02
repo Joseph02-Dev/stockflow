@@ -21,6 +21,7 @@ const ROUTES_CONSOLE_PROTEGEES = [
   '/console/entreprises/00000000-0000-4000-8000-000000000000',
   '/console/entreprises/00000000-0000-4000-8000-000000000000/stock',
   '/console/entreprises/00000000-0000-4000-8000-000000000000/mouvements',
+  '/console/journal',
 ];
 
 describe('Console — authentification opérateur séparée (intégration réelle)', () => {

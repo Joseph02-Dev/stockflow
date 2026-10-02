@@ -158,6 +158,30 @@ describe('Console — suspension et rétablissement (intégration réelle)', () 
     expect(journal.every((e) => e.operateurId === operateur.id)).toBe(true);
   });
 
+  it('expose le journal paginé, filtrable par entreprise, avec opérateur et nom d’entreprise', async () => {
+    const { operateur, tokenOperateur, entreprise } = await preparer();
+    await suspendre(tokenOperateur, entreprise.id, { motif: 'Impayé' });
+    await retablir(tokenOperateur, entreprise.id);
+
+    const reponse = await request(app.getHttpServer())
+      .get(`/console/journal?entrepriseId=${entreprise.id}&taille=1`)
+      .set('Authorization', `Bearer ${tokenOperateur}`);
+
+    expect(reponse.status).toBe(200);
+    expect(reponse.body.total).toBe(2);
+    expect(reponse.body.elements).toHaveLength(1);
+    expect(reponse.body.elements[0]).toMatchObject({
+      action: 'RETABLISSEMENT',
+      operateur: { id: operateur.id },
+      entreprise: { id: entreprise.id, nom: entreprise.nom },
+    });
+
+    const filtreInvalide = await request(app.getHttpServer())
+      .get('/console/journal?entrepriseId=pas-un-uuid')
+      .set('Authorization', `Bearer ${tokenOperateur}`);
+    expect(filtreInvalide.status).toBe(400);
+  });
+
   it('refuse de suspendre deux fois ou de rétablir une entreprise active (409)', async () => {
     const { tokenOperateur, entreprise } = await preparer();
 

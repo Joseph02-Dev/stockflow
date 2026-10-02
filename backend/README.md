@@ -171,6 +171,23 @@ Espace réservé au propriétaire de la plateforme, sous `/console/*`. C'est le 
 - **Journal d'audit** : toute lecture ou modification des données d'une entreprise par un opérateur est inscrite dans `journal_audit`.
 - **Lecture seule** sur les données métier : un opérateur consulte et suspend, rien d'autre.
 
+### Routes
+
+| Route | Rôle | Journalisé |
+| --- | --- | --- |
+| `POST /console/auth/login` | Connexion opérateur (token 2 h, pas de refresh) | `CONNEXION` |
+| `GET /console/auth/moi` | Vérifie la session | — |
+| `GET /console/apercu` | KPI plateforme, répartition des mouvements, entreprises à surveiller | `CONSULTATION_ENTREPRISE` |
+| `GET /console/entreprises` | Liste avec agrégats (`?recherche=`, `?etat=`) | `CONSULTATION_ENTREPRISE` |
+| `GET /console/entreprises/:id` | Synthèse, emplacements, utilisateurs | `CONSULTATION_ENTREPRISE` |
+| `GET /console/entreprises/:id/stock` | Stock par référence, paginé | `CONSULTATION_ENTREPRISE` |
+| `GET /console/entreprises/:id/mouvements` | Historique paginé (`?page=&taille=`, 100 max) | `CONSULTATION_ENTREPRISE` |
+| `POST /console/entreprises/:id/suspendre` | `{ motif }` obligatoire — statut, révocation des sessions et journal dans une transaction | `SUSPENSION` |
+| `POST /console/entreprises/:id/retablir` | `{ motif? }` | `RETABLISSEMENT` |
+| `GET /console/journal` | Journal paginé (`?entrepriseId=`, `?action=`) | — |
+
+Une entreprise suspendue est refusée partout côté client : à la connexion (403, après vérification du mot de passe) et à chaque requête authentifiée (`EntrepriseActiveGuard`, 403 avec `code: "ENTREPRISE_SUSPENDUE"`). Les emails de réinitialisation et de confirmation ne partent plus.
+
 ### Créer un opérateur
 
 Aucune interface ne permet de créer un opérateur — uniquement en ligne de commande, depuis un accès au serveur (ou `railway run` en production) :
