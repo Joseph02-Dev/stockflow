@@ -1,10 +1,17 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Railway place un proxy unique devant l'application : sans cette ligne,
+  // req.ip vaut l'adresse du proxy et tous les clients partagent le même
+  // compteur de limitation de débit. « 1 » = on ne fait confiance qu'au
+  // dernier saut de X-Forwarded-For, pour qu'un client ne puisse pas
+  // usurper une IP en forgeant l'en-tête lui-même.
+  app.set('trust proxy', 1);
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // supprime silencieusement les champs non déclarés dans le DTO

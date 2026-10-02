@@ -26,6 +26,13 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       clearSession();
     }
+    // Un 429 (limitation de débit) n'invalide pas la session : on la
+    // conserve et on remplace le corps par le message neutre, pour que
+    // l'écran affiche une consigne claire même si un intermédiaire a
+    // répondu sans corps exploitable.
+    if (estTropDeRequetes(error) && error.response) {
+      error.response.data = { statusCode: 429, message: MESSAGE_TROP_DE_REQUETES };
+    }
     // Entreprise suspendue par la console : la session est inutilisable,
     // on la purge et on renvoie vers la connexion, qui explique pourquoi.
     // Pas de redirection depuis la connexion elle-même (elle affiche déjà
@@ -41,6 +48,14 @@ api.interceptors.response.use(
   },
 );
 
+/** Message affiché quand le serveur limite le débit (HTTP 429). */
+export const MESSAGE_TROP_DE_REQUETES = 'Trop de requêtes. Réessayez dans quelques minutes.';
+
+/** Vrai si l'erreur est un refus pour excès de requêtes (HTTP 429). */
+export function estTropDeRequetes(error: unknown): boolean {
+  return axios.isAxiosError(error) && error.response?.status === 429;
+}
+
 /**
  * Extrait un message lisible depuis une erreur Axios.
  * Le backend renvoie soit une chaîne, soit un tableau de messages de
@@ -48,6 +63,7 @@ api.interceptors.response.use(
  * jamais afficher "[object Object]" à l'utilisateur.
  */
 export function messageErreur(error: unknown, fallback = 'Une erreur est survenue.'): string {
+  if (estTropDeRequetes(error)) return MESSAGE_TROP_DE_REQUETES;
   if (axios.isAxiosError(error)) {
     const data = error.response?.data as { message?: string | string[] } | undefined;
     if (Array.isArray(data?.message)) return data.message.join(' ');

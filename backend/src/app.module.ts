@@ -24,9 +24,25 @@ import { InventairesModule } from './modules/inventaires/inventaires.module.js';
 import { CommandesModule } from './modules/commandes/commandes.module.js';
 import { ConsoleModule } from './modules/console/console.module.js';
 import { LimitesModule } from './common/limites/limites.module.js';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { LimitationDebitGuard } from './common/limitation/limitation-debit.guard.js';
+import {
+  LIMITATION_ACTIVE,
+  LIMITE_GLOBALE,
+  LIMITEUR,
+  MESSAGE_TROP_DE_REQUETES,
+} from './common/limitation/limitation.js';
 
 @Module({
   imports: [
+    // Stockage en mémoire : suffisant pour une instance unique. Avec
+    // plusieurs réplicas, chaque instance aurait ses propres compteurs.
+    ThrottlerModule.forRoot({
+      throttlers: [{ name: LIMITEUR, ...LIMITE_GLOBALE }],
+      errorMessage: MESSAGE_TROP_DE_REQUETES,
+      // Pas d'en-têtes X-RateLimit-* : ils révéleraient le compteur restant.
+      setHeaders: false,
+    }),
     JwtConfigModule,
     TenantContextModule,
     EmailModule,
@@ -50,6 +66,10 @@ import { LimitesModule } from './common/limites/limites.module.js';
   controllers: [AppController],
   providers: [
     AppService,
+    { provide: LIMITATION_ACTIVE, useValue: process.env.NODE_ENV !== 'test' },
+    // En premier : une rafale est coupée avant toute vérification de
+    // token ou lecture en base.
+    { provide: APP_GUARD, useClass: LimitationDebitGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     // Après RolesGuard (ordre d'exécution = ordre de déclaration) : une
     // requête non authentifiée reçoit d'abord son 401.

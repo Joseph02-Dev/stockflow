@@ -11,6 +11,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CloudinaryService } from './cloudinary.service.js';
+import { LIMITES_STRICTES, LimiteStricte } from '../../common/limitation/limitation.js';
 
 const DOSSIERS_AUTORISES = ['produits', 'fournisseurs', 'utilisateurs'] as const;
 type Dossier = (typeof DOSSIERS_AUTORISES)[number];
@@ -22,6 +23,7 @@ const TAILLE_MAX_OCTETS = 5 * 1024 * 1024; // 5 Mo
 export class UploadsController {
   constructor(private readonly cloudinaryService: CloudinaryService) {}
 
+  @LimiteStricte(LIMITES_STRICTES.televersement)
   @Post('image')
   @UseInterceptors(FileInterceptor('fichier'))
   async televerser(
