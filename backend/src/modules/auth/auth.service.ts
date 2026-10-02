@@ -12,6 +12,7 @@ import { erreurEntrepriseSuspendue } from '../../common/entreprise-suspendue.js'
 import type { RegisterDto } from './dto/register.dto.js';
 import type { LoginDto } from './dto/login.dto.js';
 import type { LogoutDto } from './dto/logout.dto.js';
+import type { RefreshDto } from './dto/refresh.dto.js';
 import type { AcceptInviteDto } from './dto/accept-invite.dto.js';
 import type { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import type { ResetPasswordDto } from './dto/reset-password.dto.js';
@@ -29,6 +30,10 @@ export interface AuthResult {
 // ou le mot de passe qui est incorrect (règle de sécurité déjà validée
 // en architecture — évite l'énumération des comptes existants).
 const IDENTIFIANTS_INVALIDES = 'Email ou mot de passe incorrect.';
+
+// Réponse unique à tout refus de renouvellement (inconnu, expiré,
+// révoqué, réutilisé) : rien ne distingue les cas pour qui les observe.
+const SESSION_EXPIREE = 'Session expirée. Veuillez vous reconnecter.';
 
 // Verrouillage temporaire après plusieurs échecs consécutifs — valeurs
 // alignées sur le design de référence ("2 tentatives restantes avant
@@ -183,6 +188,69 @@ export class AuthService {
     }
 
     return { message: 'Déconnexion réussie.' };
+  }
+
+  /**
+   * Renouvellement de session à partir d'un refresh token.
+   *
+   * Rotation obligatoire : le token présenté est révoqué et une nouvelle
+   * paire (access + refresh) est émise — chaque refresh token ne sert
+   * qu'une fois. Détection de réutilisation : un token déjà révoqué qui
+   * se présente signifie qu'il a été copié (le client légitime l'a déjà
+   * échangé) ; on révoque alors toutes les sessions actives de
+   * l'utilisateur, ce qui coupe aussi l'accès de la copie.
+   *
+   * Mêmes conditions que la connexion : compte existant, email vérifié,
+   * entreprise non suspendue (403 ENTREPRISE_SUSPENDUE, comme au login).
+   */
+  async refresh(dto: RefreshDto): Promise<AuthResult> {
+    const tokenEnregistre = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash: hashToken(dto.refreshToken) },
+    });
+    if (!tokenEnregistre) {
+      throw new UnauthorizedException(SESSION_EXPIREE);
+    }
+    if (tokenEnregistre.revokedAt) {
+      await this.revoquerToutesLesSessions(tokenEnregistre.utilisateurId);
+      throw new UnauthorizedException(SESSION_EXPIREE);
+    }
+    if (tokenEnregistre.expiresAt <= new Date()) {
+      throw new UnauthorizedException(SESSION_EXPIREE);
+    }
+
+    const utilisateur = await this.prisma.utilisateur.findUnique({
+      where: { id: tokenEnregistre.utilisateurId },
+      include: { entreprise: true },
+    });
+    if (!utilisateur || !utilisateur.emailVerifieAt) {
+      throw new UnauthorizedException(SESSION_EXPIREE);
+    }
+    // Vérifiée avant la rotation : le token n'est pas consommé par un
+    // refus, la personne retrouvera sa session si l'accès est rétabli.
+    if (utilisateur.entreprise.statut === 'SUSPENDUE') {
+      throw erreurEntrepriseSuspendue();
+    }
+
+    // Révocation conditionnelle : si deux requêtes présentent le même
+    // token au même instant, une seule le consomme ; l'autre est traitée
+    // comme une réutilisation.
+    const { count } = await this.prisma.refreshToken.updateMany({
+      where: { id: tokenEnregistre.id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    if (count === 0) {
+      await this.revoquerToutesLesSessions(utilisateur.id);
+      throw new UnauthorizedException(SESSION_EXPIREE);
+    }
+
+    return this.construireReponseAuth(utilisateur, utilisateur.entreprise);
+  }
+
+  private async revoquerToutesLesSessions(utilisateurId: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { utilisateurId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
   }
 
   /**

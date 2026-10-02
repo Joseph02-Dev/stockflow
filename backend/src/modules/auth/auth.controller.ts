@@ -6,6 +6,7 @@ import { AuthService, type AuthResult } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { LogoutDto } from './dto/logout.dto.js';
+import { RefreshDto } from './dto/refresh.dto.js';
 import { AcceptInviteDto } from './dto/accept-invite.dto.js';
 import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
@@ -70,6 +71,15 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   acceptInvite(@Body() dto: AcceptInviteDto): Promise<AuthResult> {
     return this.authService.acceptInvite(dto);
+  }
+
+  // Publique : l'access token est justement expiré quand on l'appelle.
+  // Le refresh token du corps fait office de preuve d'identité.
+  @Public()
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  refresh(@Body() dto: RefreshDto): Promise<AuthResult> {
+    return this.authService.refresh(dto);
   }
 
   // Route protégée (pas de @Public()) : nécessite un access token valide
