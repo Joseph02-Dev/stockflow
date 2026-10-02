@@ -14,6 +14,7 @@ import {
   Tag,
   Truck,
   UserRound,
+  Users,
   Warehouse,
 } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -40,6 +41,7 @@ const sectionPilotage = [
 const sectionReferentiel = [
   { to: '/produits', libelle: 'Produits', Icone: Package },
   { to: '/fournisseurs', libelle: 'Fournisseurs', Icone: Truck },
+  { to: '/clients', libelle: 'Clients', Icone: Users },
 ];
 
 // Les 4 destinations les plus fréquentes uniquement : la barre mobile
@@ -65,6 +67,7 @@ function filAriane(chemin: string, recherche: string): { libelle: string; to?: s
     alertes: 'Alertes',
     commandes: 'Commandes fournisseur',
     fournisseurs: 'Fournisseurs',
+    clients: 'Clients',
     parametres: 'Paramètres',
   };
   const [racine, detail] = chemin.split('/').filter(Boolean);
@@ -412,6 +415,10 @@ export function AppLayout() {
             <NavLink to="/fournisseurs" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
               <Truck className="size-5 text-steel-500" aria-hidden="true" />
               Fournisseurs
+            </NavLink>
+            <NavLink to="/clients" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
+              <Users className="size-5 text-steel-500" aria-hidden="true" />
+              Clients
             </NavLink>
             {session?.utilisateur.role === 'ADMIN' && (
               <>

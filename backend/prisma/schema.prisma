@@ -104,6 +104,7 @@ model Entreprise {
   utilisateurs Utilisateur[]
   emplacements Emplacement[]
   produits     Produit[]
+  clients      Client[]
   fournisseurs Fournisseur[]
   mouvements   Mouvement[]
   alertes      Alerte[]
@@ -550,4 +551,33 @@ model JournalAudit {
   @@index([operateurId, createdAt])
   @@index([entrepriseId, createdAt])
   @@map("journal_audit")
+}
+
+// Catégorie tarifaire d'un client : détermine le prix appliqué à la vente
+// (voir resoudrePrix côté ventes). DETAIL correspond au prixVente du produit.
+enum CategorieTarifaire {
+  GROS
+  DEMI_GROS
+  DETAIL
+}
+
+/// Client d'une entreprise. Jamais supprimé : archivé, pour que son
+/// historique de ventes et de règlements survive.
+model Client {
+  id           String             @id @default(uuid())
+  entrepriseId String             @map("entreprise_id")
+  nom          String
+  // Format international (+224 6XX XX XX XX) — sert aux liens WhatsApp.
+  telephone    String?
+  nomCommerce  String?            @map("nom_commerce")
+  categorie    CategorieTarifaire @default(DETAIL)
+  // En GNF, entier. Avertit à la vente, ne bloque jamais. Null = aucun plafond.
+  plafondCredit Int?              @map("plafond_credit")
+  archive      Boolean            @default(false)
+  createdAt    DateTime           @default(now()) @map("created_at")
+
+  entreprise Entreprise @relation(fields: [entrepriseId], references: [id])
+
+  @@index([entrepriseId, archive])
+  @@map("client")
 }

@@ -18,6 +18,7 @@ import { CommandeDetailPage } from '@/features/commandes/CommandeDetailPage';
 import { AlertesPage } from '@/features/alertes/AlertesPage';
 import { FournisseursPage } from '@/features/fournisseurs/FournisseursPage';
 import { FournisseurDetailPage } from '@/features/fournisseurs/FournisseurDetailPage';
+import { ClientsPage } from '@/features/clients/ClientsPage';
 import { ParametresPage } from '@/features/parametres/ParametresPage';
 import { useSession } from '@/lib/useSession';
 import { LoadingState } from '@/components/patterns/States';
@@ -85,6 +86,7 @@ export function App() {
           <Route path="/alertes" element={<AlertesPage />} />
           <Route path="/fournisseurs" element={<FournisseursPage />} />
           <Route path="/fournisseurs/:id" element={<FournisseurDetailPage />} />
+          <Route path="/clients" element={<ClientsPage />} />
           <Route element={<RouteAdmin />}>
             <Route path="/parametres" element={<ParametresPage />} />
           </Route>
