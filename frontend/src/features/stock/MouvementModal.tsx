@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Alert } from '@/components/ui/Alert';
 import { Modal } from '@/components/ui/Modal';
+import { useModules } from '@/lib/useModules';
 import { cn } from '@/lib/cn';
 
 interface Option {
@@ -44,6 +45,7 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
   const [erreur, setErreur] = useState<string | null>(null);
   const [enregistreLocalement, setEnregistreLocalement] = useState(false);
   const enLigne = useEnLigne();
+  const modules = useModules();
 
   const produits = useQuery({
     queryKey: ['produits', '', false],
@@ -188,7 +190,10 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
               { valeur: 'SORTIE', libelle: 'Sortie', Icone: ArrowUpFromLine },
               { valeur: 'TRANSFERT', libelle: 'Transfert', Icone: ArrowRightLeft },
             ] as const
-          ).map(({ valeur, libelle, Icone }) => (
+          )
+            // Module « transferts » désactivé par un opérateur : l'option disparaît.
+            .filter(({ valeur }) => valeur !== 'TRANSFERT' || modules.transferts)
+            .map(({ valeur, libelle, Icone }) => (
             <button
               key={valeur}
               type="button"

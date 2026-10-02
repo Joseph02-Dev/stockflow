@@ -10,6 +10,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/Stat
 import { MouvementModal } from './MouvementModal';
 import { InventairesTab } from './InventairesTab';
 import { cn } from '@/lib/cn';
+import { useModules } from '@/lib/useModules';
 import { Onglets } from '@/components/patterns/Onglets';
 import { Vignette } from '@/components/patterns/Vignette';
 import { tableau } from '@/components/patterns/tableau';
@@ -52,6 +53,10 @@ type CleOnglet = (typeof onglets)[number]['cle'];
 
 export function StockPage() {
   const [actif, setActif] = useState<CleOnglet>('stock');
+  // Module « inventaires » désactivé par un opérateur : l'onglet disparaît.
+  const modules = useModules();
+  const ongletsVisibles = onglets.filter((o) => o.cle !== 'inventaires' || modules.inventaires);
+  const actifVisible: CleOnglet = actif === 'inventaires' && !modules.inventaires ? 'stock' : actif;
   const [emplacementFiltre, setEmplacementFiltre] = useState('');
   const [modaleOuverte, setModaleOuverte] = useState(false);
 
@@ -67,7 +72,7 @@ export function StockPage() {
       if (emplacementFiltre) p.set('emplacement_id', emplacementFiltre);
       return (await api.get<LigneStock[]>(`/stock?${p.toString()}`)).data;
     },
-    enabled: actif === 'stock',
+    enabled: actifVisible === 'stock',
   });
 
   const mouvements = useQuery({
@@ -77,7 +82,7 @@ export function StockPage() {
       if (emplacementFiltre) p.set('emplacement_id', emplacementFiltre);
       return (await api.get<Mouvement[]>(`/mouvements?${p.toString()}`)).data;
     },
-    enabled: actif === 'mouvements',
+    enabled: actifVisible === 'mouvements',
   });
 
   const dateHeure = (iso: string) =>
@@ -93,14 +98,14 @@ export function StockPage() {
         titre="Stock & mouvements"
         description="Ce qu’il y a dans chaque emplacement, et tout ce qui est entré ou sorti."
         action={
-          actif !== 'inventaires' && (
+          actifVisible !== 'inventaires' && (
             <>
               <Button
                 variant="secondary"
-                disabled={actif === 'stock' ? !stock.data?.length : !mouvements.data?.length}
+                disabled={actifVisible === 'stock' ? !stock.data?.length : !mouvements.data?.length}
                 onClick={() => {
                   const date = new Date().toISOString().slice(0, 10);
-                  if (actif === 'stock' && stock.data) {
+                  if (actifVisible === 'stock' && stock.data) {
                     exporterCsv(
                       `stock-${date}.csv`,
                       [
@@ -155,9 +160,9 @@ export function StockPage() {
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Onglets onglets={onglets} actif={actif} onChange={setActif} libelle="Vues du stock" />
+        <Onglets onglets={ongletsVisibles} actif={actifVisible} onChange={setActif} libelle="Vues du stock" />
 
-        {actif !== 'inventaires' && (
+        {actifVisible !== 'inventaires' && (
           <div className="flex items-center gap-2">
             <label htmlFor="filtre-emplacement" className="text-corps text-steel-500">
               Emplacement
@@ -180,7 +185,7 @@ export function StockPage() {
       </div>
 
       <div role="tabpanel">
-        {actif === 'stock' && (
+        {actifVisible === 'stock' && (
           <Card>
             {stock.isLoading ? (
               <LoadingState />
@@ -264,7 +269,7 @@ export function StockPage() {
           </Card>
         )}
 
-        {actif === 'mouvements' && (
+        {actifVisible === 'mouvements' && (
           <Card>
             {mouvements.isLoading ? (
               <LoadingState />
@@ -356,7 +361,7 @@ export function StockPage() {
           </Card>
         )}
 
-        {actif === 'inventaires' && <InventairesTab emplacements={emplacements.data} />}
+        {actifVisible === 'inventaires' && <InventairesTab emplacements={emplacements.data} />}
       </div>
 
       {/* Monté seulement à l'ouverture : garantit un formulaire vierge
