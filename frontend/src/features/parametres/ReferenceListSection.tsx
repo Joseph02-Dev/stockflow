@@ -96,7 +96,8 @@ export function ReferenceListSection({ endpoint, libelleSingulier, libellePlurie
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="min-w-0 flex-1 basis-56 text-corps text-steel-500">{`Pour classer et filtrer vos produits par ${libelleSingulier}.`}</p>
         <Button onClick={ouvrirCreation}>
           <Plus className="size-4" aria-hidden="true" />
           Nouvelle {libelleSingulier}
@@ -111,16 +112,16 @@ export function ReferenceListSection({ endpoint, libelleSingulier, libellePlurie
         ) : isError ? (
           <ErrorState message={messageErreur(error)} onRetry={() => refetch()} />
         ) : data && data.length > 0 ? (
-          <ul className="divide-y divide-border-subtle">
+          <ul className="divide-y divide-rule">
             {data.map((element) => (
-              <li key={element.id} className="flex items-center justify-between gap-4 px-4 py-3">
-                <span className="truncate font-medium text-text-primary">{element.nom}</span>
+              <li key={element.id} className="flex items-center justify-between gap-4 px-4 py-3 sm:px-5">
+                <span className="truncate text-corps font-medium text-ink-900">{element.nom}</span>
                 <div className="flex shrink-0 gap-1">
-                  <Button variant="ghost" onClick={() => ouvrirEdition(element)}>
+                  <Button variant="ghost" taille="sm" onClick={() => ouvrirEdition(element)}>
                     <Pencil className="size-4" aria-hidden="true" />
                     <span className="sr-only sm:not-sr-only">Modifier</span>
                   </Button>
-                  <Button variant="ghost" onClick={() => setASupprimer(element)}>
+                  <Button variant="ghost" taille="sm" onClick={() => setASupprimer(element)}>
                     <Trash2 className="size-4" aria-hidden="true" />
                     <span className="sr-only sm:not-sr-only">Supprimer</span>
                   </Button>
@@ -181,7 +182,7 @@ export function ReferenceListSection({ endpoint, libelleSingulier, libellePlurie
         }
       >
         {erreur && aSupprimer !== null && <Alert variant="error">{erreur}</Alert>}
-        <p className="text-sm text-text-secondary">
+        <p className="text-corps text-steel-500">
           Cette action est irréversible pour cette liste de {libellePluriel}.
         </p>
       </Modal>

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { cn } from '@/lib/cn';
 
 /**
@@ -15,8 +16,23 @@ export function Onglets<C extends string>({
   onChange: (cle: C) => void;
   libelle: string;
 }) {
+  const conteneurRef = useRef<HTMLDivElement>(null);
+
+  // Sur écran étroit le contrôle défile horizontalement : on amène le
+  // segment actif dans la zone visible (sans faire défiler la page).
+  useEffect(() => {
+    const conteneur = conteneurRef.current;
+    const segment = conteneur?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!conteneur || !segment) return;
+    const debordeADroite = segment.offsetLeft + segment.offsetWidth > conteneur.scrollLeft + conteneur.clientWidth;
+    if (debordeADroite || segment.offsetLeft < conteneur.scrollLeft) {
+      conteneur.scrollLeft = segment.offsetLeft - 8;
+    }
+  }, [actif]);
+
   return (
     <div
+      ref={conteneurRef}
       className="inline-flex max-w-full self-start overflow-x-auto rounded-md border border-rule bg-surface p-0.5"
       role="tablist"
       aria-label={libelle}
