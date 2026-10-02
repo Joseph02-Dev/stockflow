@@ -22,6 +22,8 @@ import { MarquesModule } from './modules/marques/marques.module.js';
 import { UploadsModule } from './modules/uploads/uploads.module.js';
 import { InventairesModule } from './modules/inventaires/inventaires.module.js';
 import { CommandesModule } from './modules/commandes/commandes.module.js';
+import { ClientsModule } from './modules/clients/clients.module.js';
+import { VentesModule } from './modules/ventes/ventes.module.js';
 import { ConsoleModule } from './modules/console/console.module.js';
 import { LimitesModule } from './common/limites/limites.module.js';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -60,6 +62,8 @@ import {
     MarquesModule,
     UploadsModule,
     InventairesModule,
+    ClientsModule,
+    VentesModule,
     CommandesModule,
     ConsoleModule,
   ],

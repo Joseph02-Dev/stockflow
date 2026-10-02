@@ -66,6 +66,17 @@
   --color-console-fond: #16122a; /* écran de connexion */
   --color-console-clair: #b9a9f0; /* texte violet lisible sur le rail */
 
+  /* Ventes — marques de paiement et WhatsApp (couleurs de marque, figées). */
+  --color-orange-money: #ff6b00;
+  --color-mtn: #ffcc00;
+  --color-whatsapp: #25d366;
+  --color-whatsapp-dark: #1da851;
+  /* Vieillissement des créances : < 8 j, 8–30 j, 31–60 j, > 60 j. */
+  --color-age-recent: #2cc48a;
+  --color-age-moyen: #c9cfda;
+  --color-age-ancien: #d9922b;
+  --color-age-critique: #e05a4b;
+
   /* Anneau des mouvements : palette catégorielle validée (daltonisme). */
   --color-serie-1: #6d4fc4;
   --color-serie-2: #eb6834;

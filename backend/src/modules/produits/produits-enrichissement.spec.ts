@@ -197,6 +197,35 @@ describe('Produits — champs enrichis (prix, TVA, code-barre, catégorie, marqu
     expect(response.body.description).toBe('Nouvelle description');
   });
 
+  it('enregistre les prix de gros et de demi-gros, et les efface avec null', async () => {
+    const accessToken = await creerAdmin();
+    const creation = await request(app.getHttpServer())
+      .post('/produits')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ nom: 'Ciment tarifé', prixVente: 95000, prixGros: 88000, prixDemiGros: 91000 });
+
+    expect(creation.status).toBe(201);
+    expect(creation.body).toMatchObject({ prixVente: 95000, prixGros: 88000, prixDemiGros: 91000 });
+
+    const modification = await request(app.getHttpServer())
+      .patch(`/produits/${creation.body.id}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ prixGros: null });
+
+    expect(modification.status).toBe(200);
+    expect(modification.body).toMatchObject({ prixVente: 95000, prixGros: null, prixDemiGros: 91000 });
+  });
+
+  it('refuse un prix de gros non entier', async () => {
+    const accessToken = await creerAdmin();
+    const response = await request(app.getHttpServer())
+      .post('/produits')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ nom: 'Prix flottant', prixGros: 88000.5 });
+
+    expect(response.status).toBe(400);
+  });
+
   it('GET /produits/:id retourne le produit avec sa catégorie et sa marque', async () => {
     const accessToken = await creerAdmin();
     const categorie = await request(app.getHttpServer())

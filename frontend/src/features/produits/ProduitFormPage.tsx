@@ -28,6 +28,8 @@ interface ProduitDetail {
   photoUrl: string | null;
   prixAchat: number | null;
   prixVente: number | null;
+  prixGros: number | null;
+  prixDemiGros: number | null;
   tauxTva: number | null;
   codeBarre: string | null;
   description: string | null;
@@ -46,6 +48,8 @@ const schema = z.object({
     .min(0, 'Le seuil ne peut pas être négatif.'),
   prixAchat: z.union([z.number().int().min(0), z.nan()]).optional(),
   prixVente: z.union([z.number().int().min(0), z.nan()]).optional(),
+  prixGros: z.union([z.number().int().min(0), z.nan()]).optional(),
+  prixDemiGros: z.union([z.number().int().min(0), z.nan()]).optional(),
   tauxTva: z.union([z.number().int().min(0).max(100), z.nan()]).optional(),
   codeBarre: z.string().optional(),
   description: z.string().optional(),
@@ -121,6 +125,8 @@ export function ProduitFormPage() {
       seuilAlerte: produit.data.seuilAlerte,
       prixAchat: produit.data.prixAchat ?? undefined,
       prixVente: produit.data.prixVente ?? undefined,
+      prixGros: produit.data.prixGros ?? undefined,
+      prixDemiGros: produit.data.prixDemiGros ?? undefined,
       tauxTva: produit.data.tauxTva ?? undefined,
       codeBarre: produit.data.codeBarre ?? '',
       description: produit.data.description ?? '',
@@ -157,10 +163,18 @@ export function ProduitFormPage() {
         ...(v.uniteMesure ? { uniteMesure: v.uniteMesure } : {}),
         ...(photoUrl ? { photoUrl } : {}),
       };
+      // Prix de gros et demi-gros : vidés en modification, ils sont
+      // effacés (null) et le produit retombe sur le prix de détail.
+      const prixGros = nombreOuIndefini(v.prixGros);
+      const prixDemiGros = nombreOuIndefini(v.prixDemiGros);
       if (enEdition) {
-        await api.patch(`/produits/${id}`, corps);
+        await api.patch(`/produits/${id}`, { ...corps, prixGros: prixGros ?? null, prixDemiGros: prixDemiGros ?? null });
       } else {
-        await api.post('/produits', corps);
+        await api.post('/produits', {
+          ...corps,
+          ...(prixGros !== undefined ? { prixGros } : {}),
+          ...(prixDemiGros !== undefined ? { prixDemiGros } : {}),
+        });
       }
     },
     onSuccess: () => {
@@ -194,6 +208,9 @@ export function ProduitFormPage() {
     valeurs.prixVente && !Number.isNaN(valeurs.prixVente)
       ? Math.round(valeurs.prixVente * (1 + (valeurs.tauxTva ?? 0) / 100))
       : null;
+  // Indice affiché dans les prix de gros vides : le prix qui s'appliquera.
+  const prixDetailIndicatif =
+    valeurs.prixVente && !Number.isNaN(valeurs.prixVente) ? `${FORMATEUR_GNF.format(valeurs.prixVente)} (détail)` : 'Prix de détail';
 
   const optionsCategories = [
     { valeur: '', libelle: 'Aucune' },
@@ -322,7 +339,7 @@ export function ProduitFormPage() {
                   {...register('prixAchat', { valueAsNumber: true })}
                 />
                 <Input
-                  label="Prix de vente"
+                  label="Prix de vente (détail)"
                   type="number"
                   min={0}
                   error={formState.errors.prixVente?.message}
@@ -345,6 +362,30 @@ export function ProduitFormPage() {
                   </span>
                 </div>
               )}
+              <div className="flex flex-col gap-3 border-t border-rule pt-4">
+                <div>
+                  <p className="text-corps font-medium text-ink-900">Prix par catégorie de client</p>
+                  <p className="text-meta text-steel-500">Facultatifs : laissés vides, le prix de détail s’applique.</p>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Input
+                    label="Prix demi-gros"
+                    type="number"
+                    min={0}
+                    placeholder={prixDetailIndicatif}
+                    error={formState.errors.prixDemiGros?.message}
+                    {...register('prixDemiGros', { valueAsNumber: true })}
+                  />
+                  <Input
+                    label="Prix gros"
+                    type="number"
+                    min={0}
+                    placeholder={prixDetailIndicatif}
+                    error={formState.errors.prixGros?.message}
+                    {...register('prixGros', { valueAsNumber: true })}
+                  />
+                </div>
+              </div>
             </div>
           </Card>
 

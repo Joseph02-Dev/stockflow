@@ -6,14 +6,17 @@ import {
   Bell,
   ChevronRight,
   ClipboardList,
+  HandCoins,
   LayoutDashboard,
   LogOut,
   MoreHorizontal,
   Package,
+  Receipt,
   Settings,
   Tag,
   Truck,
   UserRound,
+  Users,
   Warehouse,
 } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -27,6 +30,8 @@ import { BarreProgression } from '@/components/patterns/BarreProgression';
 
 const sectionPilotage = [
   { to: '/', libelle: 'Tableau de bord', Icone: LayoutDashboard, exact: true },
+  { to: '/ventes', libelle: 'Ventes', Icone: Receipt },
+  { to: '/creances', libelle: 'Créances', Icone: HandCoins },
   { to: '/alertes', libelle: 'Alertes', Icone: Bell },
   { to: '/stock', libelle: 'Stock & mouvements', Icone: Warehouse },
   { to: '/commandes', libelle: 'Commandes fournisseur', Icone: ClipboardList },
@@ -40,14 +45,16 @@ const sectionPilotage = [
 const sectionReferentiel = [
   { to: '/produits', libelle: 'Produits', Icone: Package },
   { to: '/fournisseurs', libelle: 'Fournisseurs', Icone: Truck },
+  { to: '/clients', libelle: 'Clients', Icone: Users },
 ];
 
 // Les 4 destinations les plus fréquentes uniquement : la barre mobile
-// n'a la place que pour ça sans devenir illisible. Fournisseurs,
-// Catégories/Marques et Paramètres restent accessibles via « Plus ».
+// n'a la place que pour ça sans devenir illisible. La vente au comptoir
+// est le premier usage mobile : elle prend la place de Produits, qui
+// rejoint Fournisseurs, Clients, Catégories/Marques et Paramètres dans « Plus ».
 const navMobile = [
   { to: '/', libelle: 'Accueil', Icone: LayoutDashboard, exact: true },
-  { to: '/produits', libelle: 'Produits', Icone: Package },
+  { to: '/ventes', libelle: 'Ventes', Icone: Receipt },
   { to: '/stock', libelle: 'Mouvements', Icone: Warehouse },
   { to: '/alertes', libelle: 'Alertes', Icone: Bell },
 ];
@@ -65,6 +72,9 @@ function filAriane(chemin: string, recherche: string): { libelle: string; to?: s
     alertes: 'Alertes',
     commandes: 'Commandes fournisseur',
     fournisseurs: 'Fournisseurs',
+    clients: 'Clients',
+    ventes: 'Ventes',
+    creances: 'Créances',
     parametres: 'Paramètres',
   };
   const [racine, detail] = chemin.split('/').filter(Boolean);
@@ -80,12 +90,15 @@ function filAriane(chemin: string, recherche: string): { libelle: string; to?: s
     detail === 'nouveau' || detail === 'nouvelle'
       ? racine === 'commandes'
         ? 'Nouvelle commande'
-        : 'Nouveau produit'
+        : racine === 'ventes'
+          ? 'Nouvelle vente'
+          : 'Nouveau produit'
       : (
           {
             inventaires: 'Inventaire',
             commandes: 'Commande',
             fournisseurs: 'Fournisseur',
+            ventes: 'Vente',
             produits: 'Fiche produit',
           } as Record<string, string>
         )[racine] ?? 'Fiche';
@@ -405,6 +418,14 @@ export function AppLayout() {
           <div className="absolute inset-0 bg-ink-900/50" onClick={() => setPlusOuvert(false)} aria-hidden="true" />
           <div className="absolute inset-x-0 bottom-0 rounded-t-xl bg-surface p-3 pb-6 shadow-pop">
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-rule-strong" />
+            <NavLink to="/creances" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
+              <HandCoins className="size-5 text-steel-500" aria-hidden="true" />
+              Créances
+            </NavLink>
+            <NavLink to="/produits" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
+              <Package className="size-5 text-steel-500" aria-hidden="true" />
+              Produits
+            </NavLink>
             <NavLink to="/commandes" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
               <ClipboardList className="size-5 text-steel-500" aria-hidden="true" />
               Commandes fournisseur
@@ -412,6 +433,10 @@ export function AppLayout() {
             <NavLink to="/fournisseurs" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
               <Truck className="size-5 text-steel-500" aria-hidden="true" />
               Fournisseurs
+            </NavLink>
+            <NavLink to="/clients" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
+              <Users className="size-5 text-steel-500" aria-hidden="true" />
+              Clients
             </NavLink>
             {session?.utilisateur.role === 'ADMIN' && (
               <>

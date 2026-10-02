@@ -104,6 +104,8 @@ model Entreprise {
   utilisateurs Utilisateur[]
   emplacements Emplacement[]
   produits     Produit[]
+  clients      Client[]
+  ventes       Vente[]
   fournisseurs Fournisseur[]
   mouvements   Mouvement[]
   alertes      Alerte[]
@@ -141,6 +143,8 @@ model Utilisateur {
 
   entreprise                  Entreprise                   @relation(fields: [entrepriseId], references: [id])
   mouvements                  Mouvement[]
+  ventes                      Vente[]
+  reglements                  Reglement[]
   refreshTokens               RefreshToken[]
   invitationsEnvoyees         Invitation[]
   inventaires                 Inventaire[]
@@ -244,6 +248,7 @@ model Emplacement {
   entreprise      Entreprise            @relation(fields: [entrepriseId], references: [id])
   stocks          Stock[]
   mouvements      Mouvement[]
+  ventes          Vente[]
   // Transferts dont cet emplacement est la destination (la relation
   // "mouvements" ci-dessus couvre déjà la source de tous les mouvements,
   // transferts inclus).
@@ -266,20 +271,26 @@ model Produit {
 
   // Ajouts fiche produit enrichie — tous facultatifs pour ne pas casser
   // les produits existants créés avant cette évolution.
-  photoUrl    String? @map("photo_url")
+  photoUrl     String? @map("photo_url")
   // Montants en francs guinéens (GNF), une devise sans subdivision
   // décimale en circulation — stockés en entier, jamais en flottant.
-  prixAchat   Int?    @map("prix_achat")
-  prixVente   Int?    @map("prix_vente")
-  tauxTva     Int?    @map("taux_tva") // pourcentage, ex. 18 pour 18%
-  codeBarre   String? @map("code_barre")
-  description String?
-  categorieId String? @map("categorie_id")
-  marqueId    String? @map("marque_id")
+  prixAchat    Int?    @map("prix_achat")
+  // prixVente est, par convention, le prix de DÉTAIL (hors taxes). Il
+  // n'est pas renommé : liste produits, export CSV, fiche produit et
+  // maquettes l'utilisent déjà. Les prix de gros et de demi-gros sont
+  // facultatifs et retombent sur prixVente (voir common/tarifs/prix.ts).
+  prixVente    Int?    @map("prix_vente")
+  prixGros     Int?    @map("prix_gros")
+  prixDemiGros Int?    @map("prix_demi_gros")
+  tauxTva      Int?    @map("taux_tva") // pourcentage, ex. 18 pour 18%
+  codeBarre    String? @map("code_barre")
+  description  String?
+  categorieId  String? @map("categorie_id")
+  marqueId     String? @map("marque_id")
   // Ex. "Unité", "Sac", "Barre", "Litre", "Kg" — texte libre plutôt qu'une
   // liste figée : les unités varient trop selon le secteur d'activité
   // pour être une entité de référence gérée comme catégorie/marque.
-  uniteMesure String? @map("unite_mesure")
+  uniteMesure  String? @map("unite_mesure")
 
   entreprise           Entreprise           @relation(fields: [entrepriseId], references: [id])
   categorie            Categorie?           @relation(fields: [categorieId], references: [id])
@@ -290,6 +301,7 @@ model Produit {
   fournisseursAssocies FournisseurProduit[]
   inventaireLignes     InventaireLigne[]
   commandeLignes       CommandeLigne[]
+  lignesVente          LigneVente[]
 
   @@unique([entrepriseId, codeBarre])
   @@index([entrepriseId, nom])
@@ -550,4 +562,118 @@ model JournalAudit {
   @@index([operateurId, createdAt])
   @@index([entrepriseId, createdAt])
   @@map("journal_audit")
+}
+
+// Catégorie tarifaire d'un client : détermine le prix appliqué à la vente
+// (voir resoudrePrix côté ventes). DETAIL correspond au prixVente du produit.
+enum CategorieTarifaire {
+  GROS
+  DEMI_GROS
+  DETAIL
+}
+
+/// Client d'une entreprise. Jamais supprimé : archivé, pour que son
+/// historique de ventes et de règlements survive.
+model Client {
+  id            String             @id @default(uuid())
+  entrepriseId  String             @map("entreprise_id")
+  nom           String
+  // Format international (+224 6XX XX XX XX) — sert aux liens WhatsApp.
+  telephone     String?
+  nomCommerce   String?            @map("nom_commerce")
+  categorie     CategorieTarifaire @default(DETAIL)
+  // En GNF, entier. Avertit à la vente, ne bloque jamais. Null = aucun plafond.
+  plafondCredit Int?               @map("plafond_credit")
+  archive       Boolean            @default(false)
+  createdAt     DateTime           @default(now()) @map("created_at")
+
+  entreprise Entreprise @relation(fields: [entrepriseId], references: [id])
+  ventes     Vente[]
+
+  @@index([entrepriseId, archive])
+  @@map("client")
+}
+
+// Mode de paiement. ORANGE_MONEY et MTN_MOMO sont de simples étiquettes :
+// aucune intégration, aucune vérification de transaction. CREDIT n'est
+// valable que pour une vente, jamais pour un règlement.
+enum ModePaiement {
+  ESPECES
+  ORANGE_MONEY
+  MTN_MOMO
+  CREDIT
+}
+
+enum StatutVente {
+  VALIDEE
+  ANNULEE
+}
+
+/// Vente validée : jamais modifiée, seulement annulée (avec motif). Les
+/// montants sont figés au moment de la vente, jamais recalculés depuis
+/// les produits. Le solde d'un client n'est stocké nulle part : il se
+/// calcule (ventes VALIDEE − règlements de ces ventes).
+model Vente {
+  id              String       @id @default(uuid())
+  entrepriseId    String       @map("entreprise_id")
+  numero          String // "V-2026-0847", séquentiel par entreprise et par année
+  clientId        String?      @map("client_id") // null = client de passage
+  emplacementId   String       @map("emplacement_id")
+  utilisateurId   String       @map("utilisateur_id")
+  statut          StatutVente  @default(VALIDEE)
+  sousTotal       Int          @map("sous_total")
+  remise          Int          @default(0)
+  montantTva      Int          @map("montant_tva")
+  total           Int
+  modePaiement    ModePaiement @map("mode_paiement")
+  echeanceAt      DateTime?    @map("echeance_at")
+  annuleeAt       DateTime?    @map("annulee_at")
+  motifAnnulation String?      @map("motif_annulation")
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  entreprise  Entreprise   @relation(fields: [entrepriseId], references: [id])
+  client      Client?      @relation(fields: [clientId], references: [id])
+  emplacement Emplacement  @relation(fields: [emplacementId], references: [id])
+  utilisateur Utilisateur  @relation(fields: [utilisateurId], references: [id])
+  lignes      LigneVente[]
+  reglements  Reglement[]
+
+  @@unique([entrepriseId, numero])
+  @@index([entrepriseId, createdAt])
+  @@index([clientId, createdAt])
+  @@map("vente")
+}
+
+model LigneVente {
+  id           String @id @default(uuid())
+  venteId      String @map("vente_id")
+  produitId    String @map("produit_id")
+  // Copies figées : le libellé et le prix ne bougent jamais si le produit
+  // est renommé ou son prix modifié plus tard.
+  libelle      String
+  quantite     Int
+  prixUnitaire Int    @map("prix_unitaire")
+  tauxTva      Int    @map("taux_tva")
+  montantLigne Int    @map("montant_ligne") // quantite × prixUnitaire, hors taxes
+
+  vente   Vente   @relation(fields: [venteId], references: [id])
+  produit Produit @relation(fields: [produitId], references: [id])
+
+  @@index([venteId])
+  @@map("ligne_vente")
+}
+
+model Reglement {
+  id            String       @id @default(uuid())
+  venteId       String       @map("vente_id")
+  montant       Int
+  mode          ModePaiement
+  utilisateurId String       @map("utilisateur_id")
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  vente       Vente       @relation(fields: [venteId], references: [id])
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id])
+
+  @@index([venteId])
+  @@map("reglement")
 }
