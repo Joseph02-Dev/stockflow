@@ -21,6 +21,27 @@ const ROUTE_PAR_TYPE: Record<TypeMouvementHorsLigne, string> = {
   transfert: '/mouvements/transfert',
 };
 
+const abonnes = new Set<() => void>();
+
+function notifier() {
+  abonnes.forEach((rappel) => rappel());
+}
+
+function surStockage(evenement: StorageEvent) {
+  // Un autre onglet a modifié la file : le compteur doit suivre.
+  if (evenement.key === CLE_STOCKAGE) notifier();
+}
+
+/** Abonnement aux changements de la file et de l'état de synchronisation. */
+export function souscrireFile(rappel: () => void): () => void {
+  if (abonnes.size === 0) window.addEventListener('storage', surStockage);
+  abonnes.add(rappel);
+  return () => {
+    abonnes.delete(rappel);
+    if (abonnes.size === 0) window.removeEventListener('storage', surStockage);
+  };
+}
+
 function lire(): MouvementEnAttente[] {
   try {
     const brut = localStorage.getItem(CLE_STOCKAGE);
@@ -36,6 +57,7 @@ function lire(): MouvementEnAttente[] {
 function ecrire(mouvements: MouvementEnAttente[]) {
   try {
     localStorage.setItem(CLE_STOCKAGE, JSON.stringify(mouvements));
+    notifier();
   } catch {
     // Écriture impossible : la file en mémoire reste correcte pour cette
     // session, mais ne survivra pas à un rechargement. Acceptable en
@@ -83,7 +105,8 @@ export interface ResultatSynchronisation {
  * insuffisant alors qu'il était valide au moment de la saisie) — les
  * éléments suivants restent en file, à retenter plus tard.
  */
-export async function synchroniserMouvementsEnAttente(): Promise<ResultatSynchronisation> {
+async function rejouerFile(): Promise<ResultatSynchronisation> {
+  // Relue sous verrou : un autre onglet a pu vider la file entre-temps.
   const enAttente = lire();
   const resultat: ResultatSynchronisation = { reussis: 0, echecs: [] };
 
@@ -104,4 +127,30 @@ export async function synchroniserMouvementsEnAttente(): Promise<ResultatSynchro
   }
 
   return resultat;
+}
+
+let synchronisationEnCours: Promise<ResultatSynchronisation> | null = null;
+
+/**
+ * Point d'entrée unique de la synchronisation, exclusif à deux niveaux :
+ * dans l'onglet (les déclenchements simultanés partagent la même
+ * exécution) et entre onglets (verrou Web Locks), car la file est
+ * partagée via localStorage — deux onglets revenant en ligne ensemble
+ * enverraient sinon chacun les mêmes mouvements, en double.
+ */
+export function synchroniserMouvementsEnAttente(): Promise<ResultatSynchronisation> {
+  synchronisationEnCours ??= (
+    typeof navigator !== 'undefined' && navigator.locks
+      ? navigator.locks.request('stockflow.synchronisation', rejouerFile)
+      : rejouerFile()
+  ).finally(() => {
+    synchronisationEnCours = null;
+    notifier();
+  });
+  notifier();
+  return synchronisationEnCours;
+}
+
+export function estEnSynchronisation(): boolean {
+  return synchronisationEnCours !== null;
 }
