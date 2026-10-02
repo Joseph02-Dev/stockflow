@@ -65,6 +65,7 @@ enum ActionAudit {
   CONSULTATION_ENTREPRISE
   SUSPENSION
   RETABLISSEMENT
+  MODIFICATION_REGLAGES
 }
 
 enum SecteurActivite {
@@ -90,6 +91,15 @@ model Entreprise {
   statut          StatutEntreprise @default(ACTIVE)
   suspendueAt     DateTime?        @map("suspendue_at")
   motifSuspension String?          @map("motif_suspension")
+
+  // Réglages fixés par un opérateur (console, phase 2). Limite nulle =
+  // illimité ; modules activés par défaut. Vérifiés côté serveur à chaque
+  // création concernée, jamais seulement masqués dans l'interface.
+  limiteEmplacements Int?    @map("limite_emplacements")
+  limiteUtilisateurs Int?    @map("limite_utilisateurs")
+  limiteReferences   Int?    @map("limite_references")
+  moduleInventaires  Boolean @default(true) @map("module_inventaires")
+  moduleTransferts   Boolean @default(true) @map("module_transferts")
 
   utilisateurs Utilisateur[]
   emplacements Emplacement[]
