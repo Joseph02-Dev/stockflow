@@ -5,6 +5,8 @@ import { Ban, Plus } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { dateCourte, dateHeure, gnf } from '@/lib/montant';
 import { texteRecu } from '@/lib/recu';
+import { texteRecuWhatsApp } from '@/lib/whatsapp';
+import { BoutonWhatsApp } from '@/components/patterns/BoutonWhatsApp';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
@@ -99,7 +101,15 @@ export function VenteDetailPage() {
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
         <Card>
-          <PanneauEntete titre="Reçu" meta={vente.client ? `Client : ${vente.client.nom}` : 'Client de passage'} />
+          <PanneauEntete
+            titre="Reçu"
+            meta={vente.client ? `Client : ${vente.client.nom}` : 'Client de passage'}
+            action={
+              !annulee && (
+                <BoutonWhatsApp telephone={vente.client?.telephone ?? null} texte={texteRecuWhatsApp(vente)} libelle="Envoyer le reçu" compact />
+              )
+            }
+          />
           <div className="flex justify-center bg-paper p-4 sm:p-6">
             <pre
               className={cn(

@@ -3,6 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, Phone, Plus } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
+import { useSession } from '@/lib/useSession';
+import { texteRelance } from '@/lib/whatsapp';
+import { BoutonWhatsApp } from '@/components/patterns/BoutonWhatsApp';
 import { dateCourte, gnf } from '@/lib/montant';
 import { pluriel, tempsRelatif } from '@/lib/format';
 import { cn } from '@/lib/cn';
@@ -67,6 +70,7 @@ const MODES_REGLEMENT: ModeReglement[] = ['ESPECES', 'ORANGE_MONEY', 'MTN_MOMO']
 
 export function CreancesPage() {
   const queryClient = useQueryClient();
+  const session = useSession();
   const [aEncaisser, setAEncaisser] = useState<Debiteur | null>(null);
   const [montant, setMontant] = useState('');
   const [mode, setMode] = useState<ModeReglement>('ESPECES');
@@ -239,10 +243,22 @@ export function CreancesPage() {
                     <div className="text-left sm:text-right">
                       <p className="text-corps font-semibold whitespace-nowrap text-ink-900">{gnf(d.solde)}</p>
                       <p className={cn('text-meta whitespace-nowrap', d.ancienneteJours > 30 ? 'font-medium text-rupture' : 'text-steel-500')}>
-                        {d.ancienneteJours} {pluriel('jour', d.ancienneteJours)}
+                        {d.ancienneteJours === 0 ? 'Aujourd’hui' : `${d.ancienneteJours} ${pluriel('jour', d.ancienneteJours)}`}
                       </p>
                     </div>
                     <div className="flex shrink-0 gap-2">
+                      <BoutonWhatsApp
+                        compact
+                        libelle="Relancer"
+                        telephone={d.client.telephone}
+                        texte={texteRelance({
+                          entreprise: session?.entreprise.nom ?? '',
+                          client: d.client.nom,
+                          solde: d.solde,
+                          ancienneteJours: d.ancienneteJours,
+                          echeanceAt: d.echeanceAt,
+                        })}
+                      />
                       <Button variant="secondary" taille="sm" onClick={() => ouvrirEncaissement(d)}>
                         Encaisser
                       </Button>
