@@ -435,7 +435,7 @@ export function DashboardPage() {
                       <span className="sm:justify-self-start">
                         <Badge variant={varianteStatut[statut]}>{libelleStatut[statut]}</Badge>
                       </span>
-                      <Button variant="secondary" className="h-8 px-3" onClick={() => commander(ligne)}>
+                      <Button variant="secondary" taille="sm" onClick={() => commander(ligne)}>
                         Commander
                       </Button>
                     </div>

@@ -18,11 +18,14 @@ export function NiveauStock({
   quantite,
   seuil,
   unite,
+  alignement = 'gauche',
   className,
 }: {
   quantite: number;
   seuil: number;
   unite?: string | null;
+  /** « droite » pour une colonne de chiffres de tableau. */
+  alignement?: 'gauche' | 'droite';
   className?: string;
 }) {
   const statut = statutStock(quantite, seuil);
@@ -31,7 +34,7 @@ export function NiveauStock({
 
   return (
     <div className={cn('flex min-w-[112px] flex-col gap-1.5', className)}>
-      <p className="flex items-baseline gap-1 whitespace-nowrap">
+      <p className={cn('flex items-baseline gap-1 whitespace-nowrap', alignement === 'droite' && 'justify-end')}>
         <span className={cn('text-[15px] leading-5 font-semibold', couleurChiffre[statut])}>{quantite}</span>
         {unite && <span className="text-meta text-steel-400">{unite}</span>}
         <span className="text-meta text-steel-500">/ seuil {seuil}</span>

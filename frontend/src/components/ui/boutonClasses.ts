@@ -18,9 +18,22 @@ const variantes: Record<VarianteBouton, string> = {
  * liens (<Link>) qui se présentent comme des boutons partagent
  * exactement la même grammaire visuelle.
  */
-export function boutonClasses(variante: VarianteBouton = 'primary', className?: string) {
+export interface FormeBouton {
+  /** md = 36 px (défaut), sm = 32 px pour les actions de ligne. */
+  taille?: 'md' | 'sm';
+  /** Bouton carré ne contenant qu'une icône (libellé via aria-label). */
+  icone?: boolean;
+}
+
+export function boutonClasses(
+  variante: VarianteBouton = 'primary',
+  className?: string,
+  { taille = 'md', icone = false }: FormeBouton = {},
+) {
   return cn(
-    'inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md px-3.5 text-corps font-medium whitespace-nowrap transition-colors',
+    'inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-corps font-medium whitespace-nowrap transition-colors [&_svg]:shrink-0',
+    taille === 'md' ? 'h-9' : 'h-8',
+    icone ? (taille === 'md' ? 'w-9' : 'w-8') : taille === 'md' ? 'px-3.5' : 'px-3',
     'disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50',
     variantes[variante],
     className,
