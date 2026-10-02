@@ -18,12 +18,14 @@ import { PastillesPaiement } from '@/features/ventes/PastillesPaiement';
 import type { ModeReglement } from '@/features/ventes/types';
 import type { CategorieTarifaire } from '@/features/clients/types';
 
-type CleTranche = 'MOINS_DE_8' | 'DE_8_A_30' | 'DE_31_A_60' | 'PLUS_DE_60';
+type CleTranche = 'A_JOUR' | 'RETARD_1_30' | 'RETARD_31_60' | 'RETARD_PLUS_60';
 
 interface Debiteur {
   client: { id: string; nom: string; telephone: string | null; nomCommerce: string | null; categorie: CategorieTarifaire };
   solde: number;
   ancienneteJours: number;
+  /** Pire retard sur l'échéance parmi ses ventes (0 = à jour). */
+  retardJours: number;
   dernierReglementAt: string | null;
   echeanceAt: string | null;
   montantEnRetard: number;
@@ -41,19 +43,25 @@ interface Creances {
   debiteurs: Debiteur[];
 }
 
-/** Couleurs de vieillissement : barre, légende et avatars partagent la même échelle. */
-const COULEUR_TRANCHE: Record<CleTranche, { fond: string; texte: string }> = {
-  MOINS_DE_8: { fond: 'bg-age-recent', texte: 'text-ink-900' },
-  DE_8_A_30: { fond: 'bg-age-moyen', texte: 'text-ink-900' },
-  DE_31_A_60: { fond: 'bg-age-ancien', texte: 'text-ink-900' },
-  PLUS_DE_60: { fond: 'bg-age-critique', texte: 'text-white' },
+/**
+ * Couleurs du retard sur l'échéance (décision validée) : barre, légende et
+ * avatars partagent la même échelle. Une vente récente dont l'échéance
+ * est dépassée est déjà colorée ; une vente ancienne encore dans les
+ * temps reste verte.
+ */
+const COULEUR_TRANCHE: Record<CleTranche, { fond: string; texte: string; libelle: string }> = {
+  A_JOUR: { fond: 'bg-age-recent', texte: 'text-ink-900', libelle: 'text-steel-500' },
+  RETARD_1_30: { fond: 'bg-age-moyen', texte: 'text-ink-900', libelle: 'font-medium text-steel-700' },
+  RETARD_31_60: { fond: 'bg-age-ancien', texte: 'text-ink-900', libelle: 'font-medium text-faible' },
+  RETARD_PLUS_60: { fond: 'bg-age-critique', texte: 'text-white', libelle: 'font-medium text-rupture' },
 };
 
-function tranche(jours: number): CleTranche {
-  if (jours < 8) return 'MOINS_DE_8';
-  if (jours <= 30) return 'DE_8_A_30';
-  if (jours <= 60) return 'DE_31_A_60';
-  return 'PLUS_DE_60';
+/** Mêmes bornes que le serveur (creances.service.ts, TRANCHES). */
+function tranche(retardJours: number): CleTranche {
+  if (retardJours <= 0) return 'A_JOUR';
+  if (retardJours <= 30) return 'RETARD_1_30';
+  if (retardJours <= 60) return 'RETARD_31_60';
+  return 'RETARD_PLUS_60';
 }
 
 function initiales(nom: string): string {
@@ -192,7 +200,7 @@ export function CreancesPage() {
       <Card>
         <PanneauEntete
           titre="Débiteurs"
-          meta="Classés par ancienneté de la dette : le risque d’abord, pas le montant"
+          meta="Classés par retard sur l’échéance : le risque d’abord, pas le montant"
           action={
             <Link to="/ventes/nouvelle" className="hidden shrink-0 items-center gap-1.5 text-corps font-medium text-action hover:underline sm:inline-flex">
               <Plus className="size-4" aria-hidden="true" />
@@ -201,11 +209,11 @@ export function CreancesPage() {
           }
         />
         {debiteurs.length === 0 ? (
-          <EmptyState titre="Personne ne vous doit d’argent" description="Les ventes à crédit non soldées apparaîtront ici, les plus anciennes en premier." />
+          <EmptyState titre="Personne ne vous doit d’argent" description="Les ventes à crédit non soldées apparaîtront ici, les plus en retard en premier." />
         ) : (
           <ul className="divide-y divide-rule">
             {debiteurs.map((d) => {
-              const couleur = COULEUR_TRANCHE[tranche(d.ancienneteJours)];
+              const couleur = COULEUR_TRANCHE[tranche(d.retardJours)];
               const echeanceDepassee = d.echeanceAt !== null && new Date(d.echeanceAt).getTime() < maintenant;
               return (
                 <li key={d.client.id} className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
@@ -242,8 +250,8 @@ export function CreancesPage() {
                   <div className="flex items-center justify-between gap-4 sm:justify-end">
                     <div className="text-left sm:text-right">
                       <p className="text-corps font-semibold whitespace-nowrap text-ink-900">{gnf(d.solde)}</p>
-                      <p className={cn('text-meta whitespace-nowrap', d.ancienneteJours > 30 ? 'font-medium text-rupture' : 'text-steel-500')}>
-                        {d.ancienneteJours === 0 ? 'Aujourd’hui' : `${d.ancienneteJours} ${pluriel('jour', d.ancienneteJours)}`}
+                      <p className={cn('text-meta whitespace-nowrap', couleur.libelle)}>
+                        {d.retardJours > 0 ? `${d.retardJours} j de retard` : 'À jour'}
                       </p>
                     </div>
                     <div className="flex shrink-0 gap-2">

@@ -119,29 +119,30 @@ describe('Créances', () => {
     expect(reponse.body.debiteurs[0]).toMatchObject({
       solde: 1_473_000,
       ancienneteJours: 71,
+      retardJours: 41,
     });
   });
 
-  it('résume le total dû, le retard et les tranches de vieillissement', async () => {
+  it('résume le total dû, le retard et les tranches de retard sur l’échéance', async () => {
     const b = await boutique();
     const c1 = await b.client('Client 1');
     const c2 = await b.client('Client 2');
-    await b.venteACredit(c1.id, 100_000, 3);
+    await b.venteACredit(c1.id, 100_000, 3); // sans échéance, limite dans 27 j : à jour
     await b.venteACredit(
       c1.id,
       200_000,
       20,
       new Date(Date.now() - 2 * JOUR_MS),
-    ); // échéance dépassée
-    await b.venteACredit(c2.id, 300_000, 45); // sans échéance, > 30 jours : en retard
-    await b.venteACredit(c2.id, 400_000, 90);
+    ); // 2 j de retard
+    await b.venteACredit(c2.id, 300_000, 75); // limite = vente + 30 j : 45 j de retard
+    await b.venteACredit(c2.id, 400_000, 100); // 70 j de retard
     const soldee = await b.venteACredit(c2.id, 50_000, 10);
     await b.http.post(`/ventes/${soldee.id}/reglements`, {
       montant: 50_000,
       mode: 'ESPECES',
     });
 
-    const { resume } = (await b.http.get('/creances')).body;
+    const { resume, debiteurs } = (await b.http.get('/creances')).body;
 
     expect(resume).toMatchObject({
       totalDu: 1_000_000,
@@ -149,8 +150,54 @@ describe('Créances', () => {
       montantEnRetard: 900_000,
       encaisseCetteSemaine: 50_000,
     });
+    expect(
+      resume.tranches.map((t: { cle: string; montant: number }) => [
+        t.cle,
+        t.montant,
+      ]),
+    ).toEqual([
+      ['A_JOUR', 100_000],
+      ['RETARD_1_30', 200_000],
+      ['RETARD_31_60', 300_000],
+      ['RETARD_PLUS_60', 400_000],
+    ]);
+    expect(
+      debiteurs.map((d: { retardJours: number }) => d.retardJours),
+    ).toEqual([70, 2]);
+  });
+
+  it('la tranche suit l’échéance, pas l’âge de la vente', async () => {
+    const b = await boutique();
+    const echeanceProche = await b.client('Échéance à venir');
+    const echeanceDepassee = await b.client('Échéance dépassée');
+    // Vente vieille de 50 jours mais échéance dans 10 jours : à jour.
+    await b.venteACredit(
+      echeanceProche.id,
+      100_000,
+      50,
+      new Date(Date.now() + 10 * JOUR_MS),
+    );
+    // Vente du jour dont l'échéance est dépassée de 40 jours : 31 à 60 j de retard.
+    await b.venteACredit(
+      echeanceDepassee.id,
+      200_000,
+      0,
+      new Date(Date.now() - 40 * JOUR_MS),
+    );
+
+    const { resume, debiteurs } = (await b.http.get('/creances')).body;
+
     expect(resume.tranches.map((t: { montant: number }) => t.montant)).toEqual([
-      100_000, 200_000, 300_000, 400_000,
+      100_000, 0, 200_000, 0,
+    ]);
+    expect(
+      debiteurs.map((d: { client: { nom: string }; retardJours: number }) => [
+        d.client.nom,
+        d.retardJours,
+      ]),
+    ).toEqual([
+      ['Échéance dépassée', 40],
+      ['Échéance à venir', 0],
     ]);
   });
 
