@@ -57,21 +57,21 @@ export function ImageUploadField({ label, valeur, dossier, onChange, forme = 'ca
 
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-sm font-medium text-text-primary">{label}</span>
+      <span className="text-corps font-medium text-ink-900">{label}</span>
 
       <div className="flex items-center gap-3">
         <div
           className={cn(
-            'flex size-20 shrink-0 items-center justify-center overflow-hidden border border-border-subtle bg-background',
-            forme === 'rond' ? 'rounded-full' : 'rounded-(--radius-card)',
+            'flex size-20 shrink-0 items-center justify-center overflow-hidden border border-rule bg-paper',
+            forme === 'rond' ? 'rounded-full' : 'rounded-lg',
           )}
         >
           {enCours ? (
-            <Loader2 className="size-6 animate-spin text-text-secondary" aria-hidden="true" />
+            <Loader2 className="size-6 animate-spin text-steel-500" aria-hidden="true" />
           ) : valeur ? (
             <img src={valeur} alt="" className="size-full object-cover" />
           ) : (
-            <ImagePlus className="size-6 text-text-secondary" aria-hidden="true" />
+            <ImagePlus className="size-6 text-steel-500" aria-hidden="true" />
           )}
         </div>
 
@@ -81,7 +81,7 @@ export function ImageUploadField({ label, valeur, dossier, onChange, forme = 'ca
               type="button"
               onClick={() => inputRef.current?.click()}
               disabled={enCours}
-              className="rounded-(--radius-button) border border-border-subtle bg-surface px-3 py-1.5 text-sm font-medium text-text-primary transition-colors hover:bg-background disabled:opacity-50"
+              className="rounded-md border border-rule bg-surface px-3 py-1.5 text-corps font-medium text-ink-900 transition-colors hover:bg-paper disabled:opacity-50"
             >
               {valeur ? 'Changer' : 'Choisir une image'}
             </button>
@@ -90,13 +90,13 @@ export function ImageUploadField({ label, valeur, dossier, onChange, forme = 'ca
                 type="button"
                 onClick={() => onChange(undefined)}
                 aria-label="Retirer l’image"
-                className="rounded-(--radius-button) p-1.5 text-text-secondary transition-colors hover:bg-background hover:text-error"
+                className="rounded-md p-1.5 text-steel-500 transition-colors hover:bg-paper hover:text-rupture"
               >
                 <X className="size-4" aria-hidden="true" />
               </button>
             )}
           </div>
-          <span className="text-xs text-text-secondary">JPEG, PNG ou WEBP — 5 Mo maximum.</span>
+          <span className="text-meta text-steel-500">JPEG, PNG ou WEBP — 5 Mo maximum.</span>
         </div>
       </div>
 
@@ -108,7 +108,7 @@ export function ImageUploadField({ label, valeur, dossier, onChange, forme = 'ca
         className="hidden"
       />
 
-      {erreur && <p className="text-xs text-error">{erreur}</p>}
+      {erreur && <p className="text-meta text-rupture">{erreur}</p>}
     </div>
   );
 }

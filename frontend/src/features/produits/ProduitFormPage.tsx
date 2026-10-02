@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ChevronRight, Truck } from 'lucide-react';
+import { Truck } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -215,20 +215,15 @@ export function ProduitFormPage() {
 
   return (
     <form onSubmit={handleSubmit((v) => enregistrer.mutate(v))} noValidate>
-      <div className="sticky top-0 z-10 -mx-4 mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle bg-background/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
-        <nav aria-label="Fil d’Ariane" className="flex min-w-0 items-center gap-1 text-sm text-text-secondary">
-          <Link to="/produits" className="hover:text-text-primary hover:underline">
-            Produits
-          </Link>
-          <ChevronRight className="size-4 shrink-0" aria-hidden="true" />
-          <span className="truncate text-text-primary">
-            {enEdition ? (produit.data?.nom ?? '…') : 'Nouveau produit'}
-          </span>
-        </nav>
+      {/* Barre d'enregistrement collée sous la barre supérieure (60 px). */}
+      <div className="sticky top-[60px] z-20 -mx-4 -mt-5 mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-rule bg-paper/95 px-4 py-3 backdrop-blur md:-mx-7 md:-mt-7 md:px-7">
+        <h1 className="min-w-0 truncate text-[20px] leading-7 font-semibold tracking-[-0.006em] text-ink-900">
+          {enEdition ? (produit.data?.nom ?? '…') : 'Nouveau produit'}
+        </h1>
 
         <div className="flex items-center gap-3">
           {dernierEnregistrementLocal && (
-            <span className="hidden text-xs text-text-secondary sm:inline">
+            <span className="hidden text-meta text-steel-500 sm:inline">
               Brouillon local à{' '}
               {dernierEnregistrementLocal.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
             </span>
@@ -251,9 +246,9 @@ export function ProduitFormPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-6 lg:col-span-2">
           <Card>
-            <div className="border-b border-border-subtle px-5 py-4">
-              <h2 className="font-semibold text-text-primary">Informations générales</h2>
-              <p className="text-sm text-text-secondary">Ce que verront vos gestionnaires dans le catalogue</p>
+            <div className="border-b border-rule px-5 py-4">
+              <h2 className="text-panneau text-ink-900">Informations générales</h2>
+              <p className="mt-0.5 text-meta text-steel-500">Ce que verront vos gestionnaires dans le catalogue</p>
             </div>
             <div className="flex flex-col gap-4 p-5">
               <Input label="Nom du produit" error={formState.errors.nom?.message} {...register('nom')} />
@@ -265,6 +260,7 @@ export function ProduitFormPage() {
                 <Input
                   label="Code-barre (facultatif)"
                   placeholder="3401234567890"
+                  className="font-mono"
                   error={formState.errors.codeBarre?.message}
                   {...register('codeBarre')}
                 />
@@ -288,19 +284,20 @@ export function ProduitFormPage() {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="description" className="text-sm font-medium text-text-primary">
+                <label htmlFor="description" className="text-corps font-medium text-ink-900">
                   Description (facultatif)
                 </label>
                 <textarea
                   id="description"
                   rows={3}
                   {...register('description')}
-                  className="rounded-(--radius-button) border border-border-subtle bg-surface px-3 py-2 text-sm text-text-primary"
+                  className="rounded-md border border-rule-strong bg-surface px-3 py-2 text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-action"
                 />
               </div>
               <Input
                 label="Référence interne (facultatif)"
                 placeholder="VIS-440"
+                className="font-mono"
                 error={formState.errors.reference?.message}
                 {...register('reference')}
               />
@@ -308,10 +305,10 @@ export function ProduitFormPage() {
           </Card>
 
           <Card>
-            <div className="flex items-center justify-between border-b border-border-subtle px-5 py-4">
+            <div className="flex items-center justify-between border-b border-rule px-5 py-4">
               <div>
-                <h2 className="font-semibold text-text-primary">Tarification</h2>
-                <p className="text-sm text-text-secondary">Montants en francs guinéens (GNF), hors taxes</p>
+                <h2 className="text-panneau text-ink-900">Tarification</h2>
+                <p className="mt-0.5 text-meta text-steel-500">Montants en francs guinéens (GNF), hors taxes</p>
               </div>
               {marge !== null && <Badge variant={marge >= 0 ? 'ok' : 'rupture'}>Marge {marge}%</Badge>}
             </div>
@@ -341,9 +338,9 @@ export function ProduitFormPage() {
                 />
               </div>
               {prixTtc !== null && (
-                <div className="flex items-center justify-between rounded-(--radius-button) bg-background px-4 py-3">
-                  <span className="text-sm text-text-secondary">Prix de vente TTC affiché en caisse</span>
-                  <span className="text-lg font-semibold text-text-primary">
+                <div className="flex items-center justify-between rounded-md bg-paper px-4 py-3">
+                  <span className="text-corps text-steel-500">Prix de vente TTC affiché en caisse</span>
+                  <span className="text-lg font-semibold text-ink-900">
                     {FORMATEUR_GNF.format(prixTtc)} GNF
                   </span>
                 </div>
@@ -352,9 +349,9 @@ export function ProduitFormPage() {
           </Card>
 
           <Card>
-            <div className="border-b border-border-subtle px-5 py-4">
-              <h2 className="font-semibold text-text-primary">Stock et seuil d’alerte</h2>
-              <p className="text-sm text-text-secondary">Une alerte est créée automatiquement sous le seuil</p>
+            <div className="border-b border-rule px-5 py-4">
+              <h2 className="text-panneau text-ink-900">Stock et seuil d’alerte</h2>
+              <p className="mt-0.5 text-meta text-steel-500">Une alerte est créée automatiquement sous le seuil</p>
             </div>
             <div className="p-5">
               <Input
@@ -371,8 +368,8 @@ export function ProduitFormPage() {
 
         <div className="flex flex-col gap-6">
           <Card>
-            <div className="border-b border-border-subtle px-5 py-4">
-              <h2 className="font-semibold text-text-primary">Photo du produit</h2>
+            <div className="border-b border-rule px-5 py-4">
+              <h2 className="text-panneau text-ink-900">Photo du produit</h2>
             </div>
             <div className="p-5">
               <ImageUploadField label="" valeur={photoUrl} dossier="produits" onChange={setPhotoUrl} />
@@ -381,25 +378,25 @@ export function ProduitFormPage() {
 
           {enEdition && (
             <Card>
-              <div className="border-b border-border-subtle px-5 py-4">
-                <h2 className="font-semibold text-text-primary">Fournisseur habituel</h2>
+              <div className="border-b border-rule px-5 py-4">
+                <h2 className="text-panneau text-ink-900">Fournisseur habituel</h2>
               </div>
               <div className="p-5">
                 {fournisseurHabituel ? (
                   <Link
                     to={`/fournisseurs/${fournisseurHabituel.id}`}
-                    className="flex items-center gap-3 rounded-(--radius-button) p-2 transition-colors hover:bg-background"
+                    className="flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-paper"
                   >
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-action-wash text-meta font-semibold text-action">
                       {fournisseurHabituel.nom.slice(0, 2).toUpperCase()}
                     </span>
-                    <span className="truncate text-sm font-medium text-text-primary">{fournisseurHabituel.nom}</span>
+                    <span className="truncate text-corps font-medium text-ink-900">{fournisseurHabituel.nom}</span>
                   </Link>
                 ) : (
                   <div className="flex flex-col items-center gap-2 py-4 text-center">
-                    <Truck className="size-6 text-text-secondary" aria-hidden="true" />
-                    <p className="text-sm text-text-secondary">Aucun fournisseur associé pour l’instant.</p>
-                    <p className="text-xs text-text-secondary">
+                    <Truck className="size-6 text-steel-500" aria-hidden="true" />
+                    <p className="text-corps text-steel-500">Aucun fournisseur associé pour l’instant.</p>
+                    <p className="text-meta text-steel-500">
                       Associez-le depuis la fiche du fournisseur, onglet « Produits associés ».
                     </p>
                   </div>
@@ -411,23 +408,23 @@ export function ProduitFormPage() {
           <Card>
             <div className="p-5">
               <div className="mb-1 flex items-baseline justify-between">
-                <h2 className="font-semibold text-text-primary">Complétude de la fiche</h2>
-                <span className="text-2xl font-bold text-primary">{completude.pourcentage}%</span>
+                <h2 className="text-panneau text-ink-900">Complétude de la fiche</h2>
+                <span className="text-2xl font-bold text-action">{completude.pourcentage}%</span>
               </div>
-              <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-background">
+              <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-paper">
                 <div
-                  className="h-full rounded-full bg-primary transition-all"
+                  className="h-full rounded-full bg-action transition-all"
                   style={{ width: `${completude.pourcentage}%` }}
                 />
               </div>
               <ul className="flex flex-col gap-1.5">
                 {completude.criteres.map((c) => (
-                  <li key={c.libelle} className="flex items-center gap-2 text-sm">
+                  <li key={c.libelle} className="flex items-center gap-2 text-corps">
                     <span
-                      className={`inline-flex size-1.5 shrink-0 rounded-full ${c.ok ? 'bg-success' : 'bg-warning'}`}
+                      className={`inline-flex size-1.5 shrink-0 rounded-full ${c.ok ? 'bg-ok' : 'bg-faible'}`}
                       aria-hidden="true"
                     />
-                    <span className={c.ok ? 'text-text-primary' : 'text-text-secondary'}>{c.libelle}</span>
+                    <span className={c.ok ? 'text-ink-900' : 'text-steel-500'}>{c.libelle}</span>
                   </li>
                 ))}
               </ul>

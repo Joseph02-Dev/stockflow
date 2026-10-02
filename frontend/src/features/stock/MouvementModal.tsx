@@ -195,10 +195,10 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
               aria-pressed={type === valeur}
               onClick={() => setType(valeur)}
               className={cn(
-                'flex flex-1 items-center justify-center gap-2 rounded-(--radius-button) border px-3 py-2 text-sm font-medium transition-colors',
+                'flex flex-1 items-center justify-center gap-2 rounded-md border px-3 py-2 text-corps font-medium transition-colors',
                 type === valeur
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border-subtle text-text-secondary hover:bg-background',
+                  ? 'border-action bg-action-wash text-action'
+                  : 'border-rule text-steel-500 hover:bg-paper',
               )}
             >
               <Icone className="size-4" aria-hidden="true" />
