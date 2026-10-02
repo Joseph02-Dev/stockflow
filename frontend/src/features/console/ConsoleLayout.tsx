@@ -1,7 +1,8 @@
-import { NavLink, Navigate, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Building2, LayoutDashboard, LogOut, ScrollText, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Logo } from '@/components/patterns/Logo';
+import { BarreProgression } from '@/components/patterns/BarreProgression';
 import { clearSessionConsole, useSessionConsole } from './session';
 
 const NAVIGATION = [
@@ -21,6 +22,7 @@ const NAVIGATION = [
 export function ConsoleLayout() {
   const session = useSessionConsole();
   const navigate = useNavigate();
+  const location = useLocation();
 
   if (!session) return <Navigate to="/console/connexion" replace />;
 
@@ -33,6 +35,7 @@ export function ConsoleLayout() {
 
   return (
     <div className="zone-console flex min-h-full">
+      <BarreProgression />
       <aside className="sticky top-0 flex h-dvh w-16 shrink-0 flex-col bg-console-rail xl:w-[232px]">
         <div className="flex h-[60px] items-center justify-center gap-2.5 border-b border-white/[0.06] px-3 xl:justify-start xl:px-4">
           <Logo taille={28} />
@@ -101,7 +104,7 @@ export function ConsoleLayout() {
           <p>Console opérateur — tu consultes les données de toutes les entreprises. Chaque action est journalisée.</p>
         </div>
         <main className="flex-1 px-4 pt-6 pb-10 md:px-7">
-          <div className="mx-auto w-full max-w-[1280px]">
+          <div key={location.pathname} className="entree-page mx-auto w-full max-w-[1280px]">
             <Outlet />
           </div>
         </main>

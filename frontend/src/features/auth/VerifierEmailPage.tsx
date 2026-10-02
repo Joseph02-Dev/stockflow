@@ -7,6 +7,7 @@ import { Alert } from '@/components/ui/Alert';
 import { api, messageErreur } from '@/lib/api';
 import { setSession } from '@/lib/session';
 import type { Session } from '@/lib/session';
+import { PointsChargement } from '@/components/ui/PointsChargement';
 
 const panneauGauche = (
   <div className="flex flex-col gap-8">
@@ -58,7 +59,7 @@ export function VerifierEmailPage() {
       <div className="flex flex-col items-center gap-4 py-4 text-center">
         {statut === 'en-cours' && (
           <>
-            <div className="size-10 animate-spin rounded-full border-4 border-rule border-t-primary" />
+            <PointsChargement className="h-10 text-action [&>span]:size-2" />
             <p className="text-corps text-steel-500">Confirmation en cours…</p>
           </>
         )}

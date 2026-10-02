@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { Loader2 } from 'lucide-react';
+import { PointsChargement } from './PointsChargement';
 import { boutonClasses } from './boutonClasses';
 import type { FormeBouton, VarianteBouton } from './boutonClasses';
 
@@ -24,11 +24,12 @@ export function Button({
       // Un bouton en cours de chargement doit être inactivable, pour
       // éviter les doubles soumissions.
       disabled={disabled || loading}
+      aria-busy={loading || undefined}
       className={boutonClasses(variant, className, { taille, icone })}
       {...props}
     >
-      {loading && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
       {children}
+      {loading && <PointsChargement />}
     </button>
   );
 }

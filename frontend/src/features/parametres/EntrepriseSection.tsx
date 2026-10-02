@@ -56,7 +56,7 @@ export function EntrepriseSection() {
     },
   });
 
-  if (isLoading) return <LoadingState />;
+  if (isLoading) return <LoadingState variante="fiche" lignes={4} />;
   if (isError) return <ErrorState message={messageErreur(error)} onRetry={() => refetch()} />;
 
   return (

@@ -35,6 +35,8 @@ export function boutonClasses(
     taille === 'md' ? 'h-9' : 'h-8',
     icone ? (taille === 'md' ? 'w-9' : 'w-8') : taille === 'md' ? 'px-3.5' : 'px-3',
     'disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50',
+    // En cours d'envoi : bouton inactif mais pas grisé — il travaille.
+    'aria-busy:disabled:cursor-progress aria-busy:disabled:opacity-100',
     variantes[variante],
     className,
   );

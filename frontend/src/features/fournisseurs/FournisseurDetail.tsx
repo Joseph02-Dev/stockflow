@@ -145,7 +145,7 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
     onError: (err) => setErreur(messageErreur(err, 'La dissociation a échoué.')),
   });
 
-  if (fournisseur.isLoading) return <LoadingState />;
+  if (fournisseur.isLoading) return <LoadingState variante="page" />;
   if (fournisseur.isError) {
     return (
       <ErrorState
