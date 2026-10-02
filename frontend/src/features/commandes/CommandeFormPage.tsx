@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Alert } from '@/components/ui/Alert';
-import { Card } from '@/components/patterns/Page';
+import { Card, PageHeader, PanneauEntete } from '@/components/patterns/Page';
 
 interface ElementReference {
   id: string;
@@ -97,16 +97,15 @@ export function CommandeFormPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
-      <nav aria-label="Fil d’Ariane" className="flex items-center gap-1 text-sm text-text-secondary">
-        <Link to="/commandes" className="hover:text-text-primary hover:underline">
-          Commandes fournisseur
-        </Link>
-        <ChevronRight className="size-4" aria-hidden="true" />
-        <span className="text-text-primary">Nouvelle commande</span>
-      </nav>
-
-      <h1 className="text-2xl font-semibold text-text-primary">Nouvelle commande</h1>
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        titre="Nouvelle commande"
+        description={
+          prerempli?.lignes?.length
+            ? 'Pré-remplie à partir de ce qui manque : vérifiez les quantités avant de créer.'
+            : 'Un bon de commande par fournisseur, réceptionné dans un emplacement.'
+        }
+      />
 
       {erreur && <Alert variant="error">{erreur}</Alert>}
       {doublons && <Alert variant="warning">Un même produit ne peut apparaître qu’une seule fois.</Alert>}
@@ -137,23 +136,26 @@ export function CommandeFormPage() {
       </Card>
 
       <Card>
-        <div className="border-b border-border-subtle px-5 py-4">
-          <h2 className="font-semibold text-text-primary">Produits à commander</h2>
-        </div>
+        <PanneauEntete
+          titre="Produits à commander"
+          meta={`${lignesValides.length} ${lignesValides.length > 1 ? 'lignes prêtes' : 'ligne prête'}`}
+        />
         <div className="flex flex-col gap-3 p-5">
           {lignes.map((ligne, index) => (
             <div key={index} className="flex items-end gap-2">
-              <div className="flex-1">
+              <div className="min-w-0 flex-1">
                 <Select
                   label={index === 0 ? 'Produit' : ''}
+                  aria-label={`Produit, ligne ${index + 1}`}
                   options={optionsProduits}
                   value={ligne.produitId}
                   onChange={(e) => modifierLigne(index, 'produitId', e.target.value)}
                 />
               </div>
-              <div className="w-28">
+              <div className="w-24 shrink-0 sm:w-28">
                 <Input
                   label={index === 0 ? 'Quantité' : ''}
+                  aria-label={`Quantité, ligne ${index + 1}`}
                   type="number"
                   min={1}
                   value={ligne.quantiteCommandee}
@@ -163,6 +165,7 @@ export function CommandeFormPage() {
               <Button
                 type="button"
                 variant="ghost"
+                icone
                 onClick={() => retirerLigne(index)}
                 disabled={lignes.length === 1}
                 aria-label="Retirer cette ligne"

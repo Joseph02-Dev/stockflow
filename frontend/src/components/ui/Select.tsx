@@ -22,16 +22,18 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={selectId} className="text-corps font-medium text-ink-900">
-        {label}
-      </label>
+      {label && (
+        <label htmlFor={selectId} className="text-corps font-medium text-ink-900">
+          {label}
+        </label>
+      )}
       <select
         ref={ref}
         id={selectId}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${selectId}-error` : undefined}
         className={cn(
-          'h-9 rounded-md border bg-surface px-3 text-corps text-ink-900 transition-colors hover:border-steel-400 focus:border-action focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-action/25',
+          'h-9 w-full min-w-0 rounded-md border bg-surface px-3 text-corps text-ink-900 transition-colors hover:border-steel-400 focus:border-action focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-action/25',
           'disabled:cursor-not-allowed disabled:opacity-50',
           error ? 'border-rupture' : 'border-rule-strong',
           className,

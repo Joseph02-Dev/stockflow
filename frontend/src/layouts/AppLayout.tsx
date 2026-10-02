@@ -80,9 +80,14 @@ function filAriane(chemin: string, recherche: string): { libelle: string; to?: s
       ? racine === 'commandes'
         ? 'Nouvelle commande'
         : 'Nouveau produit'
-      : racine === 'inventaires'
-        ? 'Inventaire'
-        : 'Fiche';
+      : (
+          {
+            inventaires: 'Inventaire',
+            commandes: 'Commande',
+            fournisseurs: 'Fournisseur',
+            produits: 'Fiche produit',
+          } as Record<string, string>
+        )[racine] ?? 'Fiche';
   return [{ libelle: section, to: parent }, { libelle: libelleDetail }];
 }
 
