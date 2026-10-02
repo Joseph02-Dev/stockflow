@@ -40,6 +40,10 @@
   --color-accent: #6d4fc4;
   --color-accent-wash: #f0ecfb;
 
+  /* En-têtes de groupe et de tableau : à peine décollés du blanc. */
+  --color-entete-groupe: #fbfcfd;
+  --color-entete-tableau: #fafbfc;
+
   /* Variantes lumineuses des statuts, lisibles sur fond d'encre. */
   --color-rupture-vif: #e05a4b;
   --color-faible-vif: #d9922b;
