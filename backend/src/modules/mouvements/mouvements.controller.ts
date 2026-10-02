@@ -6,6 +6,7 @@ import { MouvementsService } from './mouvements.service.js';
 import { EntreeStockDto } from './dto/entree-stock.dto.js';
 import { SortieStockDto } from './dto/sortie-stock.dto.js';
 import { TransfertStockDto } from './dto/transfert-stock.dto.js';
+import { ModuleRequis } from '../../common/decorators/module-requis.decorator.js';
 
 @Controller()
 export class MouvementsController {
@@ -31,6 +32,7 @@ export class MouvementsController {
     return this.mouvementsService.sortie(entrepriseId, user.utilisateurId, dto);
   }
 
+  @ModuleRequis('transferts')
   @Post('mouvements/transfert')
   @HttpCode(HttpStatus.CREATED)
   transfert(

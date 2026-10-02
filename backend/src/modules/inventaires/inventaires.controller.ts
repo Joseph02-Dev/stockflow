@@ -5,7 +5,9 @@ import type { RequestContext } from '../../common/context/tenant-context.service
 import { InventairesService } from './inventaires.service.js';
 import { CreateInventaireDto } from './dto/create-inventaire.dto.js';
 import { SaisirComptageDto } from './dto/saisir-comptage.dto.js';
+import { ModuleRequis } from '../../common/decorators/module-requis.decorator.js';
 
+@ModuleRequis('inventaires')
 @Controller('inventaires')
 export class InventairesController {
   constructor(private readonly inventairesService: InventairesService) {}

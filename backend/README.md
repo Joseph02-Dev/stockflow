@@ -184,7 +184,12 @@ Espace réservé au propriétaire de la plateforme, sous `/console/*`. C'est le 
 | `GET /console/entreprises/:id/mouvements` | Historique paginé (`?page=&taille=`, 100 max) | `CONSULTATION_ENTREPRISE` |
 | `POST /console/entreprises/:id/suspendre` | `{ motif }` obligatoire — statut, révocation des sessions et journal dans une transaction | `SUSPENSION` |
 | `POST /console/entreprises/:id/retablir` | `{ motif? }` | `RETABLISSEMENT` |
+| `PATCH /console/entreprises/:id/reglages` | Limites (`limiteEmplacements`, `limiteUtilisateurs`, `limiteReferences` : entier ou `null` = illimité) et modules (`moduleInventaires`, `moduleTransferts`), `motif?` | `MODIFICATION_REGLAGES` |
 | `GET /console/journal` | Journal paginé (`?entrepriseId=`, `?action=`) | — |
+
+**Réglages (phase 2)** — appliqués côté serveur, jamais seulement masqués dans l'interface :
+- *Limites* : vérifiées par `LimitesService.exigerPlace()` à la création d'un emplacement, d'un produit et à l'envoi d'une invitation (403, `code: "LIMITE_ATTEINTE"`). L'usage compte les emplacements et produits non archivés, et les utilisateurs **plus les invitations en attente**. Une limite inférieure à l'usage actuel est refusée (400) : rien n'est archivé à la place de l'entreprise.
+- *Modules* : `@ModuleRequis('inventaires' | 'transferts')` sur les routes concernées ; `EntrepriseActiveGuard` refuse (403, `code: "MODULE_DESACTIVE"`) dans la même lecture que le statut, sans requête supplémentaire.
 
 Une entreprise suspendue est refusée partout côté client : à la connexion (403, après vérification du mot de passe) et à chaque requête authentifiée (`EntrepriseActiveGuard`, 403 avec `code: "ENTREPRISE_SUSPENDUE"`). Les emails de réinitialisation et de confirmation ne partent plus.
 

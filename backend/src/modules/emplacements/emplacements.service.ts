@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
+import { LimitesService } from '../../common/limites/limites.service.js';
 import type { CreateEmplacementDto } from './dto/create-emplacement.dto.js';
 import type { UpdateEmplacementDto } from './dto/update-emplacement.dto.js';
 
 @Injectable()
 export class EmplacementsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly limites: LimitesService,
+  ) {}
 
   async lister(entrepriseId: string, inclureArchives: boolean) {
     return this.prisma.emplacement.findMany({
@@ -15,6 +19,7 @@ export class EmplacementsService {
   }
 
   async creer(entrepriseId: string, dto: CreateEmplacementDto) {
+    await this.limites.exigerPlace(entrepriseId, 'emplacements');
     return this.prisma.emplacement.create({
       data: { entrepriseId, nom: dto.nom, adresse: dto.adresse },
     });

@@ -23,12 +23,14 @@ import { UploadsModule } from './modules/uploads/uploads.module.js';
 import { InventairesModule } from './modules/inventaires/inventaires.module.js';
 import { CommandesModule } from './modules/commandes/commandes.module.js';
 import { ConsoleModule } from './modules/console/console.module.js';
+import { LimitesModule } from './common/limites/limites.module.js';
 
 @Module({
   imports: [
     JwtConfigModule,
     TenantContextModule,
     EmailModule,
+    LimitesModule,
     PrismaModule,
     AuthModule,
     EntrepriseModule,

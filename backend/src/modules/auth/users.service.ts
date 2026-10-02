@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import ms from 'ms';
 import type { StringValue } from 'ms';
 import { PrismaService } from '../../config/prisma.service.js';
+import { LimitesService } from '../../common/limites/limites.service.js';
 import { hashToken } from './token-hash.util.js';
 import { EMAIL_SERVICE, type EmailService } from '../../common/email/email.service.js';
 import { domaineEmailExiste } from '../../common/email/domaine-email.util.js';
@@ -13,6 +14,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(EMAIL_SERVICE) private readonly emailService: EmailService,
+    private readonly limites: LimitesService,
   ) {}
 
   /**
@@ -84,6 +86,9 @@ export class UsersService {
     if (invitationActive) {
       throw new ConflictException('Une invitation est déjà en attente pour cette adresse email.');
     }
+
+    // Une invitation en attente compte déjà dans la limite d'utilisateurs.
+    await this.limites.exigerPlace(entrepriseId, 'utilisateurs');
 
     const token = randomBytes(32).toString('hex');
     const expiration = (process.env.INVITATION_EXPIRATION ?? '7d') as StringValue;
