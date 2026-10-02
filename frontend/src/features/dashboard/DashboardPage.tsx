@@ -2,13 +2,9 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  ArrowDownToLine,
-  ArrowRightLeft,
-  ArrowUpFromLine,
   CheckCircle2,
   MapPin,
   ShoppingCart,
-  SlidersHorizontal,
   TrendingDown,
   TrendingUp,
   Truck,
@@ -23,6 +19,7 @@ import { ErrorState, LoadingState } from '@/components/patterns/States';
 import { NiveauStock } from '@/components/patterns/NiveauStock';
 import { Vignette } from '@/components/patterns/Vignette';
 import { libelleStatut, statutStock, varianteStatut } from '@/components/patterns/statutStock';
+import { presentationMouvement, quantiteSignee } from '@/components/patterns/typeMouvement';
 
 interface Overview {
   kpi: {
@@ -88,30 +85,6 @@ function variationQuantite(m: Mouvement): number {
   return 0;
 }
 
-const presentationMouvement = {
-  ENTREE: { libelle: 'Entrée', Icone: ArrowDownToLine, fond: 'bg-ok-wash text-ok', signe: '+', couleur: 'text-ok' },
-  SORTIE: {
-    libelle: 'Sortie',
-    Icone: ArrowUpFromLine,
-    fond: 'bg-faible-wash text-faible',
-    signe: '−',
-    couleur: 'text-faible',
-  },
-  TRANSFERT: {
-    libelle: 'Transfert',
-    Icone: ArrowRightLeft,
-    fond: 'bg-action-wash text-action',
-    signe: '',
-    couleur: 'text-action',
-  },
-  AJUSTEMENT: {
-    libelle: 'Ajustement',
-    Icone: SlidersHorizontal,
-    fond: 'bg-accent-wash text-accent',
-    signe: '',
-    couleur: 'text-accent',
-  },
-} as const;
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -484,8 +457,7 @@ export function DashboardPage() {
                     </div>
                     <div className="shrink-0 text-right">
                       <p className={cn('text-corps font-semibold', p.couleur)}>
-                        {m.type === 'AJUSTEMENT' ? (m.quantite > 0 ? '+' : '−') : p.signe}
-                        {Math.abs(m.quantite)}
+                        {quantiteSignee(m.type, m.quantite)}
                       </p>
                       <p className="text-meta whitespace-nowrap text-steel-400">{tempsRelatif(m.createdAt, maintenant)}</p>
                     </div>

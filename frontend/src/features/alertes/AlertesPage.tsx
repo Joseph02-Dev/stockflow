@@ -4,11 +4,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { CheckCircle2, Clock, PackagePlus, Phone, ShoppingCart } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { formatNombre, pluriel } from '@/lib/format';
-import { cn } from '@/lib/cn';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { boutonClasses } from '@/components/ui/boutonClasses';
 import { Card, PageHeader } from '@/components/patterns/Page';
+import { Onglets } from '@/components/patterns/Onglets';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { NiveauStock } from '@/components/patterns/NiveauStock';
 import { Vignette } from '@/components/patterns/Vignette';
@@ -163,23 +163,7 @@ export function AlertesPage() {
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-md border border-rule bg-surface p-0.5" role="tablist" aria-label="Statut des alertes">
-          {filtres.map((filtre) => (
-            <button
-              key={filtre.cle}
-              type="button"
-              role="tab"
-              aria-selected={statut === filtre.cle}
-              onClick={() => setStatut(filtre.cle)}
-              className={cn(
-                'h-8 rounded-sm px-3 text-corps font-medium transition-colors',
-                statut === filtre.cle ? 'bg-ink-800 text-white' : 'text-steel-500 hover:text-ink-900',
-              )}
-            >
-              {filtre.libelle}
-            </button>
-          ))}
-        </div>
+        <Onglets onglets={filtres} actif={statut} onChange={setStatut} libelle="Statut des alertes" />
         {statut === 'ACTIVE' && data && data.length > 0 && (
           <p className="text-corps text-steel-500">
             <span className="font-semibold text-ink-900">{data.length}</span> {pluriel('référence', data.length)} chez{' '}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowDownToLine, ArrowRightLeft, ArrowUpFromLine, Download, Plus } from 'lucide-react';
+import { Download, Plus } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { exporterCsv } from '@/lib/exporterCsv';
 import { Button } from '@/components/ui/Button';
@@ -10,18 +10,24 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/Stat
 import { MouvementModal } from './MouvementModal';
 import { InventairesTab } from './InventairesTab';
 import { cn } from '@/lib/cn';
+import { Onglets } from '@/components/patterns/Onglets';
+import { Vignette } from '@/components/patterns/Vignette';
+import { tableau } from '@/components/patterns/tableau';
+import { libelleStatut, statutStock, varianteStatut } from '@/components/patterns/statutStock';
+import { presentationMouvement, quantiteSignee } from '@/components/patterns/typeMouvement';
+import type { TypeMouvement } from '@/components/patterns/typeMouvement';
 
 interface LigneStock {
   produitId: string;
   emplacementId: string;
   quantite: number;
-  produit: { nom: string; reference: string | null; seuilAlerte: number };
+  produit: { nom: string; reference: string | null; seuilAlerte: number; photoUrl: string | null; uniteMesure: string | null };
   emplacement: { nom: string };
 }
 
 interface Mouvement {
   id: string;
-  type: 'ENTREE' | 'SORTIE' | 'TRANSFERT';
+  type: TypeMouvement;
   quantite: number;
   createdAt: string;
   produit: { nom: string };
@@ -38,25 +44,11 @@ interface Emplacement {
 
 const onglets = [
   { cle: 'stock', libelle: 'Stock actuel' },
-  { cle: 'mouvements', libelle: 'Historique des mouvements' },
+  { cle: 'mouvements', libelle: 'Mouvements' },
   { cle: 'inventaires', libelle: 'Inventaires' },
 ] as const;
 
 type CleOnglet = (typeof onglets)[number]['cle'];
-
-/** Statut dérivé du stock par rapport au seuil, cohérent avec le backend. */
-function statutStock(quantite: number, seuil: number) {
-  if (quantite === 0) return { variante: 'rupture' as const, libelle: 'Rupture' };
-  if (quantite < seuil) return { variante: 'faible' as const, libelle: 'Stock faible' };
-  return { variante: 'ok' as const, libelle: 'OK' };
-}
-
-/** Icône, libellé, couleur et signe pour chaque type de mouvement. */
-function infosTypeMouvement(type: Mouvement['type']) {
-  if (type === 'ENTREE') return { libelle: 'Entrée', Icone: ArrowDownToLine, classe: 'text-success', signe: '+' };
-  if (type === 'SORTIE') return { libelle: 'Sortie', Icone: ArrowUpFromLine, classe: 'text-warning', signe: '−' };
-  return { libelle: 'Transfert', Icone: ArrowRightLeft, classe: 'text-info', signe: '' };
-}
 
 export function StockPage() {
   const [actif, setActif] = useState<CleOnglet>('stock');
@@ -88,114 +80,103 @@ export function StockPage() {
     enabled: actif === 'mouvements',
   });
 
+  const dateHeure = (iso: string) =>
+    new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const lieu = (m: Mouvement) =>
+    m.type === 'TRANSFERT' && m.emplacementDestination
+      ? `${m.emplacement.nom} vers ${m.emplacementDestination.nom}`
+      : m.emplacement.nom;
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
-        titre="Stock & Mouvements"
-        description="L’état de votre stock et la traçabilité de chaque entrée et sortie."
+        titre="Stock & mouvements"
+        description="Ce qu’il y a dans chaque emplacement, et tout ce qui est entré ou sorti."
         action={
-          <div className="flex gap-2">
-            {actif !== 'inventaires' && (
+          actif !== 'inventaires' && (
+            <>
               <Button
-              variant="secondary"
-              disabled={actif === 'stock' ? !stock.data?.length : !mouvements.data?.length}
-              onClick={() => {
-                const date = new Date().toISOString().slice(0, 10);
-                if (actif === 'stock' && stock.data) {
-                  exporterCsv(
-                    `stock-${date}.csv`,
-                    [
-                      { entete: 'Produit', valeur: (l: LigneStock) => l.produit.nom },
-                      { entete: 'Référence', valeur: (l: LigneStock) => l.produit.reference ?? '' },
-                      { entete: 'Emplacement', valeur: (l: LigneStock) => l.emplacement.nom },
-                      { entete: 'Quantité', valeur: (l: LigneStock) => l.quantite },
-                      {
-                        entete: 'Statut',
-                        valeur: (l: LigneStock) => statutStock(l.quantite, l.produit.seuilAlerte).libelle,
-                      },
-                    ],
-                    stock.data,
-                  );
-                } else if (mouvements.data) {
-                  exporterCsv(
-                    `mouvements-${date}.csv`,
-                    [
-                      {
-                        entete: 'Date',
-                        valeur: (m: Mouvement) => new Date(m.createdAt).toLocaleDateString('fr-FR'),
-                      },
-                      { entete: 'Type', valeur: (m: Mouvement) => infosTypeMouvement(m.type).libelle },
-                      { entete: 'Produit', valeur: (m: Mouvement) => m.produit.nom },
-                      { entete: 'Emplacement', valeur: (m: Mouvement) => m.emplacement.nom },
-                      {
-                        entete: 'Emplacement destination',
-                        valeur: (m: Mouvement) => m.emplacementDestination?.nom ?? '',
-                      },
-                      { entete: 'Quantité', valeur: (m: Mouvement) => m.quantite },
-                      { entete: 'Utilisateur', valeur: (m: Mouvement) => m.utilisateur.nom },
-                      {
-                        entete: 'Fournisseur',
-                        valeur: (m: Mouvement) => m.fournisseur?.nom ?? '',
-                      },
-                    ],
-                    mouvements.data,
-                  );
-                }
-              }}
-            >
-              <Download className="size-4" aria-hidden="true" />
-              Exporter CSV
+                variant="secondary"
+                disabled={actif === 'stock' ? !stock.data?.length : !mouvements.data?.length}
+                onClick={() => {
+                  const date = new Date().toISOString().slice(0, 10);
+                  if (actif === 'stock' && stock.data) {
+                    exporterCsv(
+                      `stock-${date}.csv`,
+                      [
+                        { entete: 'Produit', valeur: (l: LigneStock) => l.produit.nom },
+                        { entete: 'Référence', valeur: (l: LigneStock) => l.produit.reference ?? '' },
+                        { entete: 'Emplacement', valeur: (l: LigneStock) => l.emplacement.nom },
+                        { entete: 'Quantité', valeur: (l: LigneStock) => l.quantite },
+                        {
+                          entete: 'Statut',
+                          valeur: (l: LigneStock) => libelleStatut[statutStock(l.quantite, l.produit.seuilAlerte)],
+                        },
+                      ],
+                      stock.data,
+                    );
+                  } else if (mouvements.data) {
+                    exporterCsv(
+                      `mouvements-${date}.csv`,
+                      [
+                        {
+                          entete: 'Date',
+                          valeur: (m: Mouvement) => new Date(m.createdAt).toLocaleDateString('fr-FR'),
+                        },
+                        { entete: 'Type', valeur: (m: Mouvement) => presentationMouvement[m.type].libelle },
+                        { entete: 'Produit', valeur: (m: Mouvement) => m.produit.nom },
+                        { entete: 'Emplacement', valeur: (m: Mouvement) => m.emplacement.nom },
+                        {
+                          entete: 'Emplacement destination',
+                          valeur: (m: Mouvement) => m.emplacementDestination?.nom ?? '',
+                        },
+                        { entete: 'Quantité', valeur: (m: Mouvement) => m.quantite },
+                        { entete: 'Utilisateur', valeur: (m: Mouvement) => m.utilisateur.nom },
+                        {
+                          entete: 'Fournisseur',
+                          valeur: (m: Mouvement) => m.fournisseur?.nom ?? '',
+                        },
+                      ],
+                      mouvements.data,
+                    );
+                  }
+                }}
+              >
+                <Download className="size-4" aria-hidden="true" />
+                Exporter CSV
               </Button>
-            )}
-            {actif !== 'inventaires' && (
               <Button onClick={() => setModaleOuverte(true)}>
                 <Plus className="size-4" aria-hidden="true" />
                 Nouveau mouvement
               </Button>
-            )}
-          </div>
+            </>
+          )
         }
       />
 
-      <div className="border-b border-border-subtle" role="tablist" aria-label="Vues du stock">
-        <div className="flex gap-1">
-          {onglets.map((onglet) => (
-            <button
-              key={onglet.cle}
-              type="button"
-              role="tab"
-              aria-selected={actif === onglet.cle}
-              onClick={() => setActif(onglet.cle)}
-              className={cn(
-                '-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors',
-                actif === onglet.cle
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-text-secondary hover:text-text-primary',
-              )}
-            >
-              {onglet.libelle}
-            </button>
-          ))}
-        </div>
-      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Onglets onglets={onglets} actif={actif} onChange={setActif} libelle="Vues du stock" />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <label htmlFor="filtre-emplacement" className="text-sm text-text-secondary">
-          Emplacement
-        </label>
-        <select
-          id="filtre-emplacement"
-          value={emplacementFiltre}
-          onChange={(event) => setEmplacementFiltre(event.target.value)}
-          className="rounded-(--radius-button) border border-border-subtle bg-surface px-3 py-1.5 text-sm text-text-primary"
-        >
-          <option value="">Tous les emplacements</option>
-          {(emplacements.data ?? []).map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.nom}
-            </option>
-          ))}
-        </select>
+        {actif !== 'inventaires' && (
+          <div className="flex items-center gap-2">
+            <label htmlFor="filtre-emplacement" className="text-corps text-steel-500">
+              Emplacement
+            </label>
+            <select
+              id="filtre-emplacement"
+              value={emplacementFiltre}
+              onChange={(event) => setEmplacementFiltre(event.target.value)}
+              className="h-9 min-w-0 rounded-md border border-rule-strong bg-surface px-3 text-corps text-ink-900 hover:border-steel-400"
+            >
+              <option value="">Tous les emplacements</option>
+              {(emplacements.data ?? []).map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.nom}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div role="tabpanel">
@@ -206,65 +187,79 @@ export function StockPage() {
             ) : stock.isError ? (
               <ErrorState message={messageErreur(stock.error)} onRetry={() => stock.refetch()} />
             ) : stock.data && stock.data.length > 0 ? (
-              <table className="hidden w-full text-sm md:table">
-                <thead className="border-b border-border-subtle bg-background text-left">
-                  <tr>
-                    <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Produit</th>
-                    <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Emplacement</th>
-                    <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Quantité</th>
-                    <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Statut</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-subtle">
+              <>
+                <table className={cn(tableau.table, 'hidden md:table')}>
+                  <thead className={tableau.thead}>
+                    <tr>
+                      <th scope="col" className={tableau.th}>Produit</th>
+                      <th scope="col" className={tableau.th}>Emplacement</th>
+                      <th scope="col" className={cn(tableau.th, 'text-right')}>Quantité</th>
+                      <th scope="col" className={cn(tableau.th, 'w-[124px]')}>État</th>
+                    </tr>
+                  </thead>
+                  <tbody className={tableau.tbody}>
+                    {stock.data.map((ligne) => {
+                      const statut = statutStock(ligne.quantite, ligne.produit.seuilAlerte);
+                      return (
+                        <tr key={`${ligne.produitId}-${ligne.emplacementId}`} className={tableau.tr}>
+                          <td className={cn(tableau.td, 'py-2.5')}>
+                            <span className="flex min-w-0 items-center gap-3">
+                              <Vignette nom={ligne.produit.nom} photoUrl={ligne.produit.photoUrl} taille={32} />
+                              <span className="min-w-0">
+                                <span className="block truncate font-medium text-ink-900">{ligne.produit.nom}</span>
+                                {ligne.produit.reference && (
+                                  <span className="block font-mono text-meta text-steel-500">
+                                    {ligne.produit.reference}
+                                  </span>
+                                )}
+                              </span>
+                            </span>
+                          </td>
+                          <td className={cn(tableau.td, 'text-steel-700')}>{ligne.emplacement.nom}</td>
+                          <td className={cn(tableau.td, 'text-right whitespace-nowrap')}>
+                            <span className="font-semibold text-ink-900">{ligne.quantite}</span>{' '}
+                            {ligne.produit.uniteMesure && (
+                              <span className="text-meta text-steel-400">{ligne.produit.uniteMesure}</span>
+                            )}
+                          </td>
+                          <td className={tableau.td}>
+                            <Badge variant={varianteStatut[statut]}>{libelleStatut[statut]}</Badge>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <ul className="divide-y divide-rule md:hidden">
                   {stock.data.map((ligne) => {
                     const statut = statutStock(ligne.quantite, ligne.produit.seuilAlerte);
                     return (
-                      <tr key={`${ligne.produitId}-${ligne.emplacementId}`}>
-                        <td className="px-4 py-3">
-                          <span className="font-medium text-text-primary">{ligne.produit.nom}</span>
-                          {ligne.produit.reference && (
-                            <span className="ml-2 text-xs text-text-secondary">
-                              {ligne.produit.reference}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-text-secondary">{ligne.emplacement.nom}</td>
-                        <td className="px-4 py-3 font-medium text-text-primary">{ligne.quantite}</td>
-                        <td className="px-4 py-3">
-                          <Badge variant={statut.variante}>{statut.libelle}</Badge>
-                        </td>
-                      </tr>
+                      <li key={`${ligne.produitId}-${ligne.emplacementId}`} className="flex items-center gap-3 px-4 py-3">
+                        <Vignette nom={ligne.produit.nom} photoUrl={ligne.produit.photoUrl} taille={32} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-corps font-medium text-ink-900">{ligne.produit.nom}</p>
+                          <p className="truncate text-meta text-steel-500">{ligne.emplacement.nom}</p>
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <p className="whitespace-nowrap">
+                            <span className="font-semibold text-ink-900">{ligne.quantite}</span>{' '}
+                            {ligne.produit.uniteMesure && (
+                              <span className="text-meta text-steel-400">{ligne.produit.uniteMesure}</span>
+                            )}
+                          </p>
+                          <Badge variant={varianteStatut[statut]}>{libelleStatut[statut]}</Badge>
+                        </div>
+                      </li>
                     );
                   })}
-                </tbody>
-              </table>
+                </ul>
+              </>
             ) : (
               <EmptyState
                 titre="Aucun stock"
                 description="Enregistrez une entrée de stock pour voir apparaître vos quantités."
                 action={<Button onClick={() => setModaleOuverte(true)}>Enregistrer un mouvement</Button>}
               />
-            )}
-            {stock.data && stock.data.length > 0 && (
-              <ul className="divide-y divide-border-subtle md:hidden">
-                {stock.data.map((ligne) => {
-                  const statut = statutStock(ligne.quantite, ligne.produit.seuilAlerte);
-                  return (
-                    <li
-                      key={`${ligne.produitId}-${ligne.emplacementId}`}
-                      className="flex items-center justify-between gap-2 px-4 py-3"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate font-medium text-text-primary">{ligne.produit.nom}</p>
-                        <p className="truncate text-sm text-text-secondary">
-                          {ligne.emplacement.nom} · {ligne.quantite}
-                        </p>
-                      </div>
-                      <Badge variant={statut.variante}>{statut.libelle}</Badge>
-                    </li>
-                  );
-                })}
-              </ul>
             )}
           </Card>
         )}
@@ -276,80 +271,87 @@ export function StockPage() {
             ) : mouvements.isError ? (
               <ErrorState message={messageErreur(mouvements.error)} onRetry={() => mouvements.refetch()} />
             ) : mouvements.data && mouvements.data.length > 0 ? (
-              <table className="hidden w-full text-sm md:table">
-                <thead className="border-b border-border-subtle bg-background text-left">
-                  <tr>
-                    <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Date</th>
-                    <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Type</th>
-                    <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Produit</th>
-                    <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Emplacement</th>
-                    <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Quantité</th>
-                    <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Par</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-subtle">
+              <>
+                <table className={cn(tableau.table, 'hidden md:table')}>
+                  <thead className={tableau.thead}>
+                    <tr>
+                      <th scope="col" className={tableau.th}>Mouvement</th>
+                      <th scope="col" className={tableau.th}>Emplacement</th>
+                      <th scope="col" className={cn(tableau.th, 'text-right')}>Quantité</th>
+                      <th scope="col" className={tableau.th}>Date</th>
+                      <th scope="col" className={tableau.th}>Par</th>
+                    </tr>
+                  </thead>
+                  <tbody className={tableau.tbody}>
+                    {mouvements.data.map((mouvement) => {
+                      const p = presentationMouvement[mouvement.type];
+                      return (
+                        <tr key={mouvement.id} className={tableau.tr}>
+                          <td className={cn(tableau.td, 'py-2.5')}>
+                            {/* Le type n'est jamais porté par la couleur seule : icône + libellé. */}
+                            <span className="flex min-w-0 items-center gap-3">
+                              <span
+                                className={cn('flex size-[26px] shrink-0 items-center justify-center rounded-sm', p.fond)}
+                                aria-hidden="true"
+                              >
+                                <p.Icone className="size-3.5" />
+                              </span>
+                              <span className="min-w-0">
+                                <span className="block truncate font-medium text-ink-900">{mouvement.produit.nom}</span>
+                                <span className="block text-meta text-steel-500">
+                                  {p.libelle}
+                                  {mouvement.fournisseur && ` de ${mouvement.fournisseur.nom}`}
+                                </span>
+                              </span>
+                            </span>
+                          </td>
+                          <td className={cn(tableau.td, 'text-steel-700')}>{lieu(mouvement)}</td>
+                          <td className={cn(tableau.td, 'text-right font-semibold whitespace-nowrap', p.couleur)}>
+                            {quantiteSignee(mouvement.type, mouvement.quantite)}
+                          </td>
+                          <td className={cn(tableau.td, 'whitespace-nowrap text-steel-500')}>
+                            {dateHeure(mouvement.createdAt)}
+                          </td>
+                          <td className={cn(tableau.td, 'text-steel-500')}>{mouvement.utilisateur.nom}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <ul className="divide-y divide-rule md:hidden">
                   {mouvements.data.map((mouvement) => {
-                    const infos = infosTypeMouvement(mouvement.type);
+                    const p = presentationMouvement[mouvement.type];
                     return (
-                      <tr key={mouvement.id}>
-                        <td className="px-4 py-3 whitespace-nowrap text-text-secondary">
-                          {new Date(mouvement.createdAt).toLocaleDateString('fr-FR')}
-                        </td>
-                        <td className="px-4 py-3">
-                          {/* Le type n'est jamais porté par la couleur seule :
-                              icône + libellé explicite. */}
-                          <span className={cn('inline-flex items-center gap-1.5 text-sm font-medium', infos.classe)}>
-                            <infos.Icone className="size-4" aria-hidden="true" />
-                            {infos.libelle}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 font-medium text-text-primary">{mouvement.produit.nom}</td>
-                        <td className="px-4 py-3 text-text-secondary">
-                          {mouvement.type === 'TRANSFERT' && mouvement.emplacementDestination
-                            ? `${mouvement.emplacement.nom} → ${mouvement.emplacementDestination.nom}`
-                            : mouvement.emplacement.nom}
-                        </td>
-                        <td className="px-4 py-3 font-medium text-text-primary">
-                          {infos.signe}
-                          {mouvement.quantite}
-                        </td>
-                        <td className="px-4 py-3 text-text-secondary">{mouvement.utilisateur.nom}</td>
-                      </tr>
+                      <li key={mouvement.id} className="flex items-center gap-3 px-4 py-3">
+                        <span
+                          className={cn('flex size-[26px] shrink-0 items-center justify-center rounded-sm', p.fond)}
+                          aria-hidden="true"
+                        >
+                          <p.Icone className="size-3.5" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-corps font-medium text-ink-900">{mouvement.produit.nom}</p>
+                          <p className="truncate text-meta text-steel-500">
+                            {p.libelle}, {lieu(mouvement)}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className={cn('text-corps font-semibold', p.couleur)}>
+                            {quantiteSignee(mouvement.type, mouvement.quantite)}
+                          </p>
+                          <p className="text-meta whitespace-nowrap text-steel-400">{dateHeure(mouvement.createdAt)}</p>
+                        </div>
+                      </li>
                     );
                   })}
-                </tbody>
-              </table>
+                </ul>
+              </>
             ) : (
               <EmptyState
                 titre="Aucun mouvement"
                 description="L’historique se remplira au fil de vos entrées et sorties de stock."
                 action={<Button onClick={() => setModaleOuverte(true)}>Enregistrer un mouvement</Button>}
               />
-            )}
-            {mouvements.data && mouvements.data.length > 0 && (
-              <ul className="divide-y divide-border-subtle md:hidden">
-                {mouvements.data.map((mouvement) => {
-                  const infos = infosTypeMouvement(mouvement.type);
-                  return (
-                    <li key={mouvement.id} className="flex flex-col gap-1 px-4 py-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-text-primary">{mouvement.produit.nom}</span>
-                        <span className={cn('inline-flex items-center gap-1 text-sm font-medium', infos.classe)}>
-                          <infos.Icone className="size-4" aria-hidden="true" />
-                          {infos.signe}
-                          {mouvement.quantite}
-                        </span>
-                      </div>
-                      <p className="text-sm text-text-secondary">
-                        {mouvement.type === 'TRANSFERT' && mouvement.emplacementDestination
-                          ? `${mouvement.emplacement.nom} → ${mouvement.emplacementDestination.nom}`
-                          : mouvement.emplacement.nom}{' '}
-                        · {new Date(mouvement.createdAt).toLocaleDateString('fr-FR')} · {mouvement.utilisateur.nom}
-                      </p>
-                    </li>
-                  );
-                })}
-              </ul>
             )}
           </Card>
         )}
