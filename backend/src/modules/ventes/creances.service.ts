@@ -12,14 +12,18 @@ const JOUR_MS = 86_400_000;
  */
 export const DELAI_PAIEMENT_PAR_DEFAUT_JOURS = 30;
 
-/** Tranches de vieillissement, en jours depuis la vente. */
+/**
+ * Tranches de vieillissement, en jours de RETARD sur l'échéance (décision
+ * validée) : une vente dont l'échéance n'est pas passée est « à jour »,
+ * quel que soit son âge.
+ */
 export const TRANCHES = [
-  { cle: 'MOINS_DE_8', libelle: 'Moins de 8 jours', max: 7 },
-  { cle: 'DE_8_A_30', libelle: '8 à 30 jours', max: 30 },
-  { cle: 'DE_31_A_60', libelle: '31 à 60 jours', max: 60 },
+  { cle: 'A_JOUR', libelle: 'À jour', max: 0 },
+  { cle: 'RETARD_1_30', libelle: '1 à 30 j de retard', max: 30 },
+  { cle: 'RETARD_31_60', libelle: '31 à 60 j de retard', max: 60 },
   {
-    cle: 'PLUS_DE_60',
-    libelle: 'Plus de 60 jours',
+    cle: 'RETARD_PLUS_60',
+    libelle: 'Plus de 60 j de retard',
     max: Number.POSITIVE_INFINITY,
   },
 ] as const;
@@ -28,11 +32,21 @@ function joursDepuis(date: Date, maintenant: number): number {
   return Math.max(0, Math.floor((maintenant - date.getTime()) / JOUR_MS));
 }
 
-function enRetard(vente: VenteNonSoldee, maintenant: number): boolean {
-  if (vente.echeanceAt) return vente.echeanceAt.getTime() < maintenant;
-  return (
-    joursDepuis(vente.createdAt, maintenant) > DELAI_PAIEMENT_PAR_DEFAUT_JOURS
-  );
+/**
+ * Jours de retard d'une vente non soldée : depuis son échéance ou, sans
+ * échéance, depuis la vente + DELAI_PAIEMENT_PAR_DEFAUT_JOURS. 0 = à jour ;
+ * une limite dépassée, même de quelques heures, compte au moins 1 jour.
+ */
+export function retardJours(
+  vente: Pick<VenteNonSoldee, 'createdAt' | 'echeanceAt'>,
+  maintenant: number,
+): number {
+  const limite =
+    vente.echeanceAt?.getTime() ??
+    vente.createdAt.getTime() + DELAI_PAIEMENT_PAR_DEFAUT_JOURS * JOUR_MS;
+  return limite < maintenant
+    ? Math.max(1, Math.floor((maintenant - limite) / JOUR_MS))
+    : 0;
 }
 
 /** Début de la semaine en cours (lundi 00:00, heure du serveur). */
@@ -52,9 +66,9 @@ export class CreancesService {
   ) {}
 
   /**
-   * Qui doit de l'argent, et depuis quand. Classement par ANCIENNETÉ de la
-   * dette (plus ancienne vente non soldée), jamais par montant : c'est le
-   * risque qui prime. À ancienneté égale, le plus gros montant d'abord.
+   * Qui doit de l'argent, et depuis quand. Classement par RISQUE, jamais
+   * par montant seul : retard sur l'échéance d'abord, puis ancienneté de la
+   * dette (plus ancienne vente non soldée), puis montant.
    */
   async lister(entrepriseId: string) {
     const maintenant = Date.now();
@@ -109,14 +123,23 @@ export class CreancesService {
             echeances.length > 0
               ? new Date(Math.min(...echeances.map((d) => d.getTime())))
               : null,
+          // Le pire retard parmi ses ventes : c'est lui qui colore la ligne.
+          retardJours: Math.max(
+            ...sesVentes.map((v) => retardJours(v, maintenant)),
+          ),
           montantEnRetard: sesVentes
-            .filter((v) => enRetard(v, maintenant))
+            .filter((v) => retardJours(v, maintenant) > 0)
             .reduce((a, v) => a + v.resteDu, 0),
           nombreVentes: sesVentes.length,
         };
       })
+      // Le risque d'abord : le plus fort retard, puis la dette la plus
+      // ancienne, puis le plus gros montant — jamais le montant seul.
       .sort(
-        (a, b) => b.ancienneteJours - a.ancienneteJours || b.solde - a.solde,
+        (a, b) =>
+          b.retardJours - a.retardJours ||
+          b.ancienneteJours - a.ancienneteJours ||
+          b.solde - a.solde,
       );
 
     const tranches = TRANCHES.map((t) => ({
@@ -126,8 +149,8 @@ export class CreancesService {
       nombreVentes: 0,
     }));
     for (const v of ventes) {
-      const age = joursDepuis(v.createdAt, maintenant);
-      const i = TRANCHES.findIndex((t) => age <= t.max);
+      const retard = retardJours(v, maintenant);
+      const i = TRANCHES.findIndex((t) => retard <= t.max);
       tranches[i].montant += v.resteDu;
       tranches[i].nombreVentes += 1;
     }
