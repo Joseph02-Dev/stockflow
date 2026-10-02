@@ -4,16 +4,18 @@ import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ChevronRight, Plus } from 'lucide-react';
+import { ChevronRight, Clock, Phone, Plus } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { Drawer } from '@/components/ui/Drawer';
 import { ImageUploadField } from '@/components/patterns/ImageUploadField';
-import { Card, PageHeader } from '@/components/patterns/Page';
+import { Card, PageHeader, PanneauEntete } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { cn } from '@/lib/cn';
+import { pluriel } from '@/lib/format';
+import { Vignette } from '@/components/patterns/Vignette';
 import { FournisseurDetail } from './FournisseurDetail';
 
 interface Fournisseur {
@@ -38,27 +40,25 @@ const schema = z.object({
 
 type Formulaire = z.infer<typeof schema>;
 
-function ligneResume(fournisseur: Fournisseur): string {
+function LigneResume({ fournisseur }: { fournisseur: Fournisseur }) {
+  if (fournisseur.delaiLivraisonJours === null && !fournisseur.telephone) {
+    return <span className="text-steel-400">Aucun contact renseigné</span>;
+  }
   return (
-    [
-      fournisseur.emailContact,
-      fournisseur.telephone,
-      fournisseur.delaiLivraisonJours !== null ? `${fournisseur.delaiLivraisonJours} j` : null,
-    ]
-      .filter(Boolean)
-      .join(' · ') || 'Aucun contact renseigné'
-  );
-}
-
-function AvatarFournisseur({ fournisseur }: { fournisseur: Fournisseur }) {
-  return (
-    <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-background">
-      {fournisseur.photoUrl ? (
-        <img src={fournisseur.photoUrl} alt="" className="size-full object-cover" />
-      ) : (
-        <span className="text-xs text-text-secondary">{fournisseur.nom.slice(0, 2).toUpperCase()}</span>
+    <span className="flex min-w-0 items-center gap-x-3">
+      {fournisseur.delaiLivraisonJours !== null && (
+        <span className="inline-flex shrink-0 items-center gap-1">
+          <Clock className="size-3 text-steel-400" aria-hidden="true" />
+          {fournisseur.delaiLivraisonJours} {pluriel('jour', fournisseur.delaiLivraisonJours)}
+        </span>
       )}
-    </div>
+      {fournisseur.telephone && (
+        <span className="inline-flex min-w-0 items-center gap-1">
+          <Phone className="size-3 shrink-0 text-steel-400" aria-hidden="true" />
+          <span className="truncate">{fournisseur.telephone}</span>
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -115,10 +115,10 @@ export function FournisseursPage() {
   });
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
         titre="Fournisseurs"
-        description="Vos contacts d’approvisionnement et les produits qu’ils fournissent."
+        description="Qui vous livre quoi, en combien de temps, et comment les joindre."
         action={
           <Button onClick={ouvrirCreation}>
             <Plus className="size-4" aria-hidden="true" />
@@ -140,26 +140,29 @@ export function FournisseursPage() {
       ) : data && data.length > 0 ? (
         <>
           {/* Desktop : vue maître-détail, liste + fiche sur le même écran */}
-          <div className="hidden gap-6 md:flex">
-            <Card className="h-fit w-80 shrink-0 overflow-hidden">
-              <div className="border-b border-border-subtle px-4 py-3">
-                <p className="text-sm font-medium text-text-primary">{data.length} partenaire(s)</p>
-              </div>
-              <ul className="max-h-[calc(100vh-14rem)] divide-y divide-border-subtle overflow-y-auto">
+          <div className="hidden items-start gap-5 md:flex">
+            <Card className="w-72 shrink-0 lg:w-80">
+              <PanneauEntete titre={`${data.length} ${pluriel('fournisseur', data.length)}`} />
+              <ul className="max-h-[calc(100vh-15rem)] divide-y divide-rule overflow-y-auto">
                 {data.map((fournisseur) => (
                   <li key={fournisseur.id}>
                     <button
                       type="button"
                       onClick={() => setSelectionId(fournisseur.id)}
+                      aria-current={selectionEffective === fournisseur.id ? 'true' : undefined}
                       className={cn(
-                        'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors',
-                        selectionEffective === fournisseur.id ? 'bg-primary/10' : 'hover:bg-background',
+                        'flex w-full items-center gap-3 border-l-2 py-3 pr-4 pl-[18px] text-left transition-colors',
+                        selectionEffective === fournisseur.id
+                          ? 'border-action bg-action-wash'
+                          : 'border-transparent hover:bg-entete-tableau',
                       )}
                     >
-                      <AvatarFournisseur fournisseur={fournisseur} />
+                      <Vignette nom={fournisseur.nom} photoUrl={fournisseur.photoUrl} taille={34} />
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-text-primary">{fournisseur.nom}</p>
-                        <p className="truncate text-xs text-text-secondary">{ligneResume(fournisseur)}</p>
+                        <p className="truncate text-corps font-medium text-ink-900">{fournisseur.nom}</p>
+                        <p className="text-meta text-steel-500">
+                          <LigneResume fournisseur={fournisseur} />
+                        </p>
                       </div>
                     </button>
                   </li>
@@ -180,21 +183,23 @@ export function FournisseursPage() {
 
           {/* Mobile : liste seule, navigation vers la fiche en page dédiée */}
           <Card className="md:hidden">
-            <ul className="divide-y divide-border-subtle">
+            <ul className="divide-y divide-rule">
               {data.map((fournisseur) => (
                 <li key={fournisseur.id}>
                   <Link
                     to={`/fournisseurs/${fournisseur.id}`}
-                    className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-background"
+                    className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-entete-tableau"
                   >
                     <div className="flex min-w-0 items-center gap-3">
-                      <AvatarFournisseur fournisseur={fournisseur} />
+                      <Vignette nom={fournisseur.nom} photoUrl={fournisseur.photoUrl} taille={36} />
                       <div className="min-w-0">
-                        <p className="truncate font-medium text-text-primary">{fournisseur.nom}</p>
-                        <p className="truncate text-sm text-text-secondary">{ligneResume(fournisseur)}</p>
+                        <p className="truncate text-corps font-medium text-ink-900">{fournisseur.nom}</p>
+                        <p className="text-meta text-steel-500">
+                          <LigneResume fournisseur={fournisseur} />
+                        </p>
                       </div>
                     </div>
-                    <ChevronRight className="size-5 shrink-0 text-text-secondary" aria-hidden="true" />
+                    <ChevronRight className="size-4 shrink-0 text-steel-400" aria-hidden="true" />
                   </Link>
                 </li>
               ))}

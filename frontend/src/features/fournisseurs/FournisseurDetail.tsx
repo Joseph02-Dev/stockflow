@@ -3,15 +3,20 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Plus, X } from 'lucide-react';
+import { Clock, Mail, Pencil, Phone, Plus, ShoppingCart, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { api, messageErreur } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
-import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { ImageUploadField } from '@/components/patterns/ImageUploadField';
 import { Card } from '@/components/patterns/Page';
+import { Onglets } from '@/components/patterns/Onglets';
+import { Vignette } from '@/components/patterns/Vignette';
+import { tableau } from '@/components/patterns/tableau';
+import { boutonClasses } from '@/components/ui/boutonClasses';
+import { pluriel } from '@/lib/format';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { cn } from '@/lib/cn';
 
@@ -40,7 +45,7 @@ interface Reception {
 
 const onglets = [
   { cle: 'informations', libelle: 'Informations' },
-  { cle: 'produits', libelle: 'Produits associés' },
+  { cle: 'produits', libelle: 'Produits fournis' },
   { cle: 'receptions', libelle: 'Réceptions' },
 ] as const;
 
@@ -156,82 +161,107 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-sm font-semibold text-primary">
-            {fournisseur.data.photoUrl ? (
-              <img src={fournisseur.data.photoUrl} alt="" className="size-full object-cover" />
-            ) : (
-              fournisseur.data.nom.slice(0, 2).toUpperCase()
-            )}
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold text-text-primary">{fournisseur.data.nom}</h1>
-            {fournisseur.data.delaiLivraisonJours !== null && (
-              <p className="text-sm text-text-secondary">
-                Délai moyen : {fournisseur.data.delaiLivraisonJours} j
-              </p>
-            )}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Vignette nom={fournisseur.data.nom} photoUrl={fournisseur.data.photoUrl} taille={44} />
+          <div className="min-w-0">
+            <h2 className="truncate text-[20px] leading-7 font-semibold tracking-[-0.006em] text-ink-900">
+              {fournisseur.data.nom}
+            </h2>
+            <p className="flex flex-wrap items-center gap-x-3 text-meta text-steel-500">
+              <span className="inline-flex items-center gap-1">
+                <Clock className="size-3 text-steel-400" aria-hidden="true" />
+                {fournisseur.data.delaiLivraisonJours !== null
+                  ? `Délai moyen ${fournisseur.data.delaiLivraisonJours} ${pluriel('jour', fournisseur.data.delaiLivraisonJours)}`
+                  : 'Délai non renseigné'}
+              </span>
+              {fournisseur.data.telephone && (
+                <a
+                  href={`tel:${fournisseur.data.telephone.replace(/\s/g, '')}`}
+                  className="inline-flex items-center gap-1 hover:text-ink-900"
+                >
+                  <Phone className="size-3 text-steel-400" aria-hidden="true" />
+                  {fournisseur.data.telephone}
+                </a>
+              )}
+            </p>
           </div>
         </div>
-        <Button variant="secondary" onClick={ouvrirEdition}>
-          <Pencil className="size-4" aria-hidden="true" />
-          Modifier
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={ouvrirEdition}>
+            <Pencil className="size-4" aria-hidden="true" />
+            Modifier
+          </Button>
+          <Link
+            to="/commandes/nouvelle"
+            state={{ fournisseurId }}
+            className={boutonClasses('primary')}
+          >
+            <ShoppingCart className="size-4" aria-hidden="true" />
+            Commander
+          </Link>
+        </div>
       </div>
 
-      <div className="border-b border-border-subtle" role="tablist" aria-label="Sections du fournisseur">
-        <div className="flex gap-1 overflow-x-auto">
-          {onglets.map((onglet) => (
-            <button
-              key={onglet.cle}
-              type="button"
-              role="tab"
-              aria-selected={actif === onglet.cle}
-              onClick={() => setActif(onglet.cle)}
-              className={cn(
-                '-mb-px border-b-2 px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors',
-                actif === onglet.cle
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-text-secondary hover:text-text-primary',
-              )}
-            >
-              {onglet.libelle}
-            </button>
-          ))}
-        </div>
-      </div>
+      <Onglets onglets={onglets} actif={actif} onChange={setActif} libelle="Sections du fournisseur" />
 
       {erreur && !editionOuverte && !modaleOuverte && <Alert variant="error">{erreur}</Alert>}
 
       <div role="tabpanel">
         {actif === 'informations' && (
           <Card>
-            <dl className="divide-y divide-border-subtle">
-              <div className="flex justify-between gap-4 px-4 py-3 text-sm">
-                <dt className="text-text-secondary">Email de contact</dt>
-                <dd className="text-text-primary">{fournisseur.data.emailContact ?? '—'}</dd>
-              </div>
-              <div className="flex justify-between gap-4 px-4 py-3 text-sm">
-                <dt className="text-text-secondary">Téléphone</dt>
-                <dd className="text-text-primary">{fournisseur.data.telephone ?? '—'}</dd>
-              </div>
-              <div className="flex justify-between gap-4 px-4 py-3 text-sm">
-                <dt className="text-text-secondary">Délai de livraison moyen</dt>
-                <dd className="text-text-primary">
-                  {fournisseur.data.delaiLivraisonJours !== null
-                    ? `${fournisseur.data.delaiLivraisonJours} jour(s)`
-                    : '—'}
-                </dd>
-              </div>
+            <dl className="divide-y divide-rule">
+              {[
+                {
+                  Icone: Mail,
+                  libelle: 'Email de contact',
+                  valeur: fournisseur.data.emailContact && (
+                    <a href={`mailto:${fournisseur.data.emailContact}`} className="text-action hover:underline">
+                      {fournisseur.data.emailContact}
+                    </a>
+                  ),
+                },
+                {
+                  Icone: Phone,
+                  libelle: 'Téléphone',
+                  valeur: fournisseur.data.telephone && (
+                    <a
+                      href={`tel:${fournisseur.data.telephone.replace(/\s/g, '')}`}
+                      className="text-action hover:underline"
+                    >
+                      {fournisseur.data.telephone}
+                    </a>
+                  ),
+                },
+                {
+                  Icone: Clock,
+                  libelle: 'Délai de livraison annoncé',
+                  valeur:
+                    fournisseur.data.delaiLivraisonJours !== null &&
+                    `${fournisseur.data.delaiLivraisonJours} ${pluriel('jour', fournisseur.data.delaiLivraisonJours)}`,
+                },
+              ].map(({ Icone, libelle, valeur }) => (
+                <div key={libelle} className="flex items-center justify-between gap-4 px-5 py-3 text-corps">
+                  <dt className="flex items-center gap-2 text-steel-500">
+                    <Icone className="size-4 text-steel-400" aria-hidden="true" />
+                    {libelle}
+                  </dt>
+                  <dd className="min-w-0 truncate text-right text-ink-900">
+                    {valeur || <span className="text-steel-400">Non renseigné</span>}
+                  </dd>
+                </div>
+              ))}
             </dl>
           </Card>
         )}
 
         {actif === 'produits' && (
           <div className="flex flex-col gap-4">
-            <div className="flex justify-end">
-              <Button onClick={() => setModaleOuverte(true)}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="min-w-0 flex-1 basis-64 text-corps text-steel-500">
+                Ces produits sont regroupés chez ce fournisseur dans « Ce qui manque ».
+              </p>
+              <Button variant="secondary" onClick={() => setModaleOuverte(true)}>
                 <Plus className="size-4" aria-hidden="true" />
                 Associer un produit
               </Button>
@@ -241,17 +271,24 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
               {produitsAssocies.isLoading ? (
                 <LoadingState />
               ) : produitsAssocies.data && produitsAssocies.data.length > 0 ? (
-                <ul className="divide-y divide-border-subtle">
+                <ul className="divide-y divide-rule">
                   {produitsAssocies.data.map((produit) => (
-                    <li key={produit.id} className="flex items-center justify-between gap-4 px-4 py-3">
-                      <div className="min-w-0">
-                        <p className="truncate font-medium text-text-primary">{produit.nom}</p>
+                    <li key={produit.id} className="flex items-center gap-3 px-4 py-2.5 sm:px-5">
+                      <Vignette nom={produit.nom} taille={32} />
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          to={`/produits/${produit.id}`}
+                          className="block truncate text-corps font-medium text-ink-900 hover:underline"
+                        >
+                          {produit.nom}
+                        </Link>
                         {produit.reference && (
-                          <p className="truncate text-sm text-text-secondary">{produit.reference}</p>
+                          <p className="truncate font-mono text-meta text-steel-500">{produit.reference}</p>
                         )}
                       </div>
                       <Button
                         variant="ghost"
+                        taille="sm"
                         onClick={() => dissocier.mutate(produit.id)}
                         disabled={dissocier.isPending}
                       >
@@ -280,41 +317,39 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
               <ErrorState message={messageErreur(receptions.error)} onRetry={() => receptions.refetch()} />
             ) : receptions.data && receptions.data.length > 0 ? (
               <>
-                <table className="hidden w-full text-sm md:table">
-                  <thead className="border-b border-border-subtle bg-background text-left">
+                <table className={cn(tableau.table, 'hidden md:table')}>
+                  <thead className={tableau.thead}>
                     <tr>
-                      <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Date</th>
-                      <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Produit</th>
-                      <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Emplacement</th>
-                      <th scope="col" className="px-4 py-3 font-medium text-text-secondary">Quantité</th>
+                      <th scope="col" className={tableau.th}>Produit</th>
+                      <th scope="col" className={tableau.th}>Emplacement</th>
+                      <th scope="col" className={tableau.th}>Date</th>
+                      <th scope="col" className={cn(tableau.th, 'text-right')}>Quantité</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border-subtle">
+                  <tbody className={tableau.tbody}>
                     {receptions.data.map((reception) => (
-                      <tr key={reception.id}>
-                        <td className="px-4 py-3 text-text-secondary">
+                      <tr key={reception.id} className={tableau.tr}>
+                        <td className={cn(tableau.td, 'font-medium text-ink-900')}>{reception.produit.nom}</td>
+                        <td className={cn(tableau.td, 'text-steel-700')}>{reception.emplacement.nom}</td>
+                        <td className={cn(tableau.td, 'whitespace-nowrap text-steel-500')}>
                           {new Date(reception.createdAt).toLocaleDateString('fr-FR')}
                         </td>
-                        <td className="px-4 py-3 font-medium text-text-primary">{reception.produit.nom}</td>
-                        <td className="px-4 py-3 text-text-secondary">{reception.emplacement.nom}</td>
-                        <td className="px-4 py-3">
-                          <Badge variant="ok">+{reception.quantite}</Badge>
-                        </td>
+                        <td className={cn(tableau.td, 'text-right font-semibold text-ok')}>+{reception.quantite}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
 
-                <ul className="divide-y divide-border-subtle md:hidden">
+                <ul className="divide-y divide-rule md:hidden">
                   {receptions.data.map((reception) => (
-                    <li key={reception.id} className="flex items-center justify-between gap-2 px-4 py-3">
+                    <li key={reception.id} className="flex items-center justify-between gap-3 px-4 py-3">
                       <div className="min-w-0">
-                        <p className="truncate font-medium text-text-primary">{reception.produit.nom}</p>
-                        <p className="truncate text-sm text-text-secondary">
-                          {reception.emplacement.nom} · {new Date(reception.createdAt).toLocaleDateString('fr-FR')}
+                        <p className="truncate text-corps font-medium text-ink-900">{reception.produit.nom}</p>
+                        <p className="truncate text-meta text-steel-500">
+                          {reception.emplacement.nom}, le {new Date(reception.createdAt).toLocaleDateString('fr-FR')}
                         </p>
                       </div>
-                      <Badge variant="ok">+{reception.quantite}</Badge>
+                      <span className="shrink-0 text-corps font-semibold text-ok">+{reception.quantite}</span>
                     </li>
                   ))}
                 </ul>
@@ -345,18 +380,18 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
                   type="button"
                   onClick={() => associer.mutate(produit.id)}
                   disabled={associer.isPending}
-                  className="flex w-full items-center justify-between gap-3 rounded-(--radius-button) px-3 py-2 text-left text-sm transition-colors hover:bg-background disabled:opacity-50"
+                  className="flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-corps transition-colors hover:bg-paper disabled:opacity-50"
                 >
-                  <span className="truncate text-text-primary">{produit.nom}</span>
+                  <span className="truncate text-ink-900">{produit.nom}</span>
                   {produit.reference && (
-                    <span className="shrink-0 text-xs text-text-secondary">{produit.reference}</span>
+                    <span className="shrink-0 font-mono text-meta text-steel-500">{produit.reference}</span>
                   )}
                 </button>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="py-4 text-center text-sm text-text-secondary">
+          <p className="py-4 text-center text-corps text-steel-500">
             Tous vos produits sont déjà associés à ce fournisseur.
           </p>
         )}

@@ -17,7 +17,7 @@ export function Onglets<C extends string>({
 }) {
   return (
     <div
-      className="inline-flex max-w-full overflow-x-auto rounded-md border border-rule bg-surface p-0.5"
+      className="inline-flex max-w-full self-start overflow-x-auto rounded-md border border-rule bg-surface p-0.5"
       role="tablist"
       aria-label={libelle}
     >
