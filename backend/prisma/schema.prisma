@@ -271,7 +271,13 @@ model Produit {
   // Montants en francs guinéens (GNF), une devise sans subdivision
   // décimale en circulation — stockés en entier, jamais en flottant.
   prixAchat   Int?    @map("prix_achat")
-  prixVente   Int?    @map("prix_vente")
+  // prixVente est, par convention, le prix de DÉTAIL (hors taxes). Il
+  // n'est pas renommé : liste produits, export CSV, fiche produit et
+  // maquettes l'utilisent déjà. Les prix de gros et de demi-gros sont
+  // facultatifs et retombent sur prixVente (voir common/tarifs/prix.ts).
+  prixVente    Int?   @map("prix_vente")
+  prixGros     Int?   @map("prix_gros")
+  prixDemiGros Int?   @map("prix_demi_gros")
   tauxTva     Int?    @map("taux_tva") // pourcentage, ex. 18 pour 18%
   codeBarre   String? @map("code_barre")
   description String?

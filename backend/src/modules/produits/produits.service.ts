@@ -72,6 +72,8 @@ export class ProduitsService {
           photoUrl: dto.photoUrl,
           prixAchat: dto.prixAchat,
           prixVente: dto.prixVente,
+          prixGros: dto.prixGros,
+          prixDemiGros: dto.prixDemiGros,
           tauxTva,
           codeBarre: dto.codeBarre,
           uniteMesure: dto.uniteMesure,

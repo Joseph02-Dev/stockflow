@@ -32,6 +32,18 @@ export class CreateProduitDto {
   @Min(0, { message: 'Le prix de vente ne peut pas être négatif.' })
   prixVente?: number;
 
+  // Facultatifs : absents, le produit est vendu au prixVente (détail)
+  // à toutes les catégories de clients.
+  @IsOptional()
+  @IsInt({ message: 'Le prix de gros doit être un nombre entier.' })
+  @Min(0, { message: 'Le prix de gros ne peut pas être négatif.' })
+  prixGros?: number;
+
+  @IsOptional()
+  @IsInt({ message: 'Le prix de demi-gros doit être un nombre entier.' })
+  @Min(0, { message: 'Le prix de demi-gros ne peut pas être négatif.' })
+  prixDemiGros?: number;
+
   @IsOptional()
   @IsInt({ message: 'Le taux de TVA doit être un nombre entier.' })
   @Min(0, { message: 'Le taux de TVA ne peut pas être négatif.' })

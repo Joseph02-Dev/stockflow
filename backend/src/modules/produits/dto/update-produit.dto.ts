@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, IsUrl, IsUUID, Max, Min, MaxLength, MinLength } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsUrl, IsUUID, Max, Min, MaxLength, MinLength, ValidateIf } from 'class-validator';
 
 export class UpdateProduitDto {
   @IsOptional()
@@ -32,6 +32,17 @@ export class UpdateProduitDto {
   @IsInt({ message: 'Le prix de vente doit être un nombre entier.' })
   @Min(0, { message: 'Le prix de vente ne peut pas être négatif.' })
   prixVente?: number;
+
+  // null efface le prix : le produit retombe alors sur prixVente.
+  @ValidateIf((_, valeur) => valeur !== null && valeur !== undefined)
+  @IsInt({ message: 'Le prix de gros doit être un nombre entier.' })
+  @Min(0, { message: 'Le prix de gros ne peut pas être négatif.' })
+  prixGros?: number | null;
+
+  @ValidateIf((_, valeur) => valeur !== null && valeur !== undefined)
+  @IsInt({ message: 'Le prix de demi-gros doit être un nombre entier.' })
+  @Min(0, { message: 'Le prix de demi-gros ne peut pas être négatif.' })
+  prixDemiGros?: number | null;
 
   @IsOptional()
   @IsInt({ message: 'Le taux de TVA doit être un nombre entier.' })
