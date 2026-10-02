@@ -30,12 +30,12 @@ interface CommandeDetail {
 
 const STATUTS: Record<
   CommandeDetail['statut'],
-  { libelle: string; variant: 'neutral' | 'warning' | 'success' | 'error' }
+  { libelle: string; variant: 'neutral' | 'faible' | 'ok' | 'rupture' }
 > = {
   BROUILLON: { libelle: 'Brouillon', variant: 'neutral' },
-  ENVOYEE: { libelle: 'Envoyée', variant: 'warning' },
-  RECUE: { libelle: 'Reçue', variant: 'success' },
-  ANNULEE: { libelle: 'Annulée', variant: 'error' },
+  ENVOYEE: { libelle: 'Envoyée', variant: 'faible' },
+  RECUE: { libelle: 'Reçue', variant: 'ok' },
+  ANNULEE: { libelle: 'Annulée', variant: 'rupture' },
 };
 
 export function CommandeDetailPage() {

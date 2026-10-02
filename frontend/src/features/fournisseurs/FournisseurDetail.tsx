@@ -298,7 +298,7 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
                         <td className="px-4 py-3 font-medium text-text-primary">{reception.produit.nom}</td>
                         <td className="px-4 py-3 text-text-secondary">{reception.emplacement.nom}</td>
                         <td className="px-4 py-3">
-                          <Badge variant="success">+{reception.quantite}</Badge>
+                          <Badge variant="ok">+{reception.quantite}</Badge>
                         </td>
                       </tr>
                     ))}
@@ -314,7 +314,7 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
                           {reception.emplacement.nom} · {new Date(reception.createdAt).toLocaleDateString('fr-FR')}
                         </p>
                       </div>
-                      <Badge variant="success">+{reception.quantite}</Badge>
+                      <Badge variant="ok">+{reception.quantite}</Badge>
                     </li>
                   ))}
                 </ul>

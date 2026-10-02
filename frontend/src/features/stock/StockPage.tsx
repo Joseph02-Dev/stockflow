@@ -46,9 +46,9 @@ type CleOnglet = (typeof onglets)[number]['cle'];
 
 /** Statut dérivé du stock par rapport au seuil, cohérent avec le backend. */
 function statutStock(quantite: number, seuil: number) {
-  if (quantite === 0) return { variante: 'error' as const, libelle: 'Rupture' };
-  if (quantite < seuil) return { variante: 'warning' as const, libelle: 'Stock faible' };
-  return { variante: 'success' as const, libelle: 'OK' };
+  if (quantite === 0) return { variante: 'rupture' as const, libelle: 'Rupture' };
+  if (quantite < seuil) return { variante: 'faible' as const, libelle: 'Stock faible' };
+  return { variante: 'ok' as const, libelle: 'OK' };
 }
 
 /** Icône, libellé, couleur et signe pour chaque type de mouvement. */

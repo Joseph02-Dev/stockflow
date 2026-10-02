@@ -136,7 +136,7 @@ export function AlertesPage() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <Badge variant={alerte.type === 'RUPTURE' ? 'error' : 'warning'}>
+                        <Badge variant={alerte.type === 'RUPTURE' ? 'rupture' : 'faible'}>
                           {alerte.type === 'RUPTURE' ? 'Rupture' : 'Stock faible'}
                         </Badge>
                       </td>
@@ -162,7 +162,7 @@ export function AlertesPage() {
                       <span className="min-w-0 truncate font-medium text-text-primary">
                         {alerte.produit.nom}
                       </span>
-                      <Badge variant={alerte.type === 'RUPTURE' ? 'error' : 'warning'}>
+                      <Badge variant={alerte.type === 'RUPTURE' ? 'rupture' : 'faible'}>
                         {alerte.type === 'RUPTURE' ? 'Rupture' : 'Stock faible'}
                       </Badge>
                     </div>

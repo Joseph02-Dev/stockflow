@@ -141,7 +141,7 @@ export function InventaireDetailPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant={enCours ? 'warning' : 'success'}>{enCours ? 'En cours' : 'Terminé'}</Badge>
+          <Badge variant={enCours ? 'faible' : 'ok'}>{enCours ? 'En cours' : 'Terminé'}</Badge>
           {enCours && <Button onClick={() => setConfirmationTerminer(true)}>Terminer l’inventaire</Button>}
         </div>
       </div>
@@ -193,9 +193,9 @@ export function InventaireDetailPage() {
                     {ligne.ecart === null ? (
                       <span className="text-text-secondary">—</span>
                     ) : ligne.ecart === 0 ? (
-                      <Badge variant="success">Aucun écart</Badge>
+                      <Badge variant="ok">Aucun écart</Badge>
                     ) : (
-                      <Badge variant={ligne.ecart > 0 ? 'info' : 'error'}>
+                      <Badge variant={ligne.ecart > 0 ? 'action' : 'rupture'}>
                         {ligne.ecart > 0 ? `+${ligne.ecart}` : ligne.ecart}
                       </Badge>
                     )}
@@ -204,7 +204,7 @@ export function InventaireDetailPage() {
                 {!enCours && (
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
-                      {ligne.statutAjustement === 'VALIDEE' && <Badge variant="success">Validé</Badge>}
+                      {ligne.statutAjustement === 'VALIDEE' && <Badge variant="ok">Validé</Badge>}
                       {ligne.statutAjustement === 'IGNOREE' && <Badge variant="neutral">Ignoré</Badge>}
                       {ligne.statutAjustement === 'EN_ATTENTE' && ligne.ecart !== null && ligne.ecart !== 0 && (
                         <>

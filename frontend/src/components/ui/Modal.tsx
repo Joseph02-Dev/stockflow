@@ -40,7 +40,7 @@ export function Modal({ ouvert, onFermer, titre, description, children, pied }: 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-secondary/40"
+        className="absolute inset-0 bg-ink-900/50"
         onClick={onFermer}
         aria-hidden="true"
       />
@@ -51,18 +51,18 @@ export function Modal({ ouvert, onFermer, titre, description, children, pied }: 
         aria-modal="true"
         aria-label={titre}
         tabIndex={-1}
-        className="relative w-full max-w-md rounded-(--radius-modal) bg-surface shadow-lg"
+        className="relative w-full max-w-md rounded-xl bg-surface shadow-pop"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-rule px-5 py-4">
           <div>
-            <h2 className="font-semibold text-text-primary">{titre}</h2>
-            {description && <p className="mt-0.5 text-sm text-text-secondary">{description}</p>}
+            <h2 className="text-panneau text-ink-900">{titre}</h2>
+            {description && <p className="mt-0.5 text-corps text-steel-500">{description}</p>}
           </div>
           <button
             type="button"
             onClick={onFermer}
             aria-label="Fermer"
-            className="rounded-(--radius-button) p-1 text-text-secondary transition-colors hover:bg-background hover:text-text-primary"
+            className="rounded-md p-1 text-steel-500 transition-colors hover:bg-paper hover:text-ink-900"
           >
             <X className="size-5" aria-hidden="true" />
           </button>
@@ -71,7 +71,7 @@ export function Modal({ ouvert, onFermer, titre, description, children, pied }: 
         <div className="px-5 py-4">{children}</div>
 
         {pied && (
-          <div className="flex justify-end gap-2 border-t border-border-subtle px-5 py-4">{pied}</div>
+          <div className="flex justify-end gap-2 border-t border-rule px-5 py-4">{pied}</div>
         )}
       </div>
     </div>

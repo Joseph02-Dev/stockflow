@@ -313,7 +313,7 @@ export function ProduitFormPage() {
                 <h2 className="font-semibold text-text-primary">Tarification</h2>
                 <p className="text-sm text-text-secondary">Montants en francs guinéens (GNF), hors taxes</p>
               </div>
-              {marge !== null && <Badge variant={marge >= 0 ? 'success' : 'error'}>Marge {marge}%</Badge>}
+              {marge !== null && <Badge variant={marge >= 0 ? 'ok' : 'rupture'}>Marge {marge}%</Badge>}
             </div>
             <div className="flex flex-col gap-4 p-5">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

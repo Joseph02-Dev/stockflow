@@ -17,12 +17,12 @@ interface Commande {
   _count: { lignes: number };
 }
 
-const STATUTS: Record<Commande['statut'], { libelle: string; variant: 'neutral' | 'warning' | 'success' | 'error' }> =
+const STATUTS: Record<Commande['statut'], { libelle: string; variant: 'neutral' | 'faible' | 'ok' | 'rupture' }> =
   {
     BROUILLON: { libelle: 'Brouillon', variant: 'neutral' },
-    ENVOYEE: { libelle: 'Envoyée', variant: 'warning' },
-    RECUE: { libelle: 'Reçue', variant: 'success' },
-    ANNULEE: { libelle: 'Annulée', variant: 'error' },
+    ENVOYEE: { libelle: 'Envoyée', variant: 'faible' },
+    RECUE: { libelle: 'Reçue', variant: 'ok' },
+    ANNULEE: { libelle: 'Annulée', variant: 'rupture' },
   };
 
 export function CommandesPage() {

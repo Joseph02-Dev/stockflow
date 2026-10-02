@@ -93,7 +93,7 @@ export function InventairesTab({ emplacements }: { emplacements: Emplacement[] |
                       </p>
                     </div>
                   </div>
-                  <Badge variant={inv.statut === 'EN_COURS' ? 'warning' : 'success'}>
+                  <Badge variant={inv.statut === 'EN_COURS' ? 'faible' : 'ok'}>
                     {inv.statut === 'EN_COURS' ? 'En cours' : 'Terminé'}
                   </Badge>
                 </button>

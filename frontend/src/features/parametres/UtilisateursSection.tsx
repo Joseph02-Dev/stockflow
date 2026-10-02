@@ -120,7 +120,7 @@ export function UtilisateursSection() {
                 </div>
 
                 <div className="flex shrink-0 items-center gap-3">
-                  <Badge variant={utilisateur.role === 'ADMIN' ? 'info' : 'neutral'}>
+                  <Badge variant={utilisateur.role === 'ADMIN' ? 'action' : 'neutral'}>
                     {utilisateur.role === 'ADMIN' ? 'Administrateur' : 'Gestionnaire'}
                   </Badge>
                   <select
