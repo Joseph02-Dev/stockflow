@@ -14,7 +14,14 @@ import {
 } from './console-test.utils.js';
 
 // Complétée à chaque nouvelle route console : toutes doivent refuser un token client.
-const ROUTES_CONSOLE_PROTEGEES = ['/console/auth/moi'];
+const ROUTES_CONSOLE_PROTEGEES = [
+  '/console/auth/moi',
+  '/console/apercu',
+  '/console/entreprises',
+  '/console/entreprises/00000000-0000-4000-8000-000000000000',
+  '/console/entreprises/00000000-0000-4000-8000-000000000000/stock',
+  '/console/entreprises/00000000-0000-4000-8000-000000000000/mouvements',
+];
 
 describe('Console — authentification opérateur séparée (intégration réelle)', () => {
   let app: INestApplication;

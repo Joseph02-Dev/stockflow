@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConsoleAuthController } from './console-auth.controller.js';
 import { ConsoleAuthService } from './console-auth.service.js';
+import { ConsoleEntreprisesController } from './console-entreprises.controller.js';
+import { ConsoleEntreprisesService } from './console-entreprises.service.js';
 import { JournalService } from './journal.service.js';
 import { ConsoleGuard } from './securite/console.guard.js';
 import { consoleJwtProvider } from './securite/console-jwt.js';
@@ -12,7 +14,7 @@ import { consoleJwtProvider } from './securite/console-jwt.js';
  * les données métier : il consulte, il suspend, rien d'autre.
  */
 @Module({
-  controllers: [ConsoleAuthController],
-  providers: [consoleJwtProvider, ConsoleGuard, JournalService, ConsoleAuthService],
+  controllers: [ConsoleAuthController, ConsoleEntreprisesController],
+  providers: [consoleJwtProvider, ConsoleGuard, JournalService, ConsoleAuthService, ConsoleEntreprisesService],
 })
 export class ConsoleModule {}
