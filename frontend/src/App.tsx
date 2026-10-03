@@ -31,6 +31,8 @@ import { LoadingState } from '@/components/patterns/States';
 // Console opérateur : chargée à la demande, jamais embarquée dans le
 // bundle de l'application cliente.
 const ConsoleApp = lazy(() => import('@/features/console/ConsoleApp'));
+// Écran d'import : lui seul embarque la lecture des CSV et des fichiers Excel.
+const ImportPage = lazy(() => import('@/features/import/ImportPage').then((m) => ({ default: m.ImportPage })));
 
 /** Redirige vers la connexion si aucune session valide n'est présente. */
 function RouteProtegee() {
@@ -82,6 +84,14 @@ export function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/produits" element={<ProduitsPage />} />
           <Route path="/produits/nouveau" element={<ProduitFormPage />} />
+          <Route
+            path="/produits/import"
+            element={
+              <Suspense fallback={<LoadingState variante="page" />}>
+                <ImportPage />
+              </Suspense>
+            }
+          />
           <Route path="/produits/:id" element={<ProduitFormPage />} />
           <Route path="/stock" element={<StockPage />} />
           <Route path="/inventaires/:id" element={<InventaireDetailPage />} />

@@ -15,8 +15,17 @@ export default defineConfig({
         // isolées dans leur propre fichier, elles restent en cache
         // navigateur d'un déploiement à l'autre et le bundle applicatif
         // repasse sous le seuil d'alerte de 500 kB.
+        // La lecture des fichiers d'import (CSV, Excel) ne sert qu'à
+        // l'écran d'import, chargé à la demande : elle a son propre fichier.
         codeSplitting: {
-          groups: [{ name: 'vendor', test: /node_modules/ }],
+          groups: [
+            {
+              name: 'lecture-fichiers',
+              test: /node_modules[\\/](papaparse|read-excel-file|fflate|saxen|unzipper-esm|worker-f)[\\/]/,
+              priority: 2,
+            },
+            { name: 'vendor', test: /node_modules/, priority: 1 },
+          ],
         },
       },
     },

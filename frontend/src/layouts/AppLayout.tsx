@@ -90,21 +90,23 @@ function filAriane(chemin: string, recherche: string): { libelle: string; to?: s
 
   const parent = racine === 'inventaires' ? '/stock' : `/${racine}`;
   const libelleDetail =
-    detail === 'nouveau' || detail === 'nouvelle'
-      ? racine === 'commandes'
-        ? 'Nouvelle commande'
-        : racine === 'ventes'
-          ? 'Nouvelle vente'
-          : 'Nouveau produit'
-      : (
-          {
-            inventaires: 'Inventaire',
-            commandes: 'Commande',
-            fournisseurs: 'Fournisseur',
-            ventes: 'Vente',
-            produits: 'Fiche produit',
-          } as Record<string, string>
-        )[racine] ?? 'Fiche';
+    detail === 'import'
+      ? 'Importer un catalogue'
+      : detail === 'nouveau' || detail === 'nouvelle'
+        ? racine === 'commandes'
+          ? 'Nouvelle commande'
+          : racine === 'ventes'
+            ? 'Nouvelle vente'
+            : 'Nouveau produit'
+        : (
+            {
+              inventaires: 'Inventaire',
+              commandes: 'Commande',
+              fournisseurs: 'Fournisseur',
+              ventes: 'Vente',
+              produits: 'Fiche produit',
+            } as Record<string, string>
+          )[racine] ?? 'Fiche';
   return [{ libelle: section, to: parent }, { libelle: libelleDetail }];
 }
 

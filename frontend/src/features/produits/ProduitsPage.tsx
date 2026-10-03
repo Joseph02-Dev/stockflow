@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { Archive, Download, MapPin, Pencil, Plus, Search } from 'lucide-react';
+import { Archive, Download, MapPin, Pencil, Plus, Search, Upload } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { exporterCsv } from '@/lib/exporterCsv';
 import { Button } from '@/components/ui/Button';
@@ -158,6 +158,10 @@ export function ProduitsPage() {
             >
               <Download className="size-4" aria-hidden="true" />
               Exporter CSV
+            </Button>
+            <Button variant="secondary" onClick={() => navigate('/produits/import')}>
+              <Upload className="size-4" aria-hidden="true" />
+              Importer
             </Button>
             <Button onClick={() => navigate('/produits/nouveau')}>
               <Plus className="size-4" aria-hidden="true" />

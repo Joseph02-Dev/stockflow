@@ -4,13 +4,19 @@
  */
 export const BOM_UTF8 = '﻿';
 
-export function ligneCsv(valeurs: (string | number)[]): string {
+/** Séparateur « ; » : celui qu'attend Excel en configuration française. */
+export function ligneCsv(
+  valeurs: (string | number)[],
+  separateur: ',' | ';' = ',',
+): string {
   return (
     valeurs
       .map((valeur) => {
         const texte = String(valeur);
-        return /[",\n]/.test(texte) ? `"${texte.replace(/"/g, '""')}"` : texte;
+        return /["\n]/.test(texte) || texte.includes(separateur)
+          ? `"${texte.replace(/"/g, '""')}"`
+          : texte;
       })
-      .join(',') + '\r\n'
+      .join(separateur) + '\r\n'
   );
 }
