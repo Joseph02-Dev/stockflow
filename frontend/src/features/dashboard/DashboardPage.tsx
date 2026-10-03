@@ -44,11 +44,17 @@ interface AlerteActive {
   };
 }
 
-interface LigneStock {
-  produitId: string;
-  quantite: number;
-  produit: { prixAchat: number | null };
-  emplacement: { nom: string };
+/** Indicateurs calculés par la base (GET /dashboard/indicateurs). */
+interface Indicateurs {
+  valeurImmobilisee: number;
+  lignesSansPrix: number;
+  serieValeur: number[];
+  mouvementsSemaine: number;
+  mouvementsSemainePrecedente: number;
+  delaiFournisseurMoyen: number | null;
+  nombreDelais: number;
+  commandesEnRoute: number;
+  stockProduitsEnAlerte: { produitId: string; quantite: number; emplacementBas: string | null }[];
 }
 
 interface Mouvement {
@@ -62,29 +68,7 @@ interface Mouvement {
   emplacementDestination: { nom: string } | null;
 }
 
-interface Commande {
-  id: string;
-  statut: 'BROUILLON' | 'ENVOYEE' | 'RECUE' | 'ANNULEE';
-}
-
-interface Fournisseur {
-  id: string;
-  delaiLivraisonJours: number | null;
-}
-
-const JOUR_MS = 24 * 60 * 60 * 1000;
 const NB_BARRES = 9;
-
-/** Effet d'un mouvement sur la quantité totale d'un produit (tous emplacements). */
-function variationQuantite(m: Mouvement): number {
-  if (m.type === 'ENTREE') return m.quantite;
-  if (m.type === 'SORTIE') return -m.quantite;
-  // Un ajustement d'inventaire enregistre l'écart, déjà signé ; un
-  // transfert ne change pas le total, seulement sa répartition.
-  if (m.type === 'AJUSTEMENT') return m.quantite;
-  return 0;
-}
-
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -100,85 +84,29 @@ export function DashboardPage() {
     queryKey: ['alertes', 'ACTIVE'],
     queryFn: async () => (await api.get<AlerteActive[]>('/alertes?statut=ACTIVE')).data,
   });
-  const stock = useQuery({
-    queryKey: ['stock', ''],
-    queryFn: async () => (await api.get<LigneStock[]>('/stock?')).data,
+  // Les agrégats (valeur, série, semaines, délais, stock des produits en
+  // alerte) sont calculés par la base : le navigateur ne télécharge plus
+  // ni tout le stock ni tout l'historique des mouvements.
+  const indicateurs = useQuery({
+    queryKey: ['dashboard', 'indicateurs'],
+    queryFn: async () => (await api.get<Indicateurs>('/dashboard/indicateurs')).data,
   });
   const mouvements = useQuery({
-    queryKey: ['mouvements', ''],
-    queryFn: async () => (await api.get<Mouvement[]>('/mouvements?')).data,
-  });
-  const commandes = useQuery({
-    queryKey: ['commandes'],
-    queryFn: async () => (await api.get<Commande[]>('/commandes')).data,
-  });
-  const fournisseurs = useQuery({
-    queryKey: ['fournisseurs'],
-    queryFn: async () => (await api.get<Fournisseur[]>('/fournisseurs')).data,
+    queryKey: ['mouvements', 'recents'],
+    queryFn: async () => (await api.get<Mouvement[]>('/mouvements?limite=7')).data,
   });
 
-  // Instant de référence = dernière récupération des mouvements : stable
-  // d'un rendu à l'autre, et cohérent avec les données affichées.
-  const maintenant = mouvements.dataUpdatedAt || stock.dataUpdatedAt;
+  // Instant de référence des « il y a … » : dernière récupération, stable
+  // d'un rendu à l'autre.
+  const maintenant = mouvements.dataUpdatedAt || indicateurs.dataUpdatedAt;
 
   const calculs = useMemo(() => {
-    const lignesStock = stock.data ?? [];
-    const listeMouvements = mouvements.data ?? [];
-
-    // Quantité totale et emplacement le plus bas, par produit.
-    const parProduit = new Map<string, { quantite: number; emplacementBas?: { nom: string; quantite: number } }>();
-    const prixAchat = new Map<string, number>();
-    let valeur = 0;
-    let sansPrix = 0;
-    for (const ligne of lignesStock) {
-      const courant = parProduit.get(ligne.produitId) ?? { quantite: 0 };
-      courant.quantite += ligne.quantite;
-      if (!courant.emplacementBas || ligne.quantite < courant.emplacementBas.quantite) {
-        courant.emplacementBas = { nom: ligne.emplacement.nom, quantite: ligne.quantite };
-      }
-      parProduit.set(ligne.produitId, courant);
-      if (ligne.produit.prixAchat == null) {
-        if (ligne.quantite > 0) sansPrix += 1;
-      } else {
-        prixAchat.set(ligne.produitId, ligne.produit.prixAchat);
-        valeur += ligne.quantite * ligne.produit.prixAchat;
-      }
-    }
-
-    // Sparkline : valeur immobilisée en fin de journée sur 9 jours,
-    // reconstituée à rebours depuis la valeur actuelle en annulant les
-    // mouvements de chaque jour (au prix d'achat actuel).
-    const finDuJour = new Date(maintenant);
-    finDuJour.setHours(23, 59, 59, 999);
-    const serie: number[] = [];
-    let valeurCourante = valeur;
-    for (let i = 0; i < NB_BARRES; i += 1) {
-      serie.unshift(valeurCourante);
-      const debut = finDuJour.getTime() - (i + 1) * JOUR_MS;
-      const fin = finDuJour.getTime() - i * JOUR_MS;
-      for (const m of listeMouvements) {
-        const t = new Date(m.createdAt).getTime();
-        if (t > debut && t <= fin) {
-          valeurCourante -= variationQuantite(m) * (prixAchat.get(m.produitId) ?? 0);
-        }
-      }
-    }
-
-    const semaine = listeMouvements.filter((m) => maintenant - new Date(m.createdAt).getTime() <= 7 * JOUR_MS).length;
-    const semainePrecedente = listeMouvements.filter((m) => {
-      const age = maintenant - new Date(m.createdAt).getTime();
-      return age > 7 * JOUR_MS && age <= 14 * JOUR_MS;
-    }).length;
-
-    const delais = (fournisseurs.data ?? [])
-      .map((f) => f.delaiLivraisonJours)
-      .filter((d): d is number => d != null);
-    const delaiMoyen = delais.length > 0 ? delais.reduce((a, b) => a + b, 0) / delais.length : null;
-
+    const ind = indicateurs.data;
+    const parProduit = new Map((ind?.stockProduitsEnAlerte ?? []).map((l) => [l.produitId, l]));
     const aReapprovisionner = (alertes.data ?? [])
       .map((alerte) => {
         const infos = parProduit.get(alerte.produit.id);
-        return { alerte, quantite: infos?.quantite ?? 0, emplacement: infos?.emplacementBas?.nom };
+        return { alerte, quantite: infos?.quantite ?? 0, emplacement: infos?.emplacementBas ?? undefined };
       })
       // Ruptures d'abord, puis les produits les plus loin de leur seuil.
       .sort(
@@ -187,20 +115,19 @@ export function DashboardPage() {
       );
 
     return {
-      valeur,
-      sansPrix,
-      serie,
-      semaine,
-      ecartSemaine: semaine - semainePrecedente,
-      delaiMoyen,
-      nbDelais: delais.length,
+      valeur: ind?.valeurImmobilisee ?? 0,
+      sansPrix: ind?.lignesSansPrix ?? 0,
+      serie: ind?.serieValeur ?? Array<number>(NB_BARRES).fill(0),
+      ecartSemaine: (ind?.mouvementsSemaine ?? 0) - (ind?.mouvementsSemainePrecedente ?? 0),
+      delaiMoyen: ind?.delaiFournisseurMoyen ?? null,
+      nbDelais: ind?.nombreDelais ?? 0,
       aReapprovisionner,
       ruptures: aReapprovisionner.filter((l) => l.quantite <= 0).length,
-      enRoute: (commandes.data ?? []).filter((c) => c.statut === 'ENVOYEE').length,
+      enRoute: ind?.commandesEnRoute ?? 0,
     };
-  }, [stock.data, mouvements.data, fournisseurs.data, alertes.data, commandes.data, maintenant]);
+  }, [indicateurs.data, alertes.data]);
 
-  if (overview.isLoading || alertes.isLoading || stock.isLoading) return <SqueletteTableauDeBord />;
+  if (overview.isLoading || alertes.isLoading || indicateurs.isLoading) return <SqueletteTableauDeBord />;
   if (overview.isError) {
     return <ErrorState message={messageErreur(overview.error)} onRetry={() => overview.refetch()} />;
   }

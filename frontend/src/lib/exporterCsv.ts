@@ -1,3 +1,5 @@
+import { api } from './api';
+
 interface ColonneCsv<T> {
   entete: string;
   valeur: (ligne: T) => string | number;
@@ -31,6 +33,23 @@ export function exporterCsv<T>(nomFichier: string, colonnes: ColonneCsv<T>[], li
   const blob = new Blob([BOM_UTF8 + contenu], { type: 'text/csv;charset=utf-8;' });
 
   const url = URL.createObjectURL(blob);
+  const lien = document.createElement('a');
+  lien.href = url;
+  lien.download = nomFichier;
+  document.body.appendChild(lien);
+  lien.click();
+  document.body.removeChild(lien);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Télécharge un export produit par le serveur (ex. tout l'historique des
+ * mouvements) : une seule requête, le fichier est généré en flux côté
+ * serveur au lieu d'être reconstitué page par page dans le navigateur.
+ */
+export async function telechargerExport(chemin: string, nomFichier: string): Promise<void> {
+  const reponse = await api.get<Blob>(chemin, { responseType: 'blob' });
+  const url = URL.createObjectURL(reponse.data);
   const lien = document.createElement('a');
   lien.href = url;
   lien.download = nomFichier;

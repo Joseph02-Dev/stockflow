@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Download, Plus } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
-import { exporterCsv } from '@/lib/exporterCsv';
+import { exporterCsv, telechargerExport } from '@/lib/exporterCsv';
+import { pageSuivante, urlPage } from '@/lib/pagination';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card, PageHeader } from '@/components/patterns/Page';
@@ -75,15 +76,19 @@ export function StockPage() {
     enabled: actifVisible === 'stock',
   });
 
-  const mouvements = useQuery({
+  const filtresMouvements = new URLSearchParams(emplacementFiltre ? { emplacement_id: emplacementFiltre } : {});
+  // Historique par pages de 50 (« Afficher plus ») : il grossit chaque
+  // jour, on ne le télécharge jamais en entier pour l'afficher.
+  const mouvements = useInfiniteQuery({
     queryKey: ['mouvements', emplacementFiltre],
-    queryFn: async () => {
-      const p = new URLSearchParams();
-      if (emplacementFiltre) p.set('emplacement_id', emplacementFiltre);
-      return (await api.get<Mouvement[]>(`/mouvements?${p.toString()}`)).data;
-    },
+    queryFn: async ({ pageParam }) =>
+      (await api.get<Mouvement[]>(urlPage('/mouvements', filtresMouvements, pageParam))).data,
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (derniere) => pageSuivante(derniere),
     enabled: actifVisible === 'mouvements',
   });
+  const listeMouvements = mouvements.data?.pages.flat() ?? [];
+  const [exportEnCours, setExportEnCours] = useState(false);
 
   const dateHeure = (iso: string) =>
     new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -102,8 +107,9 @@ export function StockPage() {
             <>
               <Button
                 variant="secondary"
-                disabled={actifVisible === 'stock' ? !stock.data?.length : !mouvements.data?.length}
-                onClick={() => {
+                disabled={actifVisible === 'stock' ? !stock.data?.length : listeMouvements.length === 0}
+                loading={exportEnCours}
+                onClick={async () => {
                   const date = new Date().toISOString().slice(0, 10);
                   if (actifVisible === 'stock' && stock.data) {
                     exporterCsv(
@@ -120,30 +126,14 @@ export function StockPage() {
                       ],
                       stock.data,
                     );
-                  } else if (mouvements.data) {
-                    exporterCsv(
+                  } else if (listeMouvements.length > 0) {
+                    // L'export porte sur TOUT l'historique filtré, pas seulement
+                    // les pages affichées : fichier généré par le serveur.
+                    setExportEnCours(true);
+                    await telechargerExport(
+                      `/mouvements/export?${filtresMouvements.toString()}`,
                       `mouvements-${date}.csv`,
-                      [
-                        {
-                          entete: 'Date',
-                          valeur: (m: Mouvement) => new Date(m.createdAt).toLocaleDateString('fr-FR'),
-                        },
-                        { entete: 'Type', valeur: (m: Mouvement) => presentationMouvement[m.type].libelle },
-                        { entete: 'Produit', valeur: (m: Mouvement) => m.produit.nom },
-                        { entete: 'Emplacement', valeur: (m: Mouvement) => m.emplacement.nom },
-                        {
-                          entete: 'Emplacement destination',
-                          valeur: (m: Mouvement) => m.emplacementDestination?.nom ?? '',
-                        },
-                        { entete: 'Quantité', valeur: (m: Mouvement) => m.quantite },
-                        { entete: 'Utilisateur', valeur: (m: Mouvement) => m.utilisateur.nom },
-                        {
-                          entete: 'Fournisseur',
-                          valeur: (m: Mouvement) => m.fournisseur?.nom ?? '',
-                        },
-                      ],
-                      mouvements.data,
-                    );
+                    ).finally(() => setExportEnCours(false));
                   }
                 }}
               >
@@ -275,7 +265,7 @@ export function StockPage() {
               <LoadingState />
             ) : mouvements.isError ? (
               <ErrorState message={messageErreur(mouvements.error)} onRetry={() => mouvements.refetch()} />
-            ) : mouvements.data && mouvements.data.length > 0 ? (
+            ) : listeMouvements.length > 0 ? (
               <>
                 <table className={cn(tableau.table, 'hidden md:table')}>
                   <thead className={tableau.thead}>
@@ -288,7 +278,7 @@ export function StockPage() {
                     </tr>
                   </thead>
                   <tbody className={tableau.tbody}>
-                    {mouvements.data.map((mouvement) => {
+                    {listeMouvements.map((mouvement) => {
                       const p = presentationMouvement[mouvement.type];
                       return (
                         <tr key={mouvement.id} className={tableau.tr}>
@@ -324,7 +314,7 @@ export function StockPage() {
                   </tbody>
                 </table>
                 <ul className="divide-y divide-rule md:hidden">
-                  {mouvements.data.map((mouvement) => {
+                  {listeMouvements.map((mouvement) => {
                     const p = presentationMouvement[mouvement.type];
                     return (
                       <li key={mouvement.id} className="flex items-center gap-3 px-4 py-3">
@@ -350,6 +340,13 @@ export function StockPage() {
                     );
                   })}
                 </ul>
+                {mouvements.hasNextPage && (
+                  <div className="flex justify-center border-t border-rule p-3">
+                    <Button variant="secondary" loading={mouvements.isFetchingNextPage} onClick={() => mouvements.fetchNextPage()}>
+                      Afficher plus de mouvements
+                    </Button>
+                  </div>
+                )}
               </>
             ) : (
               <EmptyState

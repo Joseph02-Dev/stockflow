@@ -5,9 +5,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
 import { AlerteNotificationService } from '../alertes/alerte-notification.service.js';
+import {
+  ORDRE_RECENT_DABORD,
+  type Pagination,
+} from '../../common/pagination/pagination.js';
 import type { EntreeStockDto } from './dto/entree-stock.dto.js';
 import type { SortieStockDto } from './dto/sortie-stock.dto.js';
 import type { TransfertStockDto } from './dto/transfert-stock.dto.js';
+import { ligneCsv } from '../../common/pagination/csv.js';
 
 /** Client Prisma d'une transaction en cours. */
 export type TransactionPrisma = Parameters<
@@ -339,9 +344,14 @@ export class MouvementsService {
   }
 
   /** MVT-003 — Historique des mouvements, filtrable. */
+  /**
+   * Historique paginé (curseur), du plus récent au plus ancien : jamais
+   * tout l'historique d'un coup — il grossit chaque jour.
+   */
   async listerMouvements(
     entrepriseId: string,
     filtres: { produitId?: string; emplacementId?: string },
+    pagination: Pagination,
   ) {
     return this.prisma.mouvement.findMany({
       where: {
@@ -370,11 +380,69 @@ export class MouvementsService {
         utilisateur: { select: { id: true, nom: true } },
         fournisseur: { select: { id: true, nom: true } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: ORDRE_RECENT_DABORD,
+      ...pagination,
     });
   }
 
   /** MVT-004 — Stock actuel par emplacement, filtrable. */
+  /**
+   * Export CSV de TOUT l'historique filtré, produit en flux continu par lots
+   * de 2 000 : une seule requête HTTP, mémoire constante côté serveur,
+   * quel que soit le volume (200 000 mouvements ≈ 20 Mo de CSV).
+   */
+  async exporterMouvements(
+    entrepriseId: string,
+    filtres: { produitId?: string; emplacementId?: string },
+    ecrire: (morceau: string) => Promise<void>,
+  ) {
+    const LIBELLES = {
+      ENTREE: 'Entrée',
+      SORTIE: 'Sortie',
+      TRANSFERT: 'Transfert',
+      AJUSTEMENT: 'Ajustement',
+    } as const;
+    await ecrire(
+      ligneCsv([
+        'Date',
+        'Type',
+        'Produit',
+        'Emplacement',
+        'Emplacement destination',
+        'Quantité',
+        'Utilisateur',
+        'Fournisseur',
+      ]),
+    );
+    let apres: string | undefined;
+    for (;;) {
+      const lot = await this.listerMouvements(entrepriseId, filtres, {
+        take: 2000,
+        ...(apres ? { cursor: { id: apres }, skip: 1 } : {}),
+      });
+      if (lot.length > 0) {
+        await ecrire(
+          lot
+            .map((m) =>
+              ligneCsv([
+                m.createdAt.toLocaleDateString('fr-FR'),
+                LIBELLES[m.type],
+                m.produit.nom,
+                m.emplacement.nom,
+                m.emplacementDestination?.nom ?? '',
+                m.quantite,
+                m.utilisateur.nom,
+                m.fournisseur?.nom ?? '',
+              ]),
+            )
+            .join(''),
+        );
+      }
+      if (lot.length < 2000) return;
+      apres = lot[lot.length - 1].id;
+    }
+  }
+
   async listerStock(
     entrepriseId: string,
     filtres: { produitId?: string; emplacementId?: string },
@@ -385,7 +453,31 @@ export class MouvementsService {
         produitId: filtres.produitId,
         emplacementId: filtres.emplacementId,
       },
-      include: { produit: true, emplacement: true },
+      // Seuls les champs lus par les écrans (stock, produits, alertes,
+      // vente) : la fiche produit complète (description, code-barre…)
+      // n'a rien à faire dans chaque ligne de stock.
+      select: {
+        produitId: true,
+        emplacementId: true,
+        quantite: true,
+        produit: {
+          select: {
+            id: true,
+            nom: true,
+            reference: true,
+            seuilAlerte: true,
+            photoUrl: true,
+            uniteMesure: true,
+            prixAchat: true,
+            prixVente: true,
+            prixGros: true,
+            prixDemiGros: true,
+            tauxTva: true,
+            archive: true,
+          },
+        },
+        emplacement: { select: { id: true, nom: true } },
+      },
     });
   }
 

@@ -1,7 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { ChevronRight, Plus } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
+import { pageSuivante, urlPage } from '@/lib/pagination';
+import { Button } from '@/components/ui/Button';
 import { dateCourte, dateHeure, gnf } from '@/lib/montant';
 import { pluriel } from '@/lib/format';
 import { cn } from '@/lib/cn';
@@ -21,11 +23,14 @@ function Statut({ vente }: { vente: VenteResume }) {
 }
 
 export function VentesPage() {
-  const { data, isLoading, isError, error, refetch } = useQuery({
+  // Historique par pages de 50 (« Afficher plus ») : jamais toutes les ventes d'un coup.
+  const { data, isLoading, isError, error, refetch, hasNextPage, fetchNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['ventes', 'liste'],
-    queryFn: async () => (await api.get<VenteResume[]>('/ventes')).data,
+    queryFn: async ({ pageParam }) => (await api.get<VenteResume[]>(urlPage('/ventes', new URLSearchParams(), pageParam))).data,
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (derniere) => pageSuivante(derniere),
   });
-  const ventes = data ?? [];
+  const ventes = data?.pages.flat() ?? [];
 
   return (
     <div className="flex flex-col gap-5">
@@ -57,7 +62,10 @@ export function VentesPage() {
           />
         ) : (
           <>
-            <PanneauEntete titre={`${ventes.length} ${pluriel('vente', ventes.length)}`} meta="Les plus récentes d’abord" />
+            <PanneauEntete
+              titre={hasNextPage ? `${ventes.length} dernières ventes` : `${ventes.length} ${pluriel('vente', ventes.length)}`}
+              meta="Les plus récentes d’abord"
+            />
             <ul className="divide-y divide-rule">
               {ventes.map((v) => (
                 <li key={v.id}>
@@ -87,6 +95,13 @@ export function VentesPage() {
                 </li>
               ))}
             </ul>
+            {hasNextPage && (
+              <div className="flex justify-center border-t border-rule p-3">
+                <Button variant="secondary" loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
+                  Afficher plus de ventes
+                </Button>
+              </div>
+            )}
           </>
         )}
       </Card>
