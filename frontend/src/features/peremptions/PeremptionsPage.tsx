@@ -126,7 +126,7 @@ export function PeremptionsPage() {
                   )}
                 >
                   <span className="text-meta font-medium text-steel-500">{TRANCHES[t.tranche].libelle}</span>
-                  <span className="text-chiffre text-ink-900">
+                  <span className="text-[22px] leading-7 font-semibold whitespace-nowrap text-ink-900 sm:text-chiffre">
                     {formatNombre(t.valeur)} <span className="text-corps font-medium text-steel-400">GNF</span>
                   </span>
                   <span className="text-meta text-steel-500">
@@ -170,21 +170,21 @@ export function PeremptionsPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 pl-12 sm:pl-0">
-                    <div className="min-w-[96px] text-right">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pl-12 sm:flex-nowrap sm:pl-0">
+                    <div className="text-left sm:min-w-[96px] sm:text-right">
                       <p className="text-corps font-semibold text-ink-900">{gnf(lot.valeur)}</p>
                       <p className="text-meta text-steel-500">
                         {formatNombre(lot.quantite)}{' '}
                         {lot.produit.uniteMesure?.toLocaleLowerCase('fr') ?? pluriel('unité', lot.quantite)}
                       </p>
                     </div>
-                    <div className="min-w-[112px] text-right">
+                    <div className="text-left sm:min-w-[112px] sm:text-right">
                       <p className={cn('text-corps font-semibold', TRANCHES[lot.tranche].texte)}>
                         {libelleJours(lot.joursRestants)}
                       </p>
                       <p className="text-meta text-steel-500">{datePeremption(lot.datePeremption)}</p>
                     </div>
-                    <div className="ml-auto flex w-[150px] justify-end">
+                    <div className="ml-auto flex justify-end sm:w-[150px]">
                       {lot.tranche === 'PERIME' ? (
                         <Button
                           variant="danger"
