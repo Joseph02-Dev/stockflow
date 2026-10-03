@@ -50,6 +50,10 @@ export async function connecterClient(app: INestApplication, email: string) {
 export async function nettoyer(prisma: PrismaService, entrepriseIds: string[], operateurIds: string[]) {
   if (entrepriseIds.length > 0) {
     const where = { entrepriseId: { in: entrepriseIds } };
+    await prisma.inventaireLigne.deleteMany({ where: { inventaire: where } });
+    await prisma.inventaire.deleteMany({ where });
+    await prisma.commandeLigne.deleteMany({ where: { commande: where } });
+    await prisma.commandeFournisseur.deleteMany({ where });
     await prisma.reglement.deleteMany({ where: { vente: where } });
     await prisma.ligneVente.deleteMany({ where: { vente: where } });
     await prisma.vente.deleteMany({ where });
