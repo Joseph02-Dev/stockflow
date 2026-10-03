@@ -26,6 +26,13 @@ enum TypeMouvement {
   PERIME
 }
 
+enum StatutImport {
+  EN_COURS
+  VERIFIE
+  EXECUTE
+  ANNULE
+}
+
 enum StatutInventaire {
   EN_COURS
   TERMINE
@@ -121,6 +128,7 @@ model Entreprise {
   inventaires  Inventaire[]
   commandes    CommandeFournisseur[]
   lots         Lot[]
+  imports      ImportCatalogue[]
 
   @@map("entreprise")
 }
@@ -159,6 +167,7 @@ model Utilisateur {
   commandes                   CommandeFournisseur[]
   reinitialisationsMotDePasse ReinitialisationMotDePasse[]
   verificationsEmail          VerificationEmail[]
+  importsCatalogue            ImportCatalogue[]
 
   @@index([entrepriseId])
   @@map("utilisateur")
@@ -305,10 +314,14 @@ model Produit {
   suiviParLot           Boolean @default(false) @map("suivi_par_lot")
   // Seuil propre au produit, en jours ; null = seuil de l'entreprise.
   seuilAlertePeremption Int?    @map("seuil_alerte_peremption")
+  // Import de catalogue qui a créé ce produit : permet d'annuler l'import
+  // (archivage des produits qu'il a créés).
+  importId              String? @map("import_id")
 
   entreprise           Entreprise           @relation(fields: [entrepriseId], references: [id])
   categorie            Categorie?           @relation(fields: [categorieId], references: [id])
   marque               Marque?              @relation(fields: [marqueId], references: [id])
+  import               ImportCatalogue?     @relation(fields: [importId], references: [id])
   stocks               Stock[]
   mouvements           Mouvement[]
   alertes              Alerte[]
@@ -320,6 +333,7 @@ model Produit {
 
   @@unique([entrepriseId, codeBarre])
   @@index([entrepriseId, nom])
+  @@index([importId])
   @@map("produit")
 }
 
@@ -737,4 +751,53 @@ model Reglement {
 
   @@index([venteId])
   @@map("reglement")
+}
+
+/**
+ * Import de catalogue (CSV / Excel). Le fichier n'est jamais téléversé :
+ * le navigateur l'analyse et envoie ses lignes déjà associées, par lots,
+ * rattachées à cette session. Rien n'est écrit au catalogue avant
+ * l'exécution, faite en une seule transaction.
+ */
+model ImportCatalogue {
+  id               String       @id @default(uuid())
+  entrepriseId     String       @map("entreprise_id")
+  utilisateurId    String       @map("utilisateur_id")
+  nomFichier       String       @map("nom_fichier")
+  statut           StatutImport @default(EN_COURS)
+  lignesTotal      Int          @default(0) @map("lignes_total")
+  lignesCreees     Int          @default(0) @map("lignes_creees")
+  lignesMisesAJour Int          @default(0) @map("lignes_mises_a_jour")
+  lignesIgnorees   Int          @default(0) @map("lignes_ignorees")
+  executeAt        DateTime?    @map("execute_at")
+  annuleAt         DateTime?    @map("annule_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
+
+  entreprise  Entreprise    @relation(fields: [entrepriseId], references: [id])
+  utilisateur Utilisateur   @relation(fields: [utilisateurId], references: [id])
+  lignes      ImportLigne[]
+  produits    Produit[]
+
+  @@index([entrepriseId, createdAt])
+  @@map("import_catalogue")
+}
+
+/**
+ * Ligne reçue d'un import (valeurs brutes déjà associées aux champs).
+ * Conservée après exécution comme journal : produit créé ou mis à jour
+ * et mouvement d'entrée éventuel — c'est ce qui permet de vérifier,
+ * avant une annulation, qu'aucun autre mouvement n'a eu lieu depuis.
+ */
+model ImportLigne {
+  id          String  @id @default(uuid())
+  importId    String  @map("import_id")
+  numero      Int
+  donnees     Json
+  produitId   String? @map("produit_id")
+  mouvementId String? @map("mouvement_id")
+
+  import ImportCatalogue @relation(fields: [importId], references: [id])
+
+  @@unique([importId, numero])
+  @@map("import_ligne")
 }

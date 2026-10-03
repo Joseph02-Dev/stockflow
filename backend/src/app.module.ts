@@ -6,6 +6,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { EntrepriseModule } from './modules/entreprise/entreprise.module.js';
 import { EmplacementsModule } from './modules/emplacements/emplacements.module.js';
 import { ProduitsModule } from './modules/produits/produits.module.js';
+import { ImportModule } from './modules/import/import.module.js';
 import { FournisseursModule } from './modules/fournisseurs/fournisseurs.module.js';
 import { MouvementsModule } from './modules/mouvements/mouvements.module.js';
 import { LotsModule } from './modules/lots/lots.module.js';
@@ -59,6 +60,7 @@ import {
     AuthModule,
     EntrepriseModule,
     EmplacementsModule,
+    ImportModule,
     ProduitsModule,
     FournisseursModule,
     MouvementsModule,
