@@ -1,6 +1,6 @@
-import { ArrowDownToLine, ArrowRightLeft, ArrowUpFromLine, SlidersHorizontal } from 'lucide-react';
+import { ArrowDownToLine, ArrowRightLeft, ArrowUpFromLine, CalendarX2, SlidersHorizontal } from 'lucide-react';
 
-export type TypeMouvement = 'ENTREE' | 'SORTIE' | 'TRANSFERT' | 'AJUSTEMENT';
+export type TypeMouvement = 'ENTREE' | 'SORTIE' | 'TRANSFERT' | 'AJUSTEMENT' | 'PERIME';
 
 /**
  * Grammaire d'un mouvement : marqueur carré (fond -wash + icône), libellé
@@ -19,12 +19,14 @@ export const presentationMouvement: Record<
     fond: 'bg-accent-wash text-accent',
     couleur: 'text-accent',
   },
+  // Perte d'un lot périmé : distincte d'une sortie commerciale.
+  PERIME: { libelle: 'Périmé', Icone: CalendarX2, fond: 'bg-rupture-wash text-rupture', couleur: 'text-rupture' },
 };
 
 /** « +12 », « −5 », « 8 » (transfert : le total ne change pas). */
 export function quantiteSignee(type: TypeMouvement, quantite: number): string {
   if (type === 'ENTREE') return `+${quantite}`;
-  if (type === 'SORTIE') return `−${quantite}`;
+  if (type === 'SORTIE' || type === 'PERIME') return `−${quantite}`;
   // Un ajustement d'inventaire enregistre l'écart, déjà signé.
   if (type === 'AJUSTEMENT') return quantite > 0 ? `+${quantite}` : `−${Math.abs(quantite)}`;
   return String(quantite);

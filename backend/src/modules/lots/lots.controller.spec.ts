@@ -368,4 +368,164 @@ describe('Suivi par lot (FEFO) — intégration réelle, base PostgreSQL', () =>
     expect(await quantiteStock(c.produitId, c.madinaId)).toBe(20);
     expect(await quantiteStock(c.produitId, c.coyahId)).toBe(3);
   });
+
+  describe('Péremptions', () => {
+    it('classe les lots par tranche aux bornes de 7 et 30 jours, avec unités et valeur au prix d’achat', async () => {
+      const c = await contexte({ prixAchat: 1500 });
+      await recevoir(c, 'J-1', 1, dansJours(-1));
+      await recevoir(c, 'J0', 2, dansJours(0));
+      await recevoir(c, 'J7', 3, dansJours(7));
+      await recevoir(c, 'J8', 4, dansJours(8));
+      await recevoir(c, 'J30', 5, dansJours(30));
+      await recevoir(c, 'J31', 6, dansJours(31));
+
+      const resume = await c.api.get('/peremptions');
+      expect(resume.status).toBe(200);
+      expect(resume.body.tranches).toEqual([
+        { tranche: 'PERIME', lots: 1, unites: 1, valeur: 1500 },
+        { tranche: 'MOINS_7', lots: 2, unites: 5, valeur: 7500 },
+        { tranche: 'DE_8_A_30', lots: 2, unites: 9, valeur: 13500 },
+        { tranche: 'PLUS_30', lots: 1, unites: 6, valeur: 9000 },
+      ]);
+      // Seuil de l'entreprise : 30 jours — J31 n'est pas sous surveillance.
+      expect(resume.body.sousSurveillance).toBe(5);
+
+      const liste = await c.api.get('/peremptions/lots');
+      expect(liste.body.map((l: { numero: string }) => l.numero)).toEqual([
+        'J-1',
+        'J0',
+        'J7',
+        'J8',
+        'J30',
+        'J31',
+      ]);
+      expect(
+        liste.body.map((l: { joursRestants: number }) => l.joursRestants),
+      ).toEqual([-1, 0, 7, 8, 30, 31]);
+      expect(liste.body[2]).toMatchObject({
+        tranche: 'MOINS_7',
+        valeur: 4500,
+        emplacement: { nom: 'Dépôt Madina' },
+      });
+
+      const urgents = await c.api.get('/peremptions/lots?tranche=DE_8_A_30');
+      expect(urgents.body.map((l: { numero: string }) => l.numero)).toEqual([
+        'J8',
+        'J30',
+      ]);
+    });
+
+    it('applique le seuil propre au produit plutôt que celui de l’entreprise', async () => {
+      const c = await contexte();
+      await prisma.produit.update({
+        where: { id: c.produitId },
+        data: { seuilAlertePeremption: 60 },
+      });
+      await recevoir(c, 'J45', 1, dansJours(45));
+      await recevoir(c, 'J90', 1, dansJours(90));
+      expect((await c.api.get('/peremptions')).body.sousSurveillance).toBe(1);
+    });
+
+    it('retrouve le fournisseur du lot, même après un transfert', async () => {
+      const c = await contexte();
+      const fournisseur = await c.api.post('/fournisseurs', {
+        nom: 'Riz du Fouta',
+      });
+      await c.api.post('/mouvements/entree', {
+        produitId: c.produitId,
+        emplacementId: c.madinaId,
+        quantite: 10,
+        numeroLot: 'LOT-F',
+        datePeremption: dansJours(20),
+        fournisseurId: fournisseur.body.id,
+      });
+      await c.api.post('/mouvements/transfert', {
+        produitId: c.produitId,
+        emplacementSourceId: c.madinaId,
+        emplacementDestinationId: c.coyahId,
+        quantite: 4,
+      });
+      const liste = await c.api.get('/peremptions/lots');
+      expect(liste.body).toHaveLength(2);
+      for (const lot of liste.body)
+        expect(lot.fournisseur?.nom).toBe('Riz du Fouta');
+    });
+
+    it('sort un lot périmé du stock par un mouvement PERIME ; refuse un lot non périmé', async () => {
+      const c = await contexte();
+      await recevoir(c, 'VIEUX', 6, dansJours(-3));
+      await recevoir(c, 'FRAIS', 4, dansJours(100));
+      const vieux = await prisma.lot.findFirstOrThrow({
+        where: { produitId: c.produitId, numero: 'VIEUX' },
+      });
+      const frais = await prisma.lot.findFirstOrThrow({
+        where: { produitId: c.produitId, numero: 'FRAIS' },
+      });
+
+      expect(
+        (await c.api.post(`/peremptions/lots/${frais.id}/sortir`, {})).status,
+      ).toBe(409);
+
+      const sortie = await c.api.post(
+        `/peremptions/lots/${vieux.id}/sortir`,
+        {},
+      );
+      expect(sortie.status).toBe(201);
+      expect(sortie.body).toMatchObject({
+        type: 'PERIME',
+        quantite: 6,
+        lotId: vieux.id,
+      });
+      expect(
+        (await prisma.lot.findUniqueOrThrow({ where: { id: vieux.id } }))
+          .quantite,
+      ).toBe(0);
+      expect(await quantiteStock(c.produitId, c.madinaId)).toBe(4);
+      await verifierCoherence(c.produitId);
+
+      expect(
+        (await c.api.post(`/peremptions/lots/${vieux.id}/sortir`, {})).status,
+      ).toBe(409);
+    });
+
+    it('isole les lots par entreprise', async () => {
+      const a = await contexte();
+      const b = await contexte();
+      await recevoir(a, 'A-PERIME', 3, dansJours(-2));
+      const lot = await prisma.lot.findFirstOrThrow({
+        where: { produitId: a.produitId },
+      });
+
+      expect((await b.api.get('/peremptions/lots')).body).toEqual([]);
+      expect((await b.api.get('/peremptions')).body.sousSurveillance).toBe(0);
+      expect(
+        (await b.api.post(`/peremptions/lots/${lot.id}/sortir`, {})).status,
+      ).toBe(404);
+      expect((await b.api.get(`/produits/${a.produitId}/lots`)).body).toEqual(
+        [],
+      );
+      expect(
+        (await prisma.lot.findUniqueOrThrow({ where: { id: lot.id } }))
+          .quantite,
+      ).toBe(3);
+    });
+
+    it('liste les lots d’un produit en ordre FEFO et marque celui qui sortira en premier', async () => {
+      const c = await contexte();
+      await recevoir(c, 'B', 2, '2027-06-30');
+      await recevoir(c, 'A', 2, '2027-01-04');
+      const lots = await c.api.get(
+        `/produits/${c.produitId}/lots?emplacement_id=${c.madinaId}`,
+      );
+      expect(
+        lots.body.map((l: { numero: string; sortiraEnPremier: boolean }) => [
+          l.numero,
+          l.sortiraEnPremier,
+        ]),
+      ).toEqual([
+        ['A', true],
+        ['B', false],
+      ]);
+    });
+  });
 });
