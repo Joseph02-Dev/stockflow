@@ -321,6 +321,8 @@ describe('Import de catalogue — intégration réelle, base PostgreSQL', () => 
     expect(messagesDe(rapport, 4)).toEqual([
       'Catégorie « Visserie » inconnue — elle sera créée automatiquement, ou associez-la à une existante',
     ]);
+    // Annoncée une seule fois : la 2e ligne « alimentation » n'est pas répétée.
+    expect(messagesDe(rapport, 5)).toEqual([]);
 
     const options = { categories: { Visserie: quincaillerie.body.id } };
     expect((await verifier(c, id, options)).body.categoriesInconnues).toEqual([
@@ -639,4 +641,17 @@ describe('Import de catalogue — intégration réelle, base PostgreSQL', () => 
     ).toBe(400);
     expect(resultat.dureeMs).toBeLessThan(30_000);
   }, 60_000);
+
+  it('prévient quand un produit du même nom existe sans référence commune', async () => {
+    const c = await contexte();
+    await c.api.post('/produits', { nom: 'Ciment Portland 50 kg' });
+    const id = await envoyer(c, [
+      { nom: 'CIMENT portland 50 kg', reference: 'MAT-0001' },
+    ]);
+    const rapport = (await verifier(c, id)).body;
+    expect(rapport.compteurs).toMatchObject({ aCreer: 1, aCorriger: 1 });
+    expect(messagesDe(rapport, 2)).toEqual([
+      '« Ciment Portland 50 kg » existe déjà au catalogue sans référence ni code-barre commun — un second produit sera créé',
+    ]);
+  });
 });

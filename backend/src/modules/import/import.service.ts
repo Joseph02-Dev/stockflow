@@ -730,7 +730,9 @@ export class ImportService {
     });
     const parReference = new Map<string, typeof produits>();
     const parCode = new Map<string, (typeof produits)[number]>();
+    const parNom = new Map<string, (typeof produits)[number]>();
     for (const p of produits) {
+      if (!p.archive) parNom.set(cleNom(p.nom), p);
       if (p.reference) {
         const cle = p.reference.trim().toLocaleLowerCase('fr');
         parReference.set(cle, [...(parReference.get(cle) ?? []), p]);
@@ -761,7 +763,21 @@ export class ImportService {
         continue;
       }
       const existant = parRef[0] ?? parCb;
-      if (!existant) continue;
+      if (!existant) {
+        // Rapprochement par référence et code-barre seulement : un homonyme
+        // saisi à la main sans référence donnerait un second produit.
+        const homonyme = ligne.valeurs.nom
+          ? parNom.get(cleNom(ligne.valeurs.nom))
+          : undefined;
+        if (homonyme) {
+          ligne.problemes.push({
+            gravite: 'A_VERIFIER',
+            champ: 'nom',
+            message: `« ${homonyme.nom} » existe déjà au catalogue sans référence ni code-barre commun — un second produit sera créé`,
+          });
+        }
+        continue;
+      }
       if (existant.archive) {
         ligne.problemes.push({
           gravite: 'BLOQUANT',
@@ -833,15 +849,14 @@ export class ImportService {
       const cle = cleNom(nom);
       const connue = resolution.get(cle);
       if (connue) {
+        // Annoncée une seule fois, sur sa première ligne : le panneau des
+        // catégories inconnues récapitule le reste.
         connue.lignes++;
-      } else {
-        resolution.set(cle, {
-          id: choixParCle.get(cle) ?? parCle.get(cle) ?? null,
-          nom,
-          lignes: 1,
-        });
+        continue;
       }
-      if (resolution.get(cle)!.id === null) {
+      const id = choixParCle.get(cle) ?? parCle.get(cle) ?? null;
+      resolution.set(cle, { id, nom, lignes: 1 });
+      if (id === null) {
         ligne.problemes.push({
           gravite: 'A_VERIFIER',
           champ,
