@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Card, PageHeader } from '@/components/patterns/Page';
 import { cn } from '@/lib/cn';
 import { ErrorState, LoadingState } from '@/components/patterns/States';
+import { datePeremption } from '@/features/peremptions/presentation';
 
 interface Ligne {
   id: string;
@@ -19,6 +20,9 @@ interface Ligne {
   ecart: number | null;
   statutAjustement: 'EN_ATTENTE' | 'VALIDEE' | 'IGNOREE';
   produit: { nom: string; reference: string | null; uniteMesure: string | null };
+  /** Produit suivi par lot : une ligne par lot. */
+  lotId: string | null;
+  lot: { numero: string; datePeremption: string | null } | null;
 }
 
 interface InventaireDetail {
@@ -54,7 +58,7 @@ function ChampComptage({
       onBlur={sauvegarderSiValide}
       className="h-9 w-24 rounded-md border border-rule-strong bg-surface px-2.5 text-right text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-action"
       placeholder="—"
-      aria-label={`Quantité comptée pour ${ligne.produit.nom}`}
+      aria-label={`Quantité comptée pour ${ligne.produit.nom}${ligne.lot ? `, lot ${ligne.lot.numero}` : ''}`}
     />
   );
 }
@@ -188,6 +192,12 @@ export function InventaireDetailPage() {
               >
                 <div className="min-w-0">
                   <p className="line-clamp-2 text-corps font-medium text-ink-900 md:truncate">{ligne.produit.nom}</p>
+                  {ligne.lot && (
+                    <p className="text-meta text-steel-500">
+                      Lot <span className="font-mono text-ink-900">{ligne.lot.numero}</span>
+                      {ligne.lot.datePeremption && ` · périme le ${datePeremption(ligne.lot.datePeremption)}`}
+                    </p>
+                  )}
                   {ligne.produit.reference && (
                     <p className="font-mono text-meta text-steel-500">{ligne.produit.reference}</p>
                   )}

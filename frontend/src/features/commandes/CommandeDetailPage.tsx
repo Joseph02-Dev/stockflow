@@ -14,12 +14,14 @@ import { pluriel } from '@/lib/format';
 import { STATUTS_COMMANDE } from './statutsCommande';
 import type { StatutCommande } from './statutsCommande';
 import { ErrorState, LoadingState } from '@/components/patterns/States';
+import { Input } from '@/components/ui/Input';
+import { RACCOURCIS_PEREMPTION, dansMois } from '@/features/peremptions/presentation';
 
 interface Ligne {
   id: string;
   produitId: string;
   quantiteCommandee: number;
-  produit: { nom: string; reference: string | null; uniteMesure: string | null };
+  produit: { nom: string; reference: string | null; uniteMesure: string | null; suiviParLot: boolean };
 }
 
 interface CommandeDetail {
@@ -39,6 +41,8 @@ export function CommandeDetailPage() {
   const queryClient = useQueryClient();
   const [erreur, setErreur] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<'envoyer' | 'recevoir' | 'annuler' | null>(null);
+  // Réception : numéro et date du lot reçu, par produit suivi par lot.
+  const [lotsRecus, setLotsRecus] = useState<Record<string, { numeroLot: string; datePeremption: string }>>({});
 
   const commande = useQuery({
     queryKey: ['commande', id],
@@ -52,6 +56,8 @@ export function CommandeDetailPage() {
     queryClient.invalidateQueries({ queryKey: ['mouvements'] });
     queryClient.invalidateQueries({ queryKey: ['alertes'] });
     queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    queryClient.invalidateQueries({ queryKey: ['lots'] });
+    queryClient.invalidateQueries({ queryKey: ['peremptions'] });
   }
 
   const envoyer = useMutation({
@@ -64,7 +70,14 @@ export function CommandeDetailPage() {
   });
 
   const recevoir = useMutation({
-    mutationFn: async () => api.post(`/commandes/${id}/recevoir`),
+    mutationFn: async () =>
+      api.post(`/commandes/${id}/recevoir`, {
+        lots: Object.entries(lotsRecus).map(([produitId, lot]) => ({
+          produitId,
+          numeroLot: lot.numeroLot.trim(),
+          datePeremption: lot.datePeremption,
+        })),
+      }),
     onSuccess: () => {
       invaliderTout();
       setConfirmation(null);
@@ -100,6 +113,15 @@ export function CommandeDetailPage() {
     ANNULEE: [],
   };
   const peutAnnuler = data.statut === 'BROUILLON' || data.statut === 'ENVOYEE';
+  const lignesSuivies = data.lignes.filter((l) => l.produit.suiviParLot);
+  const lotsIncomplets = lignesSuivies.some(
+    (l) => !lotsRecus[l.produitId]?.numeroLot.trim() || !lotsRecus[l.produitId]?.datePeremption,
+  );
+  const saisirLot = (produitId: string, champ: 'numeroLot' | 'datePeremption', valeur: string) =>
+    setLotsRecus((actuels) => ({
+      ...actuels,
+      [produitId]: { ...(actuels[produitId] ?? { numeroLot: '', datePeremption: '' }), [champ]: valeur },
+    }));
 
   const executerConfirmation = () => {
     if (confirmation === 'envoyer') envoyer.mutate();
@@ -257,6 +279,7 @@ export function CommandeDetailPage() {
             <Button
               variant={confirmation === 'annuler' ? 'danger' : 'primary'}
               loading={envoyer.isPending || recevoir.isPending || annuler.isPending}
+              disabled={confirmation === 'recevoir' && lotsIncomplets}
               onClick={executerConfirmation}
             >
               Confirmer
@@ -267,6 +290,42 @@ export function CommandeDetailPage() {
         <p className="text-corps text-steel-500">
           {data.lignes.length} {pluriel('référence', data.lignes.length)} {data.lignes.length > 1 ? 'concernées' : 'concernée'}.
         </p>
+        {confirmation === 'recevoir' && lignesSuivies.length > 0 && (
+          <div className="mt-4 flex flex-col gap-4">
+            <p className="text-corps text-ink-900">Lot reçu pour chaque produit suivi par lot :</p>
+            {lignesSuivies.map((ligne) => (
+              <fieldset key={ligne.id} className="flex flex-col gap-3 rounded-md border border-rule bg-entete-groupe p-3">
+                <legend className="px-1 text-corps font-medium text-ink-900">{ligne.produit.nom}</legend>
+                <Input
+                  label="Numéro de lot"
+                  placeholder="LOT-2601-C"
+                  className="font-mono"
+                  value={lotsRecus[ligne.produitId]?.numeroLot ?? ''}
+                  onChange={(e) => saisirLot(ligne.produitId, 'numeroLot', e.target.value)}
+                />
+                <Input
+                  label="Date de péremption"
+                  type="date"
+                  value={lotsRecus[ligne.produitId]?.datePeremption ?? ''}
+                  onChange={(e) => saisirLot(ligne.produitId, 'datePeremption', e.target.value)}
+                />
+                <div className="flex gap-2" role="group" aria-label={`Raccourcis de péremption pour ${ligne.produit.nom}`}>
+                  {RACCOURCIS_PEREMPTION.map(({ libelle, mois }) => (
+                    <button
+                      key={libelle}
+                      type="button"
+                      onClick={() => saisirLot(ligne.produitId, 'datePeremption', dansMois(mois))}
+                      className="h-9 flex-1 rounded-md border border-rule-strong bg-surface text-corps font-medium text-ink-900 hover:bg-paper"
+                    >
+                      {libelle}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+            ))}
+            {erreur && <Alert variant="error">{erreur}</Alert>}
+          </div>
+        )}
       </Modal>
     </div>
   );

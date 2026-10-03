@@ -5,6 +5,7 @@ import type { RequestContext } from '../../common/context/tenant-context.service
 import { CommandesService } from './commandes.service.js';
 import { CreateCommandeDto } from './dto/create-commande.dto.js';
 import { UpdateCommandeDto } from './dto/update-commande.dto.js';
+import { RecevoirCommandeDto } from './dto/recevoir-commande.dto.js';
 
 @Controller('commandes')
 export class CommandesController {
@@ -48,8 +49,9 @@ export class CommandesController {
     @CurrentTenant() entrepriseId: string,
     @CurrentUser() user: RequestContext,
     @Param('id') id: string,
+    @Body() dto: RecevoirCommandeDto,
   ) {
-    return this.commandesService.recevoir(entrepriseId, user.utilisateurId, id);
+    return this.commandesService.recevoir(entrepriseId, user.utilisateurId, id, dto);
   }
 
   @Post(':id/annuler')

@@ -14,7 +14,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Modal } from '@/components/ui/Modal';
 import { useModules } from '@/lib/useModules';
 import { cn } from '@/lib/cn';
-import { datePeremption as formaterPeremption } from '@/features/peremptions/presentation';
+import { RACCOURCIS_PEREMPTION, dansMois, datePeremption as formaterPeremption } from '@/features/peremptions/presentation';
 import type { LotProduit } from '@/features/peremptions/types';
 
 interface Option {
@@ -25,19 +25,6 @@ interface Option {
 interface OptionProduit extends Option {
   suiviParLot?: boolean;
 }
-
-/** Aujourd'hui + n mois, au format AAAA-MM-JJ (raccourcis de saisie). */
-function dansMois(mois: number): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() + mois);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-const RACCOURCIS_PEREMPTION = [
-  { libelle: '+6 mois', mois: 6 },
-  { libelle: '+1 an', mois: 12 },
-  { libelle: '+2 ans', mois: 24 },
-];
 
 /**
  * Lot après lequel sortira un nouveau lot (FEFO) : le dernier lot daté

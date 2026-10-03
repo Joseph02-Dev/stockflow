@@ -625,4 +625,197 @@ describe('Suivi par lot (FEFO) — intégration réelle, base PostgreSQL', () =>
       ).toBeNull();
     });
   });
+
+  describe('Intégration ventes, inventaires et commandes', () => {
+    it('une vente consomme le bon lot (FEFO) ; son annulation restitue exactement les lots consommés', async () => {
+      const c = await contexte();
+      await recevoir(c, 'TARDIF', 10, '2027-08-01');
+      await recevoir(c, 'URGENT', 3, '2027-01-15');
+
+      const vente = await c.api.post('/ventes', {
+        emplacementId: c.madinaId,
+        lignes: [{ produitId: c.produitId, quantite: 5 }],
+        modePaiement: 'ESPECES',
+      });
+      expect(vente.status).toBe(201);
+      const venteId = (vente.body.vente?.id ?? vente.body.id) as string;
+
+      const sorties = await prisma.mouvement.findMany({
+        where: { venteId, type: 'SORTIE' },
+        include: { lot: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      expect(sorties.map((m) => [m.lot?.numero, m.quantite])).toEqual([
+        ['URGENT', 3],
+        ['TARDIF', 2],
+      ]);
+      await verifierCoherence(c.produitId);
+
+      const annulation = await c.api.post(`/ventes/${venteId}/annuler`, {
+        motif: 'Erreur de saisie',
+      });
+      expect(annulation.status).toBe(201);
+      const lots = await prisma.lot.findMany({
+        where: { produitId: c.produitId },
+      });
+      expect(
+        Object.fromEntries(lots.map((l) => [l.numero, l.quantite])),
+      ).toEqual({ URGENT: 3, TARDIF: 10 });
+      expect(await quantiteStock(c.produitId, c.madinaId)).toBe(13);
+      await verifierCoherence(c.produitId);
+    });
+
+    it('refuse une vente au-delà de l’ensemble des lots, sans rien écrire', async () => {
+      const c = await contexte();
+      await recevoir(c, 'SEUL', 4, '2027-01-15');
+      const vente = await c.api.post('/ventes', {
+        emplacementId: c.madinaId,
+        lignes: [{ produitId: c.produitId, quantite: 5 }],
+        modePaiement: 'ESPECES',
+      });
+      expect(vente.status).toBe(409);
+      expect(
+        await prisma.vente.count({ where: { entrepriseId: c.entrepriseId } }),
+      ).toBe(0);
+      expect(
+        (
+          await prisma.lot.findFirstOrThrow({
+            where: { produitId: c.produitId },
+          })
+        ).quantite,
+      ).toBe(4);
+    });
+
+    it('inventorie lot par lot et ajuste le lot désigné ; un produit sans suivi garde une ligne unique', async () => {
+      const c = await contexte();
+      const sansSuivi = await c.api.post('/produits', { nom: 'Ciment 50 kg' });
+      await c.api.post('/mouvements/entree', {
+        produitId: sansSuivi.body.id,
+        emplacementId: c.madinaId,
+        quantite: 40,
+      });
+      await recevoir(c, 'L-A', 10, '2027-02-01');
+      await recevoir(c, 'L-B', 6, '2027-05-01');
+
+      const inventaire = await c.api.post('/inventaires', {
+        emplacementId: c.madinaId,
+      });
+      expect(inventaire.status).toBe(201);
+      const detail = await c.api.get(`/inventaires/${inventaire.body.id}`);
+      const lignesRiz = detail.body.lignes.filter(
+        (l: { produitId: string }) => l.produitId === c.produitId,
+      );
+      expect(
+        lignesRiz.map(
+          (l: { lot: { numero: string }; quantiteSysteme: number }) => [
+            l.lot.numero,
+            l.quantiteSysteme,
+          ],
+        ),
+      ).toEqual([
+        ['L-A', 10],
+        ['L-B', 6],
+      ]);
+      const ligneCiment = detail.body.lignes.filter(
+        (l: { produitId: string }) => l.produitId === sansSuivi.body.id,
+      );
+      expect(ligneCiment).toHaveLength(1);
+      expect(ligneCiment[0].lotId).toBeNull();
+
+      const ligneB = lignesRiz[1];
+      await c.api.patch(
+        `/inventaires/${inventaire.body.id}/lignes/${ligneB.id}`,
+        { quantiteComptee: 4 },
+      );
+      await c.api.post(`/inventaires/${inventaire.body.id}/terminer`, {});
+      const validation = await c.api.post(
+        `/inventaires/${inventaire.body.id}/lignes/${ligneB.id}/valider`,
+        {},
+      );
+      expect(validation.status).toBe(201);
+      expect(validation.body.ecartApplique).toBe(-2);
+
+      const lots = await prisma.lot.findMany({
+        where: { produitId: c.produitId },
+      });
+      expect(
+        Object.fromEntries(lots.map((l) => [l.numero, l.quantite])),
+      ).toEqual({ 'L-A': 10, 'L-B': 4 });
+      const ajustement = await prisma.mouvement.findFirstOrThrow({
+        where: { produitId: c.produitId, type: 'AJUSTEMENT' },
+      });
+      expect(ajustement).toMatchObject({ quantite: -2, lotId: ligneB.lotId });
+      await verifierCoherence(c.produitId);
+    });
+
+    it('refuse un ajustement sans lot pour un produit devenu suivi par lot', async () => {
+      const c = await contexte({ suiviParLot: false });
+      await c.api.post('/mouvements/entree', {
+        produitId: c.produitId,
+        emplacementId: c.madinaId,
+        quantite: 8,
+      });
+      const inventaire = await c.api.post('/inventaires', {
+        emplacementId: c.madinaId,
+      });
+      const detail = await c.api.get(`/inventaires/${inventaire.body.id}`);
+      const ligne = detail.body.lignes[0];
+      await c.api.patch(
+        `/inventaires/${inventaire.body.id}/lignes/${ligne.id}`,
+        { quantiteComptee: 5 },
+      );
+      await c.api.post(`/inventaires/${inventaire.body.id}/terminer`, {});
+      await c.api.patch(`/produits/${c.produitId}`, { suiviParLot: true });
+
+      const validation = await c.api.post(
+        `/inventaires/${inventaire.body.id}/lignes/${ligne.id}/valider`,
+        {},
+      );
+      expect(validation.status).toBe(409);
+      expect(await quantiteStock(c.produitId, c.madinaId)).toBe(8);
+      await verifierCoherence(c.produitId);
+    });
+
+    it('réception de commande : lot et date exigés pour un produit suivi, rien n’est reçu sans eux', async () => {
+      const c = await contexte();
+      const fournisseur = await c.api.post('/fournisseurs', {
+        nom: 'Riz du Fouta',
+      });
+      const commande = await c.api.post('/commandes', {
+        fournisseurId: fournisseur.body.id,
+        emplacementId: c.madinaId,
+        lignes: [{ produitId: c.produitId, quantiteCommandee: 20 }],
+      });
+      await c.api.post(`/commandes/${commande.body.id}/envoyer`, {});
+
+      const sansLot = await c.api.post(
+        `/commandes/${commande.body.id}/recevoir`,
+        {},
+      );
+      expect(sansLot.status).toBe(400);
+      expect(await quantiteStock(c.produitId, c.madinaId)).toBe(0);
+
+      const reception = await c.api.post(
+        `/commandes/${commande.body.id}/recevoir`,
+        {
+          lots: [
+            {
+              produitId: c.produitId,
+              numeroLot: 'CMD-01',
+              datePeremption: '2027-04-30',
+            },
+          ],
+        },
+      );
+      expect(reception.status).toBe(201);
+      expect(reception.body.statut).toBe('RECUE');
+      const lot = await prisma.lot.findFirstOrThrow({
+        where: { produitId: c.produitId },
+      });
+      expect(lot).toMatchObject({ numero: 'CMD-01', quantite: 20 });
+      const liste = await c.api.get('/peremptions/lots');
+      expect(liste.body[0].fournisseur.nom).toBe('Riz du Fouta');
+      await verifierCoherence(c.produitId);
+    });
+  });
 });
