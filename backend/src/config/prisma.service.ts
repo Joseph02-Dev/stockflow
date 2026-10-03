@@ -11,10 +11,21 @@ import { PrismaClient } from '../generated/prisma/client.js';
  * Prisma 7 exige un adaptateur de driver explicite (plus de connexion
  * implicite depuis une simple chaîne de connexion) — voir @prisma/adapter-pg.
  */
+/**
+ * Connexions ouvertes vers PostgreSQL par processus (DB_POOL_MAX, 10 par
+ * défaut). Le total (processus × instances × DB_POOL_MAX) doit rester
+ * sous le max_connections de la base, en gardant une marge pour les
+ * migrations et l'administration.
+ */
+export function taillePool(): number {
+  const valeur = Number(process.env.DB_POOL_MAX ?? 10);
+  return Number.isInteger(valeur) && valeur > 0 ? valeur : 10;
+}
+
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor() {
-    super({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
+    super({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL, max: taillePool() }) });
   }
 
   async onModuleInit() {

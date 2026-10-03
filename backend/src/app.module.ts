@@ -28,6 +28,7 @@ import { ConsoleModule } from './modules/console/console.module.js';
 import { LimitesModule } from './common/limites/limites.module.js';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { LimitationDebitGuard } from './common/limitation/limitation-debit.guard.js';
+import { StockageLimitation } from './common/limitation/stockage-limitation.js';
 import {
   LIMITATION_ACTIVE,
   LIMITE_GLOBALE,
@@ -37,13 +38,17 @@ import {
 
 @Module({
   imports: [
-    // Stockage en mémoire : suffisant pour une instance unique. Avec
-    // plusieurs réplicas, chaque instance aurait ses propres compteurs.
-    ThrottlerModule.forRoot({
-      throttlers: [{ name: LIMITEUR, ...LIMITE_GLOBALE }],
-      errorMessage: MESSAGE_TROP_DE_REQUETES,
-      // Pas d'en-têtes X-RateLimit-* : ils révéleraient le compteur restant.
-      setHeaders: false,
+    // Compteurs dans Redis si REDIS_URL est défini (partagés par toutes les
+    // instances), sinon en mémoire locale — voir StockageLimitation.
+    // Fabrique : un stockage neuf par application (tests isolés).
+    ThrottlerModule.forRootAsync({
+      useFactory: () => ({
+        throttlers: [{ name: LIMITEUR, ...LIMITE_GLOBALE }],
+        errorMessage: MESSAGE_TROP_DE_REQUETES,
+        // Pas d'en-têtes X-RateLimit-* : ils révéleraient le compteur restant.
+        setHeaders: false,
+        storage: StockageLimitation.depuisEnvironnement(),
+      }),
     }),
     JwtConfigModule,
     TenantContextModule,

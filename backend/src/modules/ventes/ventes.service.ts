@@ -200,20 +200,28 @@ export class VentesService {
         client: { select: { id: true, nom: true, telephone: true } },
         emplacement: { select: { id: true, nom: true } },
         reglements: { select: { montant: true } },
-        _count: { select: { lignes: true } },
       },
       // Historique paginé par curseur : jamais toutes les ventes d'un coup.
       orderBy: ORDRE_RECENT_DABORD,
       ...lirePagination(filtres.limite, filtres.apres),
     });
-    return ventes.map(({ reglements, _count, ...vente }) => {
+    // Nombre d'articles compté pour les seules ventes de la page. Un
+    // `_count` Prisma ici agrégeait TOUTE la table ligne_vente à chaque
+    // appel (91 % du temps base mesuré sous charge).
+    const comptes = await this.prisma.ligneVente.groupBy({
+      by: ['venteId'],
+      where: { venteId: { in: ventes.map((v) => v.id) } },
+      _count: { _all: true },
+    });
+    const lignesParVente = new Map(comptes.map((c) => [c.venteId, c._count._all]));
+    return ventes.map(({ reglements, ...vente }) => {
       const paye =
         vente.statut === 'VALIDEE'
           ? reglements.reduce((a, r) => a + r.montant, 0)
           : 0;
       return {
         ...vente,
-        nombreLignes: _count.lignes,
+        nombreLignes: lignesParVente.get(vente.id) ?? 0,
         paye,
         resteDu: vente.statut === 'VALIDEE' ? vente.total - paye : 0,
       };
