@@ -55,6 +55,9 @@ export async function nettoyer(prisma: PrismaService, entrepriseIds: string[], o
     await prisma.vente.deleteMany({ where });
     await prisma.mouvement.deleteMany({ where });
     await prisma.client.deleteMany({ where });
+    await prisma.fournisseurProduit.deleteMany({ where: { fournisseur: where } });
+    await prisma.fournisseur.deleteMany({ where });
+    await prisma.alerte.deleteMany({ where });
     await prisma.stock.deleteMany({ where: { produit: where } });
     await prisma.produit.deleteMany({ where });
     await prisma.emplacement.deleteMany({ where });

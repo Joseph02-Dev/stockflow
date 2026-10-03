@@ -10,4 +10,9 @@ export class DashboardController {
   overview(@CurrentTenant() entrepriseId: string) {
     return this.dashboardService.overview(entrepriseId);
   }
+
+  @Get('indicateurs')
+  indicateurs(@CurrentTenant() entrepriseId: string) {
+    return this.dashboardService.indicateurs(entrepriseId);
+  }
 }

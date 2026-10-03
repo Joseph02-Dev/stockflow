@@ -8,6 +8,10 @@ import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../config/prisma.service.js';
 import { resoudrePrix } from '../../common/tarifs/prix.js';
 import {
+  lirePagination,
+  ORDRE_RECENT_DABORD,
+} from '../../common/pagination/pagination.js';
+import {
   MouvementsService,
   type AlerteANotifier,
   type TransactionPrisma,
@@ -198,8 +202,9 @@ export class VentesService {
         reglements: { select: { montant: true } },
         _count: { select: { lignes: true } },
       },
-      orderBy: { createdAt: 'desc' },
-      take: 500,
+      // Historique paginé par curseur : jamais toutes les ventes d'un coup.
+      orderBy: ORDRE_RECENT_DABORD,
+      ...lirePagination(filtres.limite, filtres.apres),
     });
     return ventes.map(({ reglements, _count, ...vente }) => {
       const paye =
