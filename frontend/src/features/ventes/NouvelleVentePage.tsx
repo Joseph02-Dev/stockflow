@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Minus, Plus, Search, TriangleAlert, UserRound, WifiOff, X } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { useEnLigne } from '@/lib/useEnLigne';
@@ -55,13 +55,21 @@ export function NouvelleVentePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const enLigne = useEnLigne();
+  // Arrivée depuis « Brader » (écran Péremptions) : produit, dépôt,
+  // quantité et remise pré-remplis, tous modifiables.
+  const [parametres] = useSearchParams();
+  const lotABrader = parametres.get('lot');
 
   const [client, setClient] = useState<Client | null>(null);
   const [rechercheClient, setRechercheClient] = useState('');
-  const [emplacementChoisi, setEmplacementChoisi] = useState<string | null>(null);
+  const [emplacementChoisi, setEmplacementChoisi] = useState<string | null>(() => parametres.get('emplacement'));
   const [rechercheProduit, setRechercheProduit] = useState('');
-  const [quantites, setQuantites] = useState<Map<string, number>>(new Map());
-  const [tauxRemise, setTauxRemise] = useState('');
+  const [quantites, setQuantites] = useState<Map<string, number>>(() => {
+    const produit = parametres.get('produit');
+    const quantite = Number.parseInt(parametres.get('quantite') ?? '', 10);
+    return produit && quantite > 0 ? new Map([[produit, quantite]]) : new Map();
+  });
+  const [tauxRemise, setTauxRemise] = useState(() => parametres.get('remise') ?? '');
   const [mode, setMode] = useState<ModePaiement>('ESPECES');
   const [avance, setAvance] = useState('');
   const [modeAvance, setModeAvance] = useState<ModeReglement>('ESPECES');
@@ -182,6 +190,13 @@ export function NouvelleVentePage() {
   return (
     <div className="flex flex-col gap-5 pb-20 md:pb-0">
       <PageHeader titre="Nouvelle vente" description="Client, articles, paiement : la dette du client reste sous vos yeux." />
+
+      {lotABrader && (
+        <Alert variant="info">
+          Lot <span className="font-mono">{lotABrader}</span> à écouler avant péremption : quantité et remise sont
+          pré-remplies, ajustez-les si besoin. La vente sort le stock dans l’ordre des péremptions.
+        </Alert>
+      )}
 
       {!enLigne && (
         <Alert variant="warning">

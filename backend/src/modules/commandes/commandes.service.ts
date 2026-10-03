@@ -1,4 +1,5 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import type { RecevoirCommandeDto } from './dto/recevoir-commande.dto.js';
 import { PrismaService } from '../../config/prisma.service.js';
 import { MouvementsService } from '../mouvements/mouvements.service.js';
 import type { CreateCommandeDto } from './dto/create-commande.dto.js';
@@ -66,7 +67,7 @@ export class CommandesService {
     const commande = await this.trouverOuEchouer(entrepriseId, commandeId);
     const lignes = await this.prisma.commandeLigne.findMany({
       where: { commandeId },
-      include: { produit: { select: { id: true, nom: true, reference: true, uniteMesure: true } } },
+      include: { produit: { select: { id: true, nom: true, reference: true, uniteMesure: true, suiviParLot: true } } },
       orderBy: { produit: { nom: 'asc' } },
     });
     const fournisseur = await this.prisma.fournisseur.findUniqueOrThrow({
@@ -121,19 +122,34 @@ export class CommandesService {
    * entre-temps, etc.), aucune entrée n'est appliquée : la commande
    * reste ENVOYEE, à corriger avant nouvelle tentative.
    */
-  async recevoir(entrepriseId: string, utilisateurId: string, commandeId: string) {
+  async recevoir(entrepriseId: string, utilisateurId: string, commandeId: string, dto: RecevoirCommandeDto = {}) {
     const commande = await this.trouverOuEchouer(entrepriseId, commandeId);
     if (commande.statut !== 'ENVOYEE') {
       throw new ConflictException('Seule une commande envoyée peut être marquée comme reçue.');
     }
-    const lignes = await this.prisma.commandeLigne.findMany({ where: { commandeId } });
+    const lignes = await this.prisma.commandeLigne.findMany({
+      where: { commandeId },
+      include: { produit: { select: { nom: true, suiviParLot: true } } },
+    });
+
+    // Produits suivis par lot : numéro et date exigés pour chacun, vérifiés
+    // AVANT toute entrée pour ne jamais réceptionner une commande à moitié.
+    const lotParProduit = new Map((dto.lots ?? []).map((l) => [l.produitId, l]));
+    const manquants = lignes.filter((l) => l.produit.suiviParLot && !lotParProduit.has(l.produitId));
+    if (manquants.length > 0) {
+      throw new BadRequestException(
+        `Numéro de lot et date de péremption requis pour : ${manquants.map((l) => l.produit.nom).join(', ')}.`,
+      );
+    }
 
     for (const ligne of lignes) {
+      const lot = ligne.produit.suiviParLot ? lotParProduit.get(ligne.produitId) : undefined;
       await this.mouvementsService.entree(entrepriseId, utilisateurId, {
         produitId: ligne.produitId,
         emplacementId: commande.emplacementId,
         quantite: ligne.quantiteCommandee,
         fournisseurId: commande.fournisseurId,
+        ...(lot ? { numeroLot: lot.numeroLot.trim(), datePeremption: lot.datePeremption } : {}),
       });
     }
 

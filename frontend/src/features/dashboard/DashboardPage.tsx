@@ -19,7 +19,7 @@ import { ErrorState, LoadingState, Squelette } from '@/components/patterns/State
 import { NiveauStock } from '@/components/patterns/NiveauStock';
 import { Vignette } from '@/components/patterns/Vignette';
 import { libelleStatut, statutStock, varianteStatut } from '@/components/patterns/statutStock';
-import { presentationMouvement, quantiteSignee } from '@/components/patterns/typeMouvement';
+import { presentationMouvement, quantiteSignee, type TypeMouvement } from '@/components/patterns/typeMouvement';
 
 interface Overview {
   kpi: {
@@ -59,7 +59,7 @@ interface Indicateurs {
 
 interface Mouvement {
   id: string;
-  type: 'ENTREE' | 'SORTIE' | 'TRANSFERT' | 'AJUSTEMENT';
+  type: TypeMouvement;
   quantite: number;
   createdAt: string;
   produitId: string;

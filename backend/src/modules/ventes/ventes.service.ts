@@ -145,6 +145,7 @@ export class VentesService {
                 utilisateurId,
                 emplacement.id,
                 ligne,
+                vente.id,
               );
               if (resultat.alerteANotifier)
                 alertes.push(resultat.alerteANotifier);
@@ -213,7 +214,9 @@ export class VentesService {
       where: { venteId: { in: ventes.map((v) => v.id) } },
       _count: { _all: true },
     });
-    const lignesParVente = new Map(comptes.map((c) => [c.venteId, c._count._all]));
+    const lignesParVente = new Map(
+      comptes.map((c) => [c.venteId, c._count._all]),
+    );
     return ventes.map(({ reglements, ...vente }) => {
       const paye =
         vente.statut === 'VALIDEE'
@@ -280,7 +283,36 @@ export class VentesService {
         throw new ConflictException('Cette vente est déjà annulée.');
       }
       const lignes = await tx.ligneVente.findMany({ where: { venteId } });
+      // Produits suivis par lot : chaque quantité retourne dans le lot
+      // d'où elle est sortie.
+      const sortiesDeLots = await tx.mouvement.findMany({
+        where: { venteId, type: 'SORTIE', lotId: { not: null } },
+        orderBy: { createdAt: 'asc' },
+      });
+      for (const sortie of sortiesDeLots) {
+        await this.mouvements.entreeDansTransaction(
+          tx,
+          entrepriseId,
+          utilisateurId,
+          {
+            produitId: sortie.produitId,
+            emplacementId: vente.emplacementId,
+            quantite: sortie.quantite,
+          },
+          { lotId: sortie.lotId!, venteId },
+        );
+      }
+      const produitsRestitues = new Set(sortiesDeLots.map((m) => m.produitId));
       for (const ligne of lignes) {
+        if (produitsRestitues.has(ligne.produitId)) continue;
+        // Vente antérieure à l'activation du suivi par lot : la quantité
+        // rejoint le lot sans date du produit.
+        const lotId = await this.mouvements.lotSansDateSiSuivi(
+          tx,
+          entrepriseId,
+          ligne.produitId,
+          vente.emplacementId,
+        );
         await this.mouvements.entreeDansTransaction(
           tx,
           entrepriseId,
@@ -290,6 +322,7 @@ export class VentesService {
             emplacementId: vente.emplacementId,
             quantite: ligne.quantite,
           },
+          { lotId, venteId },
         );
       }
       await tx.vente.update({
@@ -474,8 +507,11 @@ export class VentesService {
     utilisateurId: string,
     emplacementId: string,
     ligne: { produitId: string; libelle: string; quantite: number },
+    venteId: string,
   ) {
     try {
+      // Produit suivi par lot : sortie FEFO, rattachée à la vente pour
+      // que son annulation restitue exactement les lots consommés.
       return await this.mouvements.sortieDansTransaction(
         tx,
         entrepriseId,
@@ -485,6 +521,7 @@ export class VentesService {
           emplacementId,
           quantite: ligne.quantite,
         },
+        { venteId },
       );
     } catch (erreur) {
       if (!(erreur instanceof ConflictException)) throw erreur;

@@ -4,6 +4,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
+  CalendarClock,
   ChevronRight,
   ClipboardList,
   HandCoins,
@@ -33,6 +34,7 @@ const sectionPilotage = [
   { to: '/ventes', libelle: 'Ventes', Icone: Receipt },
   { to: '/creances', libelle: 'Créances', Icone: HandCoins },
   { to: '/alertes', libelle: 'Alertes', Icone: Bell },
+  { to: '/peremptions', libelle: 'Péremptions', Icone: CalendarClock },
   { to: '/stock', libelle: 'Stock & mouvements', Icone: Warehouse },
   { to: '/commandes', libelle: 'Commandes fournisseur', Icone: ClipboardList },
 ];
@@ -75,6 +77,7 @@ function filAriane(chemin: string, recherche: string): { libelle: string; to?: s
     clients: 'Clients',
     ventes: 'Ventes',
     creances: 'Créances',
+    peremptions: 'Péremptions',
     parametres: 'Paramètres',
   };
   const [racine, detail] = chemin.split('/').filter(Boolean);
@@ -111,6 +114,7 @@ function LienNav({
   Icone,
   exact,
   nombreAlertes,
+  nombrePeremptions = 0,
   onNaviguer,
   actifForce,
 }: {
@@ -119,6 +123,8 @@ function LienNav({
   Icone: typeof LayoutDashboard;
   exact?: boolean;
   nombreAlertes: number;
+  /** Lots sous surveillance (péremption dans le seuil, périmés compris). */
+  nombrePeremptions?: number;
   onNaviguer?: () => void;
   /**
    * Remplace la détection automatique de React Router. Nécessaire quand
@@ -146,6 +152,14 @@ function LienNav({
           aria-label={`${nombreAlertes} alerte${nombreAlertes > 1 ? 's' : ''} active${nombreAlertes > 1 ? 's' : ''}`}
         >
           {nombreAlertes}
+        </span>
+      )}
+      {to === '/peremptions' && nombrePeremptions > 0 && (
+        <span
+          className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-faible px-1.5 text-meta font-semibold text-white"
+          aria-label={`${nombrePeremptions} lot${nombrePeremptions > 1 ? 's' : ''} sous surveillance`}
+        >
+          {nombrePeremptions}
         </span>
       )}
     </>
@@ -199,6 +213,13 @@ export function AppLayout() {
     queryFn: async () => (await api.get<unknown[]>('/alertes?statut=ACTIVE')).data,
   });
   const nombreAlertes = alertesActives.data?.length ?? 0;
+  // Même clé que l'écran Péremptions : une sortie de lot y met la pastille à jour.
+  const peremptions = useQuery({
+    queryKey: ['peremptions', 'resume'],
+    queryFn: async () => (await api.get<{ sousSurveillance: number }>('/peremptions')).data,
+    staleTime: 5 * 60_000,
+  });
+  const nombrePeremptions = peremptions.data?.sousSurveillance ?? 0;
 
   async function seDeconnecter() {
     const courante = getSession();
@@ -246,7 +267,7 @@ export function AppLayout() {
         <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3 pt-5" aria-label="Navigation principale">
           <SectionNav titre="Pilotage">
             {sectionPilotage.map((lien) => (
-              <LienNav key={lien.to} {...lien} nombreAlertes={nombreAlertes} />
+              <LienNav key={lien.to} {...lien} nombreAlertes={nombreAlertes} nombrePeremptions={nombrePeremptions} />
             ))}
           </SectionNav>
 
@@ -421,6 +442,15 @@ export function AppLayout() {
             <NavLink to="/creances" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
               <HandCoins className="size-5 text-steel-500" aria-hidden="true" />
               Créances
+            </NavLink>
+            <NavLink to="/peremptions" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
+              <CalendarClock className="size-5 text-steel-500" aria-hidden="true" />
+              <span className="flex-1">Péremptions</span>
+              {nombrePeremptions > 0 && (
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-faible px-1.5 text-meta font-semibold text-white">
+                  {nombrePeremptions}
+                </span>
+              )}
             </NavLink>
             <NavLink to="/produits" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
               <Package className="size-5 text-steel-500" aria-hidden="true" />

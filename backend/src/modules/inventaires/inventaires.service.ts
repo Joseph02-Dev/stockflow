@@ -3,12 +3,14 @@ import { PrismaService } from '../../config/prisma.service.js';
 import { AlerteNotificationService } from '../alertes/alerte-notification.service.js';
 import type { CreateInventaireDto } from './dto/create-inventaire.dto.js';
 import type { SaisirComptageDto } from './dto/saisir-comptage.dto.js';
+import { MouvementsService } from '../mouvements/mouvements.service.js';
 
 @Injectable()
 export class InventairesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly alerteNotification: AlerteNotificationService,
+    private readonly mouvements: MouvementsService,
   ) {}
 
   /**
@@ -29,17 +31,29 @@ export class InventairesService {
 
     const produitsActifs = await this.prisma.produit.findMany({
       where: { entrepriseId, archive: false },
-      select: { id: true },
+      select: { id: true, suiviParLot: true },
+    });
+    // Produit suivi par lot : une ligne par lot en stock à l'emplacement
+    // (un lot inconnu se déclare par une réception, avec sa date).
+    const lots = await this.prisma.lot.findMany({
+      where: {
+        emplacementId: dto.emplacementId,
+        quantite: { gt: 0 },
+        produitId: { in: produitsActifs.filter((p) => p.suiviParLot).map((p) => p.id) },
+      },
+      select: { id: true, produitId: true },
     });
 
     return this.prisma.$transaction(async (tx) => {
       const inventaire = await tx.inventaire.create({
         data: { entrepriseId, emplacementId: dto.emplacementId, utilisateurId },
       });
-      if (produitsActifs.length > 0) {
-        await tx.inventaireLigne.createMany({
-          data: produitsActifs.map((p) => ({ inventaireId: inventaire.id, produitId: p.id })),
-        });
+      const lignes = [
+        ...produitsActifs.filter((p) => !p.suiviParLot).map((p) => ({ inventaireId: inventaire.id, produitId: p.id })),
+        ...lots.map((l) => ({ inventaireId: inventaire.id, produitId: l.produitId, lotId: l.id })),
+      ];
+      if (lignes.length > 0) {
+        await tx.inventaireLigne.createMany({ data: lignes });
       }
       return inventaire;
     });
@@ -79,8 +93,11 @@ export class InventairesService {
 
     const lignes = await this.prisma.inventaireLigne.findMany({
       where: { inventaireId },
-      include: { produit: { select: { id: true, nom: true, reference: true, uniteMesure: true } } },
-      orderBy: { produit: { nom: 'asc' } },
+      include: {
+        produit: { select: { id: true, nom: true, reference: true, uniteMesure: true } },
+        lot: { select: { id: true, numero: true, quantite: true, datePeremption: true } },
+      },
+      orderBy: [{ produit: { nom: 'asc' } }, { lot: { datePeremption: 'asc' } }],
     });
 
     const stocks = await this.prisma.stock.findMany({
@@ -92,7 +109,8 @@ export class InventairesService {
       ...inventaire,
       emplacement,
       lignes: lignes.map((ligne) => {
-        const quantiteSysteme = stockParProduit.get(ligne.produitId) ?? 0;
+        // Ligne d'un lot : comparée au lot, pas au stock total du produit.
+        const quantiteSysteme = ligne.lot ? ligne.lot.quantite : (stockParProduit.get(ligne.produitId) ?? 0);
         return {
           ...ligne,
           quantiteSysteme,
@@ -149,12 +167,33 @@ export class InventairesService {
     }
 
     const resultat = await this.prisma.$transaction(async (tx) => {
+      // Même verrou que les mouvements : le suivi par lot ne peut pas
+      // basculer pendant l'ajustement.
+      await this.mouvements.verrouillerProduit(tx, ligne.produitId);
+      const { suiviParLot } = await tx.produit.findUniqueOrThrow({
+        where: { id: ligne.produitId },
+        select: { suiviParLot: true },
+      });
+      if (suiviParLot && !ligne.lotId) {
+        throw new ConflictException(
+          'Ce produit est suivi par lot : un ajustement doit porter sur un lot précis. Ouvrez un nouvel inventaire.',
+        );
+      }
+      if (!suiviParLot && ligne.lotId) {
+        throw new ConflictException('Ce produit n’est plus suivi par lot : ouvrez un nouvel inventaire.');
+      }
+
+      // Verrous dans l'ordre des mouvements : stock, puis lot.
+      await tx.$queryRaw`SELECT 1 FROM stock WHERE produit_id = ${ligne.produitId} AND emplacement_id = ${inventaire.emplacementId} FOR UPDATE`;
       const stockActuel = await tx.stock.findUnique({
         where: {
           produitId_emplacementId: { produitId: ligne.produitId, emplacementId: inventaire.emplacementId },
         },
       });
-      const quantiteSysteme = stockActuel?.quantite ?? 0;
+      const lotActuel = ligne.lotId
+        ? (await tx.$queryRaw<{ quantite: number }[]>`SELECT quantite FROM lot WHERE id = ${ligne.lotId} FOR UPDATE`)[0]
+        : undefined;
+      const quantiteSysteme = lotActuel ? lotActuel.quantite : (stockActuel?.quantite ?? 0);
       const ecart = ligne.quantiteComptee! - quantiteSysteme;
 
       if (ecart === 0) {
@@ -169,6 +208,10 @@ export class InventairesService {
         update: { quantite: { increment: ecart } },
       });
 
+      if (ligne.lotId) {
+        await tx.lot.update({ where: { id: ligne.lotId }, data: { quantite: { increment: ecart } } });
+      }
+
       await tx.mouvement.create({
         data: {
           entrepriseId,
@@ -177,6 +220,7 @@ export class InventairesService {
           type: 'AJUSTEMENT',
           quantite: ecart,
           utilisateurId,
+          lotId: ligne.lotId,
         },
       });
 

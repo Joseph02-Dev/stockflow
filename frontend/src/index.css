@@ -73,6 +73,13 @@
   --color-whatsapp-dark: #1da851;
   /* Vieillissement des créances : < 8 j, 8–30 j, 31–60 j, > 60 j. */
   --color-age-recent: #2cc48a;
+  /* Péremptions : périmé, moins de 7 j, 8 à 30 j, plus de 30 j (filets). */
+  --color-peremption-perime: #e05a4b;
+  --color-peremption-urgent: #d9922b;
+  --color-peremption-proche: #e3b512;
+  --color-peremption-loin: #2cc48a;
+  /* Texte « jaune » lisible sur blanc (contraste AA). */
+  --color-peremption-proche-texte: #7d6200;
   --color-age-moyen: #c9cfda;
   --color-age-ancien: #d9922b;
   --color-age-critique: #e05a4b;

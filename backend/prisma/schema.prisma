@@ -22,6 +22,8 @@ enum TypeMouvement {
   SORTIE
   TRANSFERT
   AJUSTEMENT
+  // Sortie d'un lot périmé (perte), distincte d'une SORTIE commerciale.
+  PERIME
 }
 
 enum StatutInventaire {
@@ -101,6 +103,10 @@ model Entreprise {
   moduleInventaires  Boolean @default(true) @map("module_inventaires")
   moduleTransferts   Boolean @default(true) @map("module_transferts")
 
+  // Nombre de jours avant péremption à partir duquel un lot est « sous
+  // surveillance », sauf seuil propre au produit.
+  seuilAlertePeremptionJours Int @default(30) @map("seuil_alerte_peremption_jours")
+
   utilisateurs Utilisateur[]
   emplacements Emplacement[]
   produits     Produit[]
@@ -114,6 +120,7 @@ model Entreprise {
   marques      Marque[]
   inventaires  Inventaire[]
   commandes    CommandeFournisseur[]
+  lots         Lot[]
 
   @@map("entreprise")
 }
@@ -255,6 +262,7 @@ model Emplacement {
   mouvementsRecus Mouvement[]           @relation("MouvementDestination")
   inventaires     Inventaire[]
   commandes       CommandeFournisseur[]
+  lots            Lot[]
 
   @@index([entrepriseId])
   @@map("emplacement")
@@ -292,6 +300,12 @@ model Produit {
   // pour être une entité de référence gérée comme catégorie/marque.
   uniteMesure  String? @map("unite_mesure")
 
+  // Suivi par lot et date de péremption — facultatif, produit par produit.
+  // Désactivé : le produit fonctionne exactement comme avant (aucun lot).
+  suiviParLot           Boolean @default(false) @map("suivi_par_lot")
+  // Seuil propre au produit, en jours ; null = seuil de l'entreprise.
+  seuilAlertePeremption Int?    @map("seuil_alerte_peremption")
+
   entreprise           Entreprise           @relation(fields: [entrepriseId], references: [id])
   categorie            Categorie?           @relation(fields: [categorieId], references: [id])
   marque               Marque?              @relation(fields: [marqueId], references: [id])
@@ -302,6 +316,7 @@ model Produit {
   inventaireLignes     InventaireLigne[]
   commandeLignes       CommandeLigne[]
   lignesVente          LigneVente[]
+  lots                 Lot[]
 
   @@unique([entrepriseId, codeBarre])
   @@index([entrepriseId, nom])
@@ -402,16 +417,58 @@ model Mouvement {
   // pointent vers Emplacement depuis ce même modèle.
   emplacementDestinationId String? @map("emplacement_destination_id")
 
+  // Lot concerné, pour un produit suivi par lot (un mouvement par lot).
+  lotId   String? @map("lot_id")
+  // Vente à l'origine du mouvement : permet à l'annulation de restituer
+  // exactement les lots consommés.
+  venteId String? @map("vente_id")
+
   entreprise             Entreprise   @relation(fields: [entrepriseId], references: [id])
   produit                Produit      @relation(fields: [produitId], references: [id])
   emplacement            Emplacement  @relation(fields: [emplacementId], references: [id])
   emplacementDestination Emplacement? @relation("MouvementDestination", fields: [emplacementDestinationId], references: [id])
   fournisseur            Fournisseur? @relation(fields: [fournisseurId], references: [id])
   utilisateur            Utilisateur  @relation(fields: [utilisateurId], references: [id])
+  lot                    Lot?         @relation(fields: [lotId], references: [id])
+  vente                  Vente?       @relation(fields: [venteId], references: [id])
 
   @@index([produitId, createdAt])
   @@index([entrepriseId, createdAt])
+  @@index([lotId])
+  @@index([venteId])
   @@map("mouvement")
+}
+
+/**
+ * Lot d'un produit suivi par lot, à un emplacement. Pour ces produits,
+ * Stock.quantite (produit, emplacement) = somme des quantités de leurs
+ * lots : la table Stock reste la source de vérité lue partout, et chaque
+ * opération sur un lot la met à jour dans la même transaction. Un lot
+ * vidé reste en base (quantité 0) : ses mouvements le référencent.
+ */
+model Lot {
+  id             String    @id @default(uuid())
+  entrepriseId   String    @map("entreprise_id")
+  produitId      String    @map("produit_id")
+  emplacementId  String    @map("emplacement_id")
+  numero         String
+  quantite       Int
+  // Nulle pour le stock déjà présent à l'activation du suivi : un tel lot
+  // sort en dernier (FEFO).
+  datePeremption DateTime? @map("date_peremption")
+  recuAt         DateTime  @default(now()) @map("recu_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  entreprise       Entreprise        @relation(fields: [entrepriseId], references: [id])
+  produit          Produit           @relation(fields: [produitId], references: [id])
+  emplacement      Emplacement       @relation(fields: [emplacementId], references: [id])
+  mouvements       Mouvement[]
+  inventaireLignes InventaireLigne[]
+
+  @@unique([produitId, emplacementId, numero])
+  @@index([entrepriseId, datePeremption])
+  @@index([produitId, emplacementId, datePeremption])
+  @@map("lot")
 }
 
 model Alerte {
@@ -468,6 +525,8 @@ model InventaireLigne {
   id               String                @id @default(uuid())
   inventaireId     String                @map("inventaire_id")
   produitId        String                @map("produit_id")
+  // Produit suivi par lot : une ligne par lot ; sinon nul.
+  lotId            String?               @map("lot_id")
   quantiteComptee  Int?                  @map("quantite_comptee")
   statutAjustement StatutLigneInventaire @default(EN_ATTENTE) @map("statut_ajustement")
   valideParId      String?               @map("valide_par_id")
@@ -477,8 +536,9 @@ model InventaireLigne {
   inventaire Inventaire   @relation(fields: [inventaireId], references: [id])
   produit    Produit      @relation(fields: [produitId], references: [id])
   validePar  Utilisateur? @relation(fields: [valideParId], references: [id])
+  lot        Lot?         @relation(fields: [lotId], references: [id])
 
-  @@unique([inventaireId, produitId])
+  @@unique([inventaireId, produitId, lotId])
   @@map("inventaire_ligne")
 }
 
@@ -637,6 +697,7 @@ model Vente {
   utilisateur Utilisateur  @relation(fields: [utilisateurId], references: [id])
   lignes      LigneVente[]
   reglements  Reglement[]
+  mouvements  Mouvement[]
 
   @@unique([entrepriseId, numero])
   @@index([entrepriseId, createdAt])

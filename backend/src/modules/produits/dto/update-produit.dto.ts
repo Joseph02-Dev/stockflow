@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, IsUrl, IsUUID, Max, Min, MaxLength, MinLength, ValidateIf } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, IsUrl, IsUUID, Max, Min, MaxLength, MinLength, ValidateIf } from 'class-validator';
 
 export class UpdateProduitDto {
   @IsOptional()
@@ -72,4 +72,16 @@ export class UpdateProduitDto {
   @IsString()
   @MaxLength(30)
   uniteMesure?: string;
+  /** Suivi par lot et date de péremption (désactivé par défaut). */
+  @IsOptional()
+  @IsBoolean({ message: 'suiviParLot doit être vrai ou faux.' })
+  suiviParLot?: boolean;
+
+  // Seuil d'alerte de péremption propre au produit, en jours ; null =
+  // seuil de l'entreprise.
+  @ValidateIf((_, valeur) => valeur !== null && valeur !== undefined)
+  @IsInt({ message: 'Le seuil de péremption doit être un nombre entier de jours.' })
+  @Min(1, { message: 'Le seuil de péremption doit être d’au moins 1 jour.' })
+  @Max(3650, { message: 'Le seuil de péremption ne peut pas dépasser 3 650 jours.' })
+  seuilAlertePeremption?: number | null;
 }

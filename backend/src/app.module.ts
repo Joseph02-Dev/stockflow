@@ -8,6 +8,7 @@ import { EmplacementsModule } from './modules/emplacements/emplacements.module.j
 import { ProduitsModule } from './modules/produits/produits.module.js';
 import { FournisseursModule } from './modules/fournisseurs/fournisseurs.module.js';
 import { MouvementsModule } from './modules/mouvements/mouvements.module.js';
+import { LotsModule } from './modules/lots/lots.module.js';
 import { AlertesModule } from './modules/alertes/alertes.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { PrismaModule } from './config/prisma.module.js';
@@ -61,6 +62,7 @@ import {
     ProduitsModule,
     FournisseursModule,
     MouvementsModule,
+    LotsModule,
     AlertesModule,
     DashboardModule,
     CategoriesModule,

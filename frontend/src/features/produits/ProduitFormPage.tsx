@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Truck } from 'lucide-react';
@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/Badge';
 import { ImageUploadField } from '@/components/patterns/ImageUploadField';
 import { Card } from '@/components/patterns/Page';
 import { LoadingState, ErrorState } from '@/components/patterns/States';
+import { cn } from '@/lib/cn';
+import { LotsDuProduit } from '@/features/peremptions/LotsDuProduit';
 
 interface ElementReference {
   id: string;
@@ -37,6 +39,8 @@ interface ProduitDetail {
   categorie: ElementReference | null;
   marque: ElementReference | null;
   fournisseursAssocies: { fournisseur: ElementReference }[];
+  suiviParLot: boolean;
+  seuilAlertePeremption: number | null;
 }
 
 const schema = z.object({
@@ -56,6 +60,13 @@ const schema = z.object({
   categorieId: z.string().optional(),
   marqueId: z.string().optional(),
   uniteMesure: z.string().optional(),
+  suiviParLot: z.boolean(),
+  seuilAlertePeremption: z
+    .union([
+      z.number().int('Nombre entier de jours.').min(1, 'Au moins 1 jour.').max(3650, 'Au plus 3 650 jours.'),
+      z.nan(),
+    ])
+    .optional(),
 });
 
 type Formulaire = z.infer<typeof schema>;
@@ -97,10 +108,11 @@ export function ProduitFormPage() {
     enabled: !enEdition,
   });
 
-  const { register, handleSubmit, reset, setValue, watch, formState } = useForm<Formulaire>({
+  const { register, handleSubmit, reset, setValue, watch, control, formState } = useForm<Formulaire>({
     resolver: zodResolver(schema),
-    defaultValues: { nom: '', seuilAlerte: 0 },
+    defaultValues: { nom: '', seuilAlerte: 0, suiviParLot: false },
   });
+  const suiviParLot = useWatch({ control, name: 'suiviParLot' });
 
   // Pré-remplit le taux de TVA depuis le défaut de l'entreprise — en
   // création seulement, et seulement si la personne n'a encore rien
@@ -133,6 +145,8 @@ export function ProduitFormPage() {
       categorieId: produit.data.categorie?.id ?? '',
       marqueId: produit.data.marque?.id ?? '',
       uniteMesure: produit.data.uniteMesure ?? '',
+      suiviParLot: produit.data.suiviParLot,
+      seuilAlertePeremption: produit.data.seuilAlertePeremption ?? undefined,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [produit.data]);
@@ -162,18 +176,27 @@ export function ProduitFormPage() {
         ...(v.marqueId ? { marqueId: v.marqueId } : {}),
         ...(v.uniteMesure ? { uniteMesure: v.uniteMesure } : {}),
         ...(photoUrl ? { photoUrl } : {}),
+        suiviParLot: v.suiviParLot,
       };
+      // Seuil de péremption vidé : null, le seuil de l'entreprise s'applique.
+      const seuilAlertePeremption = v.suiviParLot ? (nombreOuIndefini(v.seuilAlertePeremption) ?? null) : null;
       // Prix de gros et demi-gros : vidés en modification, ils sont
       // effacés (null) et le produit retombe sur le prix de détail.
       const prixGros = nombreOuIndefini(v.prixGros);
       const prixDemiGros = nombreOuIndefini(v.prixDemiGros);
       if (enEdition) {
-        await api.patch(`/produits/${id}`, { ...corps, prixGros: prixGros ?? null, prixDemiGros: prixDemiGros ?? null });
+        await api.patch(`/produits/${id}`, {
+          ...corps,
+          prixGros: prixGros ?? null,
+          prixDemiGros: prixDemiGros ?? null,
+          seuilAlertePeremption,
+        });
       } else {
         await api.post('/produits', {
           ...corps,
           ...(prixGros !== undefined ? { prixGros } : {}),
           ...(prixDemiGros !== undefined ? { prixDemiGros } : {}),
+          ...(seuilAlertePeremption !== null ? { seuilAlertePeremption } : {}),
         });
       }
     },
@@ -181,6 +204,7 @@ export function ProduitFormPage() {
       queryClient.invalidateQueries({ queryKey: ['produits'] });
       queryClient.invalidateQueries({ queryKey: ['produit', id] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['peremptions'] });
       navigate('/produits');
     },
     onError: (err) => setErreur(messageErreur(err, 'L’enregistrement a échoué.')),
@@ -403,6 +427,60 @@ export function ProduitFormPage() {
                 error={formState.errors.seuilAlerte?.message}
                 {...register('seuilAlerte', { valueAsNumber: true })}
               />
+            </div>
+          </Card>
+
+          <Card>
+            <div className="flex items-start justify-between gap-4 border-b border-rule px-5 py-4">
+              <div className="min-w-0">
+                <h2 className="text-panneau text-ink-900">Suivi par lot et date de péremption</h2>
+                <p className="mt-0.5 text-meta text-steel-500">
+                  Chaque réception devient un lot daté ; les ventes sortent d’abord ce qui périme le plus tôt.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={suiviParLot}
+                aria-label="Suivi par lot et date de péremption"
+                onClick={() => setValue('suiviParLot', !suiviParLot, { shouldDirty: true })}
+                className={cn(
+                  'inline-flex h-7 shrink-0 items-center gap-2 rounded-full border px-1 pr-3 text-meta font-medium transition-colors',
+                  suiviParLot ? 'border-action bg-action-wash text-action' : 'border-rule-strong bg-paper text-steel-500',
+                )}
+              >
+                <span
+                  className={cn('size-5 rounded-full transition-colors', suiviParLot ? 'bg-action' : 'bg-steel-400')}
+                  aria-hidden="true"
+                />
+                {suiviParLot ? 'Activé' : 'Désactivé'}
+              </button>
+            </div>
+            <div className="flex flex-col gap-4 p-5">
+              <p className="text-corps text-steel-500">
+                Le suivi par lot est facultatif. Un produit sans date de péremption — ciment, fer à béton, quincaillerie —
+                fonctionne exactement comme avant, sans lot ni date à saisir.
+              </p>
+              {suiviParLot && (
+                <>
+                  {enEdition && produit.data && !produit.data.suiviParLot && (
+                    <Alert variant="info">
+                      Le stock déjà présent deviendra un lot « SANS-LOT », sans date de péremption : il sortira après
+                      les lots datés.
+                    </Alert>
+                  )}
+                  <Input
+                    label="Alerte de péremption (jours)"
+                    type="number"
+                    min={1}
+                    placeholder="Seuil de l’entreprise"
+                    hint="Un lot est mis sous surveillance ce nombre de jours avant sa péremption. Vide : seuil de l’entreprise."
+                    error={formState.errors.seuilAlertePeremption?.message}
+                    {...register('seuilAlertePeremption', { valueAsNumber: true })}
+                  />
+                </>
+              )}
+              {enEdition && produit.data?.suiviParLot && <LotsDuProduit produitId={id} />}
             </div>
           </Card>
         </div>

@@ -23,6 +23,7 @@ import { VentesPage } from '@/features/ventes/VentesPage';
 import { NouvelleVentePage } from '@/features/ventes/NouvelleVentePage';
 import { VenteDetailPage } from '@/features/ventes/VenteDetailPage';
 import { CreancesPage } from '@/features/creances/CreancesPage';
+import { PeremptionsPage } from '@/features/peremptions/PeremptionsPage';
 import { ParametresPage } from '@/features/parametres/ParametresPage';
 import { useSession } from '@/lib/useSession';
 import { LoadingState } from '@/components/patterns/States';
@@ -95,6 +96,7 @@ export function App() {
           <Route path="/ventes/nouvelle" element={<NouvelleVentePage />} />
           <Route path="/ventes/:id" element={<VenteDetailPage />} />
           <Route path="/creances" element={<CreancesPage />} />
+          <Route path="/peremptions" element={<PeremptionsPage />} />
           <Route element={<RouteAdmin />}>
             <Route path="/parametres" element={<ParametresPage />} />
           </Route>

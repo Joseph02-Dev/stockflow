@@ -94,7 +94,7 @@ export class DashboardService {
         WHERE p.entreprise_id = ${entrepriseId}`,
         this.prisma.$queryRaw<{ jour: number; variation: bigint }[]>`
         SELECT FLOOR(EXTRACT(EPOCH FROM (${finDuJour}::timestamp - m.created_at)) / 86400)::int AS jour,
-               SUM(CASE m.type WHEN 'ENTREE' THEN m.quantite WHEN 'SORTIE' THEN -m.quantite
+               SUM(CASE m.type WHEN 'ENTREE' THEN m.quantite WHEN 'SORTIE' THEN -m.quantite WHEN 'PERIME' THEN -m.quantite
                                WHEN 'AJUSTEMENT' THEN m.quantite ELSE 0 END::bigint * COALESCE(p.prix_achat, 0)) AS variation
         FROM mouvement m JOIN produit p ON p.id = m.produit_id
         WHERE m.entreprise_id = ${entrepriseId} AND m.created_at > ${debutSerie} AND m.created_at <= ${finDuJour}
