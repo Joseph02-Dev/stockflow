@@ -42,16 +42,24 @@ export class CommandesService {
   }
 
   async lister(entrepriseId: string, filtres: { fournisseurId?: string; statut?: string }) {
-    return this.prisma.commandeFournisseur.findMany({
+    const elements = await this.prisma.commandeFournisseur.findMany({
       where: { entrepriseId, fournisseurId: filtres.fournisseurId, statut: filtres.statut as never },
       include: {
         fournisseur: { select: { id: true, nom: true } },
         emplacement: { select: { id: true, nom: true } },
         utilisateur: { select: { id: true, nom: true } },
-        _count: { select: { lignes: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
+    // Nombre de lignes compté pour les seules commandes listées : un `_count`
+    // Prisma agrégerait les lignes de toutes les entreprises à chaque appel.
+    const comptes = await this.prisma.commandeLigne.groupBy({
+      by: ['commandeId'],
+      where: { commandeId: { in: elements.map((e) => e.id) } },
+      _count: { _all: true },
+    });
+    const parId = new Map(comptes.map((c) => [c.commandeId, c._count._all]));
+    return elements.map((e) => ({ ...e, _count: { lignes: parId.get(e.id) ?? 0 } }));
   }
 
   async obtenir(entrepriseId: string, commandeId: string) {

@@ -46,15 +46,23 @@ export class InventairesService {
   }
 
   async lister(entrepriseId: string, filtres: { emplacementId?: string; statut?: 'EN_COURS' | 'TERMINE' }) {
-    return this.prisma.inventaire.findMany({
+    const elements = await this.prisma.inventaire.findMany({
       where: { entrepriseId, emplacementId: filtres.emplacementId, statut: filtres.statut },
       include: {
         emplacement: { select: { id: true, nom: true } },
         utilisateur: { select: { id: true, nom: true } },
-        _count: { select: { lignes: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
+    // Nombre de lignes compté pour les seuls inventaires listés : un `_count`
+    // Prisma agrégerait les lignes de toutes les entreprises à chaque appel.
+    const comptes = await this.prisma.inventaireLigne.groupBy({
+      by: ['inventaireId'],
+      where: { inventaireId: { in: elements.map((e) => e.id) } },
+      _count: { _all: true },
+    });
+    const parId = new Map(comptes.map((c) => [c.inventaireId, c._count._all]));
+    return elements.map((e) => ({ ...e, _count: { lignes: parId.get(e.id) ?? 0 } }));
   }
 
   /**

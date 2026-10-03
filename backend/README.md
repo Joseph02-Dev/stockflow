@@ -235,6 +235,32 @@ Champ `fichier` (multipart), JPEG/PNG/WEBP uniquement, 5 Mo maximum. Retourne `{
 | GET/POST/PATCH/DELETE | `/marques` | idem | Même logique que Catégories |
 | PATCH | `/users/me/photo` | Authentifié | Modifie sa propre photo de profil |
 
+## Montée en charge
+
+Mesuré localement (4 vCPU, 501 entreprises, 700 000 mouvements, utilisateurs
+qui agissent toutes les 1,5 à 4,5 s) : un processus tient environ 400
+utilisateurs actifs (médiane du tableau de bord ≈ 20 ms) et sature vers
+800. Avec 4 processus et Redis, 800 utilisateurs actifs restent à ≈ 35 ms
+de médiane (414 req/s).
+
+| Variable | Rôle | Défaut |
+|---|---|---|
+| `WEB_CONCURRENCY` | Processus API dans le conteneur (Node n'utilise qu'un cœur par processus) | 1 |
+| `DB_POOL_MAX` | Connexions PostgreSQL par processus | 10 |
+| `REDIS_URL` | Compteurs de limitation de débit partagés | mémoire locale |
+
+- **Dès que `WEB_CONCURRENCY > 1` ou plusieurs instances : `REDIS_URL` est
+  obligatoire.** Sans lui, chaque processus compte ses propres limites (la
+  limite réelle est multipliée). Si Redis devient injoignable, l'API se
+  replie sur la mémoire locale (journalisé) au lieu de refuser le trafic.
+- Connexions : `DB_POOL_MAX × WEB_CONCURRENCY × instances` doit rester sous
+  le `max_connections` de PostgreSQL, avec une marge (migrations,
+  administration).
+- Le seul état gardé en mémoire par l'API est la limitation de débit : les
+  sessions (JWT), les données et les images sont déjà partagées.
+- Les listes d'historique sont paginées (curseur) et le tableau de bord est
+  calculé par la base : voir `common/pagination`.
+
 ## Documentation
 
 La documentation produit, architecture et UX complète est maintenue en dehors de ce dépôt (source de vérité du projet). Ce README sera enrichi au fil de l'implémentation.
