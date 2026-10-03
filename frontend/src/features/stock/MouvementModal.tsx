@@ -14,10 +14,41 @@ import { Alert } from '@/components/ui/Alert';
 import { Modal } from '@/components/ui/Modal';
 import { useModules } from '@/lib/useModules';
 import { cn } from '@/lib/cn';
+import { datePeremption as formaterPeremption } from '@/features/peremptions/presentation';
+import type { LotProduit } from '@/features/peremptions/types';
 
 interface Option {
   id: string;
   nom: string;
+}
+
+interface OptionProduit extends Option {
+  suiviParLot?: boolean;
+}
+
+/** Aujourd'hui + n mois, au format AAAA-MM-JJ (raccourcis de saisie). */
+function dansMois(mois: number): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + mois);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const RACCOURCIS_PEREMPTION = [
+  { libelle: '+6 mois', mois: 6 },
+  { libelle: '+1 an', mois: 12 },
+  { libelle: '+2 ans', mois: 24 },
+];
+
+/**
+ * Lot après lequel sortira un nouveau lot (FEFO) : le dernier lot daté
+ * qui périme au plus tard le même jour — un lot reçu maintenant passe
+ * après ceux de même date, reçus avant lui.
+ */
+function lotPrecedent(lots: LotProduit[], numero: string, date: string): LotProduit | null {
+  const precedents = lots.filter(
+    (l) => l.numero !== numero && l.datePeremption !== null && l.datePeremption.slice(0, 10) <= date,
+  );
+  return precedents.at(-1) ?? null;
 }
 
 const schema = z.object({
@@ -29,6 +60,9 @@ const schema = z.object({
     .int('La quantité doit être un nombre entier.')
     .min(1, 'La quantité doit être supérieure à 0.'),
   fournisseurId: z.string().optional(),
+  numeroLot: z.string().optional(),
+  datePeremption: z.string().optional(),
+  lotId: z.string().optional(),
 });
 
 type Formulaire = z.infer<typeof schema>;
@@ -49,7 +83,7 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
 
   const produits = useQuery({
     queryKey: ['produits', '', false],
-    queryFn: async () => (await api.get<Option[]>('/produits')).data,
+    queryFn: async () => (await api.get<OptionProduit[]>('/produits')).data,
     enabled: ouvert,
   });
 
@@ -66,7 +100,7 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
     enabled: ouvert && type === 'ENTREE',
   });
 
-  const { register, handleSubmit, control, formState } = useForm<Formulaire>({
+  const { register, handleSubmit, control, formState, setValue, setError } = useForm<Formulaire>({
     resolver: zodResolver(schema),
     defaultValues: {
       produitId: '',
@@ -74,11 +108,29 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
       emplacementDestinationId: '',
       quantite: 1,
       fournisseurId: '',
+      numeroLot: '',
+      datePeremption: '',
+      lotId: '',
     },
   });
 
+  const produitChoisi = useWatch({ control, name: 'produitId' });
+  const numeroLotSaisi = useWatch({ control, name: 'numeroLot' }) ?? '';
+  const dateSaisie = useWatch({ control, name: 'datePeremption' }) ?? '';
+  const suiviParLot = !!produits.data?.find((p) => p.id === produitChoisi)?.suiviParLot;
+
   const emplacementSourceChoisi = useWatch({ control, name: 'emplacementId' });
   const emplacementDestinationChoisi = useWatch({ control, name: 'emplacementDestinationId' });
+  // Lots en stock du produit à l'emplacement (source), en ordre FEFO.
+  const lots = useQuery({
+    queryKey: ['lots', produitChoisi, emplacementSourceChoisi],
+    queryFn: async () =>
+      (await api.get<LotProduit[]>(`/produits/${produitChoisi}/lots?emplacement_id=${emplacementSourceChoisi}`)).data,
+    enabled: ouvert && suiviParLot && !!emplacementSourceChoisi && enLigne,
+  });
+  const lotExistant = lots.data?.find((l) => l.numero === numeroLotSaisi.trim());
+  const precedent = dateSaisie ? lotPrecedent(lots.data ?? [], numeroLotSaisi.trim(), dateSaisie) : null;
+
   const memeEmplacement =
     type === 'TRANSFERT' &&
     !!emplacementSourceChoisi &&
@@ -102,6 +154,7 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
               emplacementId: valeurs.emplacementId,
               quantite: valeurs.quantite,
               ...(valeurs.fournisseurId ? { fournisseurId: valeurs.fournisseurId } : {}),
+              ...(suiviParLot ? { numeroLot: valeurs.numeroLot?.trim(), datePeremption: valeurs.datePeremption } : {}),
             }
           : type === 'SORTIE'
             ? { produitId: valeurs.produitId, emplacementId: valeurs.emplacementId, quantite: valeurs.quantite }
@@ -110,6 +163,7 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
                 emplacementSourceId: valeurs.emplacementId,
                 emplacementDestinationId: valeurs.emplacementDestinationId,
                 quantite: valeurs.quantite,
+                ...(suiviParLot && valeurs.lotId ? { lotId: valeurs.lotId } : {}),
               };
       const nomProduit = produits.data?.find((p) => p.id === valeurs.produitId)?.nom ?? 'Produit';
 
@@ -151,6 +205,8 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
       queryClient.invalidateQueries({ queryKey: ['mouvements'] });
       queryClient.invalidateQueries({ queryKey: ['alertes'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['lots'] });
+      queryClient.invalidateQueries({ queryKey: ['peremptions'] });
       if (resultat.horsLigne) {
         // Lu directement depuis le résultat de la mutation, jamais depuis
         // un état de composant capturé dans la fermeture de ce callback
@@ -185,7 +241,22 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
   return (
     <Modal ouvert={ouvert} onFermer={onFermer} titre="Nouveau mouvement">
       <form
-        onSubmit={handleSubmit((valeurs) => enregistrer.mutate(valeurs))}
+        onSubmit={handleSubmit((valeurs) => {
+          // Produit suivi par lot : numéro et date exigés à la réception.
+          if (type === 'ENTREE' && suiviParLot) {
+            let incomplet = false;
+            if (!valeurs.numeroLot?.trim()) {
+              setError('numeroLot', { message: 'Indiquez le numéro du lot.' });
+              incomplet = true;
+            }
+            if (!valeurs.datePeremption) {
+              setError('datePeremption', { message: 'Indiquez la date de péremption.' });
+              incomplet = true;
+            }
+            if (incomplet) return;
+          }
+          enregistrer.mutate(valeurs);
+        })}
         className="flex flex-col gap-4"
         noValidate
       >
@@ -277,6 +348,77 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
           error={formState.errors.quantite?.message}
           {...register('quantite', { valueAsNumber: true })}
         />
+
+        {type === 'ENTREE' && suiviParLot && (
+          <div className="flex flex-col gap-3 rounded-md border border-rule bg-entete-groupe p-3">
+            <Input
+              label="Numéro de lot"
+              placeholder="LOT-2601-C"
+              className="font-mono"
+              autoCapitalize="characters"
+              error={formState.errors.numeroLot?.message}
+              {...register('numeroLot')}
+            />
+            <div className="flex flex-col gap-2">
+              <Input
+                label="Date de péremption"
+                type="date"
+                error={formState.errors.datePeremption?.message}
+                {...register('datePeremption')}
+              />
+              <div className="flex gap-2" role="group" aria-label="Raccourcis de date de péremption">
+                {RACCOURCIS_PEREMPTION.map(({ libelle, mois }) => (
+                  <button
+                    key={libelle}
+                    type="button"
+                    onClick={() => setValue('datePeremption', dansMois(mois), { shouldValidate: true, shouldDirty: true })}
+                    className="h-9 flex-1 rounded-md border border-rule-strong bg-surface text-corps font-medium text-ink-900 hover:bg-paper"
+                  >
+                    {libelle}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {lotExistant ? (
+              <p className="text-meta text-steel-500">
+                Le lot <span className="font-mono text-ink-900">{lotExistant.numero}</span> est déjà ici : la quantité
+                s’y ajoutera (même date de péremption exigée).
+              </p>
+            ) : dateSaisie && lots.data ? (
+              <p className="text-meta text-steel-500">
+                {precedent ? (
+                  <>
+                    Ce lot sortira après <span className="font-mono text-ink-900">{precedent.numero}</span>, qui périme le{' '}
+                    {formaterPeremption(precedent.datePeremption!)}
+                  </>
+                ) : (
+                  'Ce lot sortira en premier : aucun lot en stock ici ne périme avant lui.'
+                )}
+              </p>
+            ) : null}
+          </div>
+        )}
+
+        {type === 'TRANSFERT' && suiviParLot && (
+          <Select
+            label="Lot à transférer"
+            options={[
+              { valeur: '', libelle: 'Ordre des péremptions (automatique)' },
+              ...(lots.data ?? []).map((l) => ({
+                valeur: l.id,
+                libelle: `${l.numero} — ${l.quantite} · ${l.datePeremption ? `périme le ${formaterPeremption(l.datePeremption)}` : 'sans date'}`,
+              })),
+            ]}
+            {...register('lotId')}
+          />
+        )}
+
+        {type === 'SORTIE' && suiviParLot && lots.data && lots.data.length > 0 && (
+          <p className="text-meta text-steel-500">
+            Sortie dans l’ordre des péremptions : le lot <span className="font-mono text-ink-900">{lots.data[0].numero}</span>{' '}
+            part en premier.
+          </p>
+        )}
 
         {type === 'ENTREE' && (
           <Select label="Fournisseur (facultatif)" options={optionsFournisseurs} {...register('fournisseurId')} />
