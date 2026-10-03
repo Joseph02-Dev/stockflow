@@ -88,6 +88,7 @@ export class MouvementsService {
     options: { lotId?: string; venteId?: string } = {},
   ) {
     {
+      await this.verrouillerProduit(tx, dto.produitId);
       const produit = await tx.produit.findUniqueOrThrow({
         where: { id: dto.produitId },
       });
@@ -196,6 +197,7 @@ export class MouvementsService {
     options: { venteId?: string } = {},
   ) {
     {
+      await this.verrouillerProduit(tx, dto.produitId);
       const { count } = await tx.stock.updateMany({
         where: {
           produitId: dto.produitId,
@@ -278,6 +280,7 @@ export class MouvementsService {
     }
 
     const resultat = await this.prisma.$transaction(async (tx) => {
+      await this.verrouillerProduit(tx, lot.produitId);
       // Verrou du stock AVANT celui du lot, dans le même ordre que toutes
       // les autres opérations : jamais d'interblocage entre elles.
       await tx.$queryRaw`SELECT 1 FROM stock WHERE produit_id = ${lot.produitId} AND emplacement_id = ${lot.emplacementId} FOR UPDATE`;
@@ -375,6 +378,7 @@ export class MouvementsService {
     }
 
     const resultat = await this.prisma.$transaction(async (tx) => {
+      await this.verrouillerProduit(tx, dto.produitId);
       const stockSource = await tx.stock.findUnique({
         where: {
           produitId_emplacementId: {
@@ -894,6 +898,16 @@ export class MouvementsService {
       );
     }
     return mouvements;
+  }
+
+  /**
+   * Verrou partagé sur le produit pour la durée de la transaction : une
+   * activation ou désactivation du suivi par lot (qui met à jour cette
+   * ligne) attend la fin du mouvement, et inversement. Sans lui, une
+   * entrée lancée juste avant l'activation ajouterait du stock hors lot.
+   */
+  async verrouillerProduit(tx: TransactionPrisma, produitId: string) {
+    await tx.$queryRaw`SELECT 1 FROM produit WHERE id = ${produitId} FOR SHARE`;
   }
 
   private async stockTotalProduit(

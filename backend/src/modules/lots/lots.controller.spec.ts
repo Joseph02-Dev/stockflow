@@ -528,4 +528,101 @@ describe('Suivi par lot (FEFO) — intégration réelle, base PostgreSQL', () =>
       ]);
     });
   });
+
+  describe('Fiche produit — interrupteur du suivi par lot', () => {
+    it('à l’activation, le stock déjà présent devient un lot sans date, qui sort en dernier', async () => {
+      const c = await contexte({ suiviParLot: false });
+      await c.api.post('/mouvements/entree', {
+        produitId: c.produitId,
+        emplacementId: c.madinaId,
+        quantite: 12,
+      });
+      await c.api.post('/mouvements/entree', {
+        produitId: c.produitId,
+        emplacementId: c.coyahId,
+        quantite: 5,
+      });
+
+      const activation = await c.api.patch(`/produits/${c.produitId}`, {
+        suiviParLot: true,
+      });
+      expect(activation.status).toBe(200);
+      expect(activation.body.suiviParLot).toBe(true);
+      await verifierCoherence(c.produitId);
+      const lots = await prisma.lot.findMany({
+        where: { produitId: c.produitId },
+      });
+      expect(lots.map((l) => [l.numero, l.quantite, l.datePeremption])).toEqual(
+        expect.arrayContaining([
+          ['SANS-LOT', 12, null],
+          ['SANS-LOT', 5, null],
+        ]),
+      );
+
+      await recevoir(c, 'LOT-NEUF', 4, '2027-01-01');
+      const sortie = await c.api.post('/mouvements/sortie', {
+        produitId: c.produitId,
+        emplacementId: c.madinaId,
+        quantite: 6,
+      });
+      expect(sortie.status).toBe(201);
+      const restants = await prisma.lot.findMany({
+        where: { produitId: c.produitId, emplacementId: c.madinaId },
+      });
+      expect(
+        Object.fromEntries(restants.map((l) => [l.numero, l.quantite])),
+      ).toEqual({ 'LOT-NEUF': 0, 'SANS-LOT': 10 });
+      await verifierCoherence(c.produitId);
+    });
+
+    it('refuse la désactivation tant qu’il reste des lots en stock, l’accepte une fois les lots vides', async () => {
+      const c = await contexte();
+      await recevoir(c, 'L1', 3, '2027-01-01');
+      const refus = await c.api.patch(`/produits/${c.produitId}`, {
+        suiviParLot: false,
+      });
+      expect(refus.status).toBe(409);
+      expect(refus.body.message).toContain('1 lot en stock');
+      expect(
+        (await prisma.produit.findUniqueOrThrow({ where: { id: c.produitId } }))
+          .suiviParLot,
+      ).toBe(true);
+
+      await c.api.post('/mouvements/sortie', {
+        produitId: c.produitId,
+        emplacementId: c.madinaId,
+        quantite: 3,
+      });
+      const desactivation = await c.api.patch(`/produits/${c.produitId}`, {
+        suiviParLot: false,
+      });
+      expect(desactivation.status).toBe(200);
+      expect(desactivation.body.suiviParLot).toBe(false);
+    });
+
+    it('valide le seuil de péremption propre au produit (null = seuil de l’entreprise)', async () => {
+      const c = await contexte();
+      expect(
+        (
+          await c.api.patch(`/produits/${c.produitId}`, {
+            seuilAlertePeremption: 0,
+          })
+        ).status,
+      ).toBe(400);
+      expect(
+        (
+          await c.api.patch(`/produits/${c.produitId}`, {
+            seuilAlertePeremption: 45,
+          })
+        ).body.seuilAlertePeremption,
+      ).toBe(45);
+      expect(
+        (
+          await c.api.patch(`/produits/${c.produitId}`, {
+            seuilAlertePeremption: null,
+          })
+        ).body.seuilAlertePeremption,
+      ).toBeNull();
+    });
+  });
 });
