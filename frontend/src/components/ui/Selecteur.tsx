@@ -64,10 +64,7 @@ const HAUTEUR_LISTE = 268;
 
 /** « Café moulu » → « cafe moulu » : filtrage insensible à la casse et aux accents. */
 function normaliser(texte: string): string {
-  return texte
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLocaleLowerCase('fr');
+  return texte.normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('fr');
 }
 
 interface Position {
@@ -96,7 +93,18 @@ interface Position {
  *   le focus revient au champ à la fermeture.
  */
 export function Selecteur(props: SelecteurProps) {
-  const { label, options, placeholder = 'Choisir…', error, hint, disabled, className, taille = 'md', vide, creation } = props;
+  const {
+    label,
+    options,
+    placeholder = 'Choisir…',
+    error,
+    hint,
+    disabled,
+    className,
+    taille = 'md',
+    vide,
+    creation,
+  } = props;
   const idGenere = useId();
   const id = props.id ?? idGenere;
   const idListe = `${id}-liste`;
@@ -137,7 +145,8 @@ export function Selecteur(props: SelecteurProps) {
     const filtre = avecRecherche ? saisie : '';
     const candidates = filtre ? options.filter((o) => normaliser(o.libelle).includes(normaliser(filtre))) : options;
     // Sans champ de filtrage, une lettre tapée active la première entrée qui commence par elle.
-    const parLettre = !avecRecherche && saisie ? options.findIndex((o) => normaliser(o.libelle).startsWith(normaliser(saisie))) : -1;
+    const parLettre =
+      !avecRecherche && saisie ? options.findIndex((o) => normaliser(o.libelle).startsWith(normaliser(saisie))) : -1;
     const dejaChoisie = candidates.findIndex((o) => selection.has(o.valeur));
     setTerme(filtre);
     setActif(parLettre >= 0 ? parLettre : Math.max(0, dejaChoisie));
@@ -321,7 +330,10 @@ export function Selecteur(props: SelecteurProps) {
         return (
           <li key={option.valeur} role="presentation">
             {nouveauGroupe && (
-              <p role="presentation" className="px-2.5 pt-2.5 pb-1 text-[11px] font-semibold tracking-wide text-steel-400 uppercase">
+              <p
+                role="presentation"
+                className="px-2.5 pt-2.5 pb-1 text-[11px] font-semibold tracking-wide text-steel-400 uppercase"
+              >
                 {option.groupe}
               </p>
             )}
@@ -343,7 +355,9 @@ export function Selecteur(props: SelecteurProps) {
               {option.icone && <span className="flex shrink-0 items-center">{option.icone}</span>}
               <span className="min-w-0 flex-1">
                 <span className={cn('block truncate', choisie && 'font-medium')}>{option.libelle}</span>
-                {option.sousTitre && <span className="block truncate text-meta text-steel-500">{option.sousTitre}</span>}
+                {option.sousTitre && (
+                  <span className="block truncate text-meta text-steel-500">{option.sousTitre}</span>
+                )}
               </span>
               {choisie && <Check className="size-4 shrink-0 text-action" aria-hidden="true" />}
             </div>
@@ -371,7 +385,9 @@ export function Selecteur(props: SelecteurProps) {
           className="inline-flex h-9 items-center gap-1.5 rounded-md border border-rule-strong bg-surface px-3 text-corps font-medium text-ink-900 hover:bg-paper"
         >
           <Plus className="size-4" aria-hidden="true" />
-          {termeAffiche && creation.libelleDepuisRecherche ? creation.libelleDepuisRecherche(termeAffiche) : creation.libelle}
+          {termeAffiche && creation.libelleDepuisRecherche
+            ? creation.libelleDepuisRecherche(termeAffiche)
+            : creation.libelle}
         </button>
       )}
     </div>
@@ -386,7 +402,13 @@ export function Selecteur(props: SelecteurProps) {
           mobile
             ? balayage.style
             : position
-              ? { left: position.gauche, width: position.largeur, top: position.haut, bottom: position.bas, maxHeight: position.hauteurMax }
+              ? {
+                  left: position.gauche,
+                  width: position.largeur,
+                  top: position.haut,
+                  bottom: position.bas,
+                  maxHeight: position.hauteurMax,
+                }
               : // Premier rendu, le temps de mesurer : transparent mais focalisable.
                 { opacity: 0, left: 0, top: 0 }
         }
@@ -400,13 +422,18 @@ export function Selecteur(props: SelecteurProps) {
         {mobile && (
           <div {...balayage.poignee} className="flex flex-none flex-col items-center gap-2 px-4 pt-2 pb-1">
             <span className="h-1 w-10 rounded-full bg-rule-strong" aria-hidden="true" />
-            {(label ?? props['aria-label']) && <p className="self-start text-panneau text-ink-900">{label ?? props['aria-label']}</p>}
+            {(label ?? props['aria-label']) && (
+              <p className="self-start text-panneau text-ink-900">{label ?? props['aria-label']}</p>
+            )}
           </div>
         )}
         {avecRecherche && (
           <div className="flex-none border-b border-rule p-2">
             <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-steel-400" aria-hidden="true" />
+              <Search
+                className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-steel-400"
+                aria-hidden="true"
+              />
               <input
                 ref={rechercheRef}
                 {...proprietesCombobox}
@@ -429,40 +456,48 @@ export function Selecteur(props: SelecteurProps) {
         )}
         {listeOptions}
         {etatVide}
-        <div className="flex flex-none items-center gap-3 border-t border-rule bg-[#FAFBFC] px-3 py-2 text-meta text-steel-500">
-          {!mobile && (
-            <span className="flex flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
-              {[
-                ['↑↓', 'naviguer'],
-                ['Entrée', 'choisir'],
-                ['Échap', 'fermer'],
-              ].map(([touche, action]) => (
-                <span key={touche} className="inline-flex items-center gap-1">
-                  <kbd className="rounded border border-rule-strong bg-surface px-1 font-mono text-[11px] leading-4 text-steel-700">{touche}</kbd>
-                  {action}
-                </span>
-              ))}
-            </span>
-          )}
-          {creation && visibles.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                creation.onCreer(termeAffiche);
-                fermer();
-              }}
-              className={cn('inline-flex items-center gap-1 font-medium text-action hover:underline', mobile && 'min-h-11')}
-            >
-              <Plus className="size-3.5" aria-hidden="true" />
-              {creation.libelle}
-            </button>
-          )}
-          {props.multiple && mobile && (
-            <button type="button" onClick={() => fermer()} className="ml-auto min-h-11 font-medium text-action">
-              Terminé
-            </button>
-          )}
-        </div>
+        {/* Pied : raccourcis (bureau), création, « Terminé » (multiple, mobile) — absent s'il serait vide. */}
+        {(!mobile || creation || props.multiple) && (
+          <div className="flex flex-none items-center gap-3 border-t border-rule bg-[#FAFBFC] px-3 py-2 text-meta text-steel-500">
+            {!mobile && (
+              <span className="flex flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
+                {[
+                  ['↑↓', 'naviguer'],
+                  ['Entrée', 'choisir'],
+                  ['Échap', 'fermer'],
+                ].map(([touche, action]) => (
+                  <span key={touche} className="inline-flex items-center gap-1">
+                    <kbd className="rounded border border-rule-strong bg-surface px-1 font-mono text-[11px] leading-4 text-steel-700">
+                      {touche}
+                    </kbd>
+                    {action}
+                  </span>
+                ))}
+              </span>
+            )}
+            {creation && visibles.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  creation.onCreer(termeAffiche);
+                  fermer();
+                }}
+                className={cn(
+                  'inline-flex items-center gap-1 font-medium text-action hover:underline',
+                  mobile && 'min-h-11',
+                )}
+              >
+                <Plus className="size-3.5" aria-hidden="true" />
+                {creation.libelle}
+              </button>
+            )}
+            {props.multiple && mobile && (
+              <button type="button" onClick={() => fermer()} className="ml-auto min-h-11 font-medium text-action">
+                Terminé
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </>
   );
@@ -470,7 +505,11 @@ export function Selecteur(props: SelecteurProps) {
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
       {label && (
-        <label id={`${id}-libelle`} className="text-corps font-medium text-ink-900" onClick={() => champRef.current?.focus()}>
+        <label
+          id={`${id}-libelle`}
+          className="text-corps font-medium text-ink-900"
+          onClick={() => champRef.current?.focus()}
+        >
           {label}
         </label>
       )}
@@ -478,7 +517,9 @@ export function Selecteur(props: SelecteurProps) {
         ref={champRef}
         id={id}
         tabIndex={disabled ? -1 : 0}
-        {...(focusDansRecherche ? { role: 'combobox', 'aria-expanded': true, 'aria-controls': idListe } : proprietesCombobox)}
+        {...(focusDansRecherche
+          ? { role: 'combobox', 'aria-expanded': true, 'aria-controls': idListe }
+          : proprietesCombobox)}
         aria-label={label ? undefined : props['aria-label']}
         aria-labelledby={label ? `${id}-libelle` : undefined}
         aria-disabled={disabled || undefined}
@@ -501,7 +542,10 @@ export function Selecteur(props: SelecteurProps) {
           <span className="flex min-w-0 flex-1 flex-wrap gap-1 py-1">
             {choisies.length === 0 && <span className="truncate text-steel-400">{placeholder}</span>}
             {choisies.map((o) => (
-              <span key={o.valeur} className="inline-flex max-w-full items-center gap-1 rounded-[6px] bg-action-wash py-0.5 pr-1 pl-2 text-meta font-medium text-action">
+              <span
+                key={o.valeur}
+                className="inline-flex max-w-full items-center gap-1 rounded-[6px] bg-action-wash py-0.5 pr-1 pl-2 text-meta font-medium text-action"
+              >
                 <span className="truncate">{o.libelle}</span>
                 <button
                   type="button"
@@ -524,7 +568,10 @@ export function Selecteur(props: SelecteurProps) {
             <span className={cn('truncate', !unique && 'text-steel-400')}>{unique?.libelle ?? placeholder}</span>
           </span>
         )}
-        <ChevronDown className={cn('size-4 shrink-0 text-steel-400 transition-transform', ouvert && 'rotate-180')} aria-hidden="true" />
+        <ChevronDown
+          className={cn('size-4 shrink-0 text-steel-400 transition-transform', ouvert && 'rotate-180')}
+          aria-hidden="true"
+        />
       </div>
       {error ? (
         <p id={`${id}-erreur`} className="text-meta text-rupture">
