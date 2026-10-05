@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useEcranMobile } from '@/lib/useEcranMobile';
@@ -154,7 +155,9 @@ export function Fenetre({
 
   const tiroir = variante === 'tiroir' && !mobile;
 
-  return (
+  // Portail : un parent animé (transform, ex. l'entrée des pages) deviendrait
+  // sinon le repère du position: fixed, et le fond ne couvrirait pas l'écran.
+  return createPortal(
     <div className={cn('fixed inset-0 z-50 flex', mobile ? 'items-end' : tiroir ? 'justify-end' : 'items-center justify-center p-4')}>
       <div className="absolute inset-0 bg-ink-900/50" onClick={demanderFermeture} aria-hidden="true" />
 
@@ -241,6 +244,7 @@ export function Fenetre({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
