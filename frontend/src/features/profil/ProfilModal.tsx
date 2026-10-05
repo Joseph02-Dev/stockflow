@@ -27,19 +27,14 @@ export function ProfilModal({ ouvert, onFermer }: { ouvert: boolean; onFermer: (
   });
 
   return (
-    <Modal ouvert={ouvert} onFermer={onFermer} titre="Mon profil" description={session?.utilisateur.email}>
-      <div className="flex flex-col gap-4">
-        {erreur && <Alert variant="error">{erreur}</Alert>}
-
-        <ImageUploadField
-          label="Photo de profil"
-          valeur={photoUrl}
-          dossier="utilisateurs"
-          onChange={setPhotoUrl}
-          forme="rond"
-        />
-
-        <div className="flex justify-end gap-2 pt-2">
+    <Modal
+      ouvert={ouvert}
+      onFermer={onFermer}
+      titre="Mon profil"
+      description={session?.utilisateur.email}
+      modifie={!!photoUrl && photoUrl !== session?.utilisateur.photoUrl}
+      pied={
+        <>
           <Button variant="secondary" onClick={onFermer}>
             Fermer
           </Button>
@@ -50,7 +45,19 @@ export function ProfilModal({ ouvert, onFermer }: { ouvert: boolean; onFermer: (
           >
             Enregistrer
           </Button>
-        </div>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        {erreur && <Alert variant="error">{erreur}</Alert>}
+
+        <ImageUploadField
+          label="Photo de profil"
+          valeur={photoUrl}
+          dossier="utilisateurs"
+          onChange={setPhotoUrl}
+          forme="rond"
+        />
       </div>
     </Modal>
   );

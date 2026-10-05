@@ -228,8 +228,19 @@ export function ClientsPage() {
         onFermer={() => setEdition(null)}
         titre={edition === 'nouveau' ? 'Nouveau client' : 'Modifier le client'}
         description="Seul le nom est obligatoire."
+        modifie={formState.isDirty}
+        pied={
+          <>
+            <Button type="button" variant="secondary" onClick={() => setEdition(null)}>
+              Annuler
+            </Button>
+            <Button type="submit" form="formulaire-client" loading={enregistrer.isPending}>
+              Enregistrer
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={handleSubmit((valeurs) => enregistrer.mutate(valeurs))} className="flex flex-col gap-4" noValidate>
+        <form id="formulaire-client" onSubmit={handleSubmit((valeurs) => enregistrer.mutate(valeurs))} className="flex flex-col gap-4" noValidate>
           {erreur && <Alert variant="error">{erreur}</Alert>}
 
           <Input label="Nom" autoComplete="off" error={formState.errors.nom?.message} {...register('nom')} />
@@ -274,15 +285,6 @@ export function ClientsPage() {
             {...register('plafondCredit', { valueAsNumber: true })}
           />
           <p className="-mt-2 text-meta text-steel-500">Au-delà, la vente est signalée mais jamais bloquée.</p>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setEdition(null)}>
-              Annuler
-            </Button>
-            <Button type="submit" loading={enregistrer.isPending}>
-              Enregistrer
-            </Button>
-          </div>
         </form>
       </Drawer>
 
