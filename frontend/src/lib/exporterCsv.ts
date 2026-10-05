@@ -11,7 +11,10 @@ interface ColonneCsv<T> {
  * les guillemets internes.
  */
 function echapperValeur(valeur: string | number): string {
-  const texte = String(valeur);
+  // Injection de formules (OWASP) : une cellule texte commençant par
+  // = + - @, une tabulation ou un retour chariot serait exécutée par le
+  // tableur ; préfixée d'une apostrophe, elle reste du texte.
+  const texte = typeof valeur === 'string' && /^[=+\-@\t\r]/.test(valeur) ? `'${valeur}` : String(valeur);
   if (/[",\n]/.test(texte)) {
     return `"${texte.replace(/"/g, '""')}"`;
   }
