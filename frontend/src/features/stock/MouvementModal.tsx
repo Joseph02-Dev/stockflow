@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,7 +10,8 @@ import { ajouterMouvementEnAttente } from '@/lib/mouvementsHorsLigne';
 import { useEnLigne } from '@/lib/useEnLigne';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import { SelecteurChamp } from '@/components/ui/SelecteurChamp';
+import { Vignette } from '@/components/patterns/Vignette';
 import { Alert } from '@/components/ui/Alert';
 import { Modal } from '@/components/ui/Modal';
 import { useModules } from '@/lib/useModules';
@@ -24,6 +26,8 @@ interface Option {
 
 interface OptionProduit extends Option {
   suiviParLot?: boolean;
+  reference?: string | null;
+  photoUrl?: string | null;
 }
 
 /**
@@ -62,6 +66,7 @@ type TypeMouvement = 'ENTREE' | 'SORTIE' | 'TRANSFERT';
  */
 export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer: () => void }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [type, setType] = useState<TypeMouvement>('ENTREE');
   const [erreur, setErreur] = useState<string | null>(null);
   const [enregistreLocalement, setEnregistreLocalement] = useState(false);
@@ -208,14 +213,13 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
     onError: (err) => setErreur(messageErreur(err, 'L’enregistrement a échoué.')),
   });
 
-  const optionsProduits = [
-    { valeur: '', libelle: 'Sélectionner un produit…' },
-    ...(produits.data ?? []).map((p) => ({ valeur: p.id, libelle: p.nom })),
-  ];
-  const optionsEmplacements = [
-    { valeur: '', libelle: 'Sélectionner un emplacement…' },
-    ...(emplacements.data ?? []).map((e) => ({ valeur: e.id, libelle: e.nom })),
-  ];
+  const optionsProduits = (produits.data ?? []).map((p) => ({
+    valeur: p.id,
+    libelle: p.nom,
+    sousTitre: p.reference ?? undefined,
+    icone: <Vignette nom={p.nom} photoUrl={p.photoUrl} taille={28} />,
+  }));
+  const optionsEmplacements = (emplacements.data ?? []).map((e) => ({ valeur: e.id, libelle: e.nom }));
   const optionsFournisseurs = [
     { valeur: '', libelle: 'Aucun fournisseur' },
     ...(fournisseurs.data ?? []).map((f) => ({ valeur: f.id, libelle: f.nom })),
@@ -226,8 +230,29 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
   const pasAssezEmplacements = type === 'TRANSFERT' && (emplacements.data?.length ?? 0) < 2;
 
   return (
-    <Modal ouvert={ouvert} onFermer={onFermer} titre="Nouveau mouvement">
+    <Modal
+      ouvert={ouvert}
+      onFermer={onFermer}
+      titre="Nouveau mouvement"
+      modifie={formState.isDirty && !enregistreLocalement}
+      pied={
+        <>
+          <Button type="button" variant="secondary" onClick={onFermer}>
+            Annuler
+          </Button>
+          <Button
+            type="submit"
+            form="formulaire-mouvement"
+            loading={enregistrer.isPending}
+            disabled={aucunProduit || aucunEmplacement || pasAssezEmplacements || memeEmplacement}
+          >
+            Enregistrer
+          </Button>
+        </>
+      }
+    >
       <form
+        id="formulaire-mouvement"
         onSubmit={handleSubmit((valeurs) => {
           // Produit suivi par lot : numéro et date exigés à la réception.
           if (type === 'ENTREE' && suiviParLot) {
@@ -301,26 +326,38 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
           <Alert variant="warning">Un transfert nécessite au moins deux emplacements.</Alert>
         ) : null}
 
-        <Select
+        <SelecteurChamp
+          name="produitId"
+          control={control}
           label="Produit"
+          placeholder="Sélectionner un produit…"
           options={optionsProduits}
-          error={formState.errors.produitId?.message}
-          {...register('produitId')}
+          vide={{ titre: 'Aucune référence trouvée', nomPluriel: 'références' }}
+          creation={{
+            libelle: 'Créer un produit',
+            libelleDepuisRecherche: () => 'Créer ce produit',
+            onCreer: (terme) => {
+              onFermer();
+              navigate(`/produits/nouveau${terme ? `?nom=${encodeURIComponent(terme)}` : ''}`);
+            },
+          }}
         />
-        <Select
+        <SelecteurChamp
+          name="emplacementId"
+          control={control}
           label={type === 'TRANSFERT' ? 'Emplacement source' : 'Emplacement'}
+          placeholder="Sélectionner un emplacement…"
           options={optionsEmplacements}
-          error={formState.errors.emplacementId?.message}
-          {...register('emplacementId')}
         />
 
         {type === 'TRANSFERT' && (
           <>
-            <Select
+            <SelecteurChamp
+              name="emplacementDestinationId"
+              control={control}
               label="Emplacement destination"
+              placeholder="Sélectionner un emplacement…"
               options={optionsEmplacements}
-              error={formState.errors.emplacementDestinationId?.message}
-              {...register('emplacementDestinationId')}
             />
             {memeEmplacement && (
               <Alert variant="error">La destination doit être différente de la source.</Alert>
@@ -387,7 +424,9 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
         )}
 
         {type === 'TRANSFERT' && suiviParLot && (
-          <Select
+          <SelecteurChamp
+            name="lotId"
+            control={control}
             label="Lot à transférer"
             options={[
               { valeur: '', libelle: 'Ordre des péremptions (automatique)' },
@@ -396,7 +435,6 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
                 libelle: `${l.numero} — ${l.quantite} · ${l.datePeremption ? `périme le ${formaterPeremption(l.datePeremption)}` : 'sans date'}`,
               })),
             ]}
-            {...register('lotId')}
           />
         )}
 
@@ -408,21 +446,8 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
         )}
 
         {type === 'ENTREE' && (
-          <Select label="Fournisseur (facultatif)" options={optionsFournisseurs} {...register('fournisseurId')} />
+          <SelecteurChamp name="fournisseurId" control={control} label="Fournisseur (facultatif)" options={optionsFournisseurs} />
         )}
-
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="secondary" onClick={onFermer}>
-            Annuler
-          </Button>
-          <Button
-            type="submit"
-            loading={enregistrer.isPending}
-            disabled={aucunProduit || aucunEmplacement || pasAssezEmplacements || memeEmplacement}
-          >
-            Enregistrer
-          </Button>
-        </div>
       </form>
     </Modal>
   );

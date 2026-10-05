@@ -113,7 +113,8 @@ export function Selecteur(props: SelecteurProps) {
   const [position, setPosition] = useState<Position | null>(null);
 
   const selection = useMemo(
-    () => new Set(props.multiple ? props.value : props.value ? [props.value] : []),
+    // Valeur simple '' : sélectionnée seulement si une option la porte (ex. « Aucun fournisseur »).
+    () => new Set(props.multiple ? props.value : [props.value]),
     [props.multiple, props.value],
   );
   const avecRecherche = options.length > SEUIL_RECHERCHE;
@@ -214,6 +215,14 @@ export function Selecteur(props: SelecteurProps) {
         fermer(false);
         break;
       default:
+        // Frappe arrivée sur le champ avant que le focus ne passe au filtre : rien n'est perdu.
+        if (avecRecherche && e.target !== rechercheRef.current && e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          setTerme((t) => t + e.key);
+          setActif(0);
+          rechercheRef.current?.focus();
+          break;
+        }
         // Sans champ de filtrage : une lettre saute à la première entrée correspondante.
         if (!avecRecherche && e.key.length === 1) {
           const i = visibles.findIndex((o) => normaliser(o.libelle).startsWith(normaliser(e.key)));
@@ -378,7 +387,8 @@ export function Selecteur(props: SelecteurProps) {
             ? balayage.style
             : position
               ? { left: position.gauche, width: position.largeur, top: position.haut, bottom: position.bas, maxHeight: position.hauteurMax }
-              : { visibility: 'hidden', left: 0, top: 0 }
+              : // Premier rendu, le temps de mesurer : transparent mais focalisable.
+                { opacity: 0, left: 0, top: 0 }
         }
         className={cn(
           'fixed z-[60] flex flex-col overflow-hidden bg-surface shadow-pop',
@@ -410,7 +420,7 @@ export function Selecteur(props: SelecteurProps) {
                 onKeyDown={surTouche}
                 placeholder="Rechercher…"
                 className={cn(
-                  'w-full rounded-md border border-rule bg-paper pr-3 pl-8 text-corps text-ink-900 outline-none focus:border-action',
+                  'w-full rounded-md border border-rule bg-paper pr-3 pl-8 text-corps text-ink-900 outline-none focus:border-action focus-visible:outline-none',
                   mobile ? 'h-11' : 'h-9',
                 )}
               />
