@@ -164,6 +164,80 @@ describe('Rapports PDF — intégration réelle, base PostgreSQL', () => {
     expect(pages.join(' ')).not.toContain('Article 001');
   });
 
+  /** Scénario réel par l'API : entrée, sortie, transfert, vente, casse annulée. */
+  async function activite(c: Awaited<ReturnType<typeof contexte>>) {
+    const produit = (await c.post('/produits', { nom: 'Ciment Portland 50 kg', prixAchat: 82000, prixVente: 95000 })).body;
+    const madina = (await c.post('/emplacements', { nom: 'Dépôt Madina' })).body;
+    const matoto = (await c.post('/emplacements', { nom: 'Réserve Matoto' })).body;
+    await c.post('/mouvements/entree', { produitId: produit.id, emplacementId: madina.id, quantite: 100 });
+    await c.post('/mouvements/sortie', { produitId: produit.id, emplacementId: madina.id, quantite: 30 });
+    await c.post('/mouvements/transfert', { produitId: produit.id, emplacementSourceId: madina.id, emplacementDestinationId: matoto.id, quantite: 20 });
+    const vente = (await c.post('/ventes', { emplacementId: matoto.id, modePaiement: 'ESPECES', lignes: [{ produitId: produit.id, quantite: 4 }] })).body;
+    const [casse] = (await c.post('/pertes', { produitId: produit.id, emplacementId: madina.id, quantite: 5, motif: 'VOL' })).body;
+    await c.post(`/pertes/${casse.id}/annuler`, { motif: 'Sacs retrouvés' });
+    return { produit, madina, matoto, vente };
+  }
+
+  it('journal : solde après chaque opération recalculable à la main, transfert sur deux lignes', async () => {
+    const c = await contexte();
+    const { madina, matoto, vente } = await activite(c);
+    const csv = await c.get('/rapports/mouvements?format=csv');
+    expect(csv.status).toBe(200);
+    const lignes = csv.text.replace(/^\uFEFF/, '').trim().split('\r\n').slice(1).map((l) => l.split(';'));
+    // Colonnes : 5 type, 6 quantité, 7 solde après, 8 emplacement, 10 pièce.
+    expect(lignes.map((l) => [l[5], l[6], l[7], l[8]])).toEqual([
+      ['Entrée', '100', '100', 'Dépôt Madina'],
+      ['Sortie', '-30', '70', 'Dépôt Madina'],
+      ['Transfert vers Réserve Matoto', '-20', '50', 'Dépôt Madina'],
+      ['Transfert depuis Dépôt Madina', '20', '20', 'Réserve Matoto'],
+      ['Sortie', '-4', '16', 'Réserve Matoto'],
+      ['Casse', '-5', '45', 'Dépôt Madina'],
+      ['Ajustement', '5', '50', 'Dépôt Madina'],
+    ]);
+    expect(lignes[4][10]).toBe(vente.numero);
+    expect(lignes[5][11]).toBe('oui');
+    expect(lignes[6][10]).toBe('Annulation casse');
+    // Le dernier solde de chaque emplacement est le stock réel.
+    const stocks = await prisma.stock.findMany({ where: { emplacementId: { in: [madina.id, matoto.id] } } });
+    expect(stocks.find((s) => s.emplacementId === madina.id)?.quantite).toBe(50);
+    expect(stocks.find((s) => s.emplacementId === matoto.id)?.quantite).toBe(16);
+
+    const r = await c.pdf('/rapports/mouvements');
+    expect(r.status).toBe(200);
+    expect(r.headers['content-type']).toBe('application/pdf');
+    const texte = (await lirePdf(r.body as Buffer)).pages.join(' ');
+    expect(texte).toContain('Journal des mouvements');
+    expect(texte).toContain('Date et heure Produit Type Qté Solde après Emplacement Auteur Pièce');
+    expect(texte).toContain('annulée ensuite');
+    expect(texte).toContain('Mouvements 7');
+  });
+
+  it('journal : filtres d’emplacement, de type et de période', async () => {
+    const c = await contexte();
+    const { matoto } = await activite(c);
+    const parEmplacement = await c.get(`/rapports/mouvements?format=csv&emplacementId=${matoto.id}`);
+    expect(parEmplacement.text.trim().split('\r\n')).toHaveLength(3);
+    const casses = await c.get('/rapports/mouvements?format=csv&type=CASSE');
+    expect(casses.text.trim().split('\r\n')).toHaveLength(2);
+    // Un mouvement antidaté sort de la période, mais compte toujours dans les soldes.
+    await prisma.mouvement.updateMany({ where: { entrepriseId: c.entreprise.id, type: 'ENTREE' }, data: { createdAt: new Date('2025-01-15T10:00:00Z') } });
+    const recent = await c.get('/rapports/mouvements?format=csv');
+    const lignes = recent.text.trim().split('\r\n').slice(1).map((l) => l.split(';'));
+    expect(lignes[0].slice(5, 8)).toEqual(['Sortie', '-30', '70']);
+    const ancien = await c.get('/rapports/mouvements?format=csv&debut=2025-01-01&fin=2025-01-31');
+    expect(ancien.text.trim().split('\r\n')).toHaveLength(2);
+    expect((await c.get('/rapports/mouvements?debut=2026-02-01&fin=2026-01-01')).status).toBe(400);
+  });
+
+  it('journal : isolation multi-entreprise', async () => {
+    const a = await contexte('Entreprise A');
+    const b = await contexte('Entreprise B');
+    const { madina } = await activite(a);
+    expect((await b.pdf(`/rapports/mouvements?emplacementId=${madina.id}`)).status).toBe(404);
+    const csv = await b.get('/rapports/mouvements?format=csv');
+    expect(csv.text.replace(/^\uFEFF/, '').trim().split('\r\n')).toHaveLength(1);
+  });
+
   it('paramètres invalides → 400', async () => {
     const c = await contexte();
     expect((await c.get('/rapports/stock?format=docx')).status).toBe(400);

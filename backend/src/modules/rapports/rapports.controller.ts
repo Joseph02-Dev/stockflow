@@ -3,7 +3,8 @@ import type { Response } from 'express';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { RequestContext } from '../../common/context/tenant-context.service.js';
-import { RapportStockDto } from './dto/rapports.dto.js';
+import { RapportMouvementsDto, RapportStockDto } from './dto/rapports.dto.js';
+import { RapportMouvementsService } from './rapport-mouvements.service.js';
 import { RapportStockService } from './rapport-stock.service.js';
 import { compterPages, type RapportGenere } from './rapports.types.js';
 
@@ -14,7 +15,10 @@ import { compterPages, type RapportGenere } from './rapports.types.js';
  */
 @Controller('rapports')
 export class RapportsController {
-  constructor(private readonly stock: RapportStockService) {}
+  constructor(
+    private readonly stock: RapportStockService,
+    private readonly mouvements: RapportMouvementsService,
+  ) {}
 
   @Get('stock')
   async etatDuStock(
@@ -24,6 +28,16 @@ export class RapportsController {
     @Res() res: Response,
   ) {
     await envoyer(res, dto.format, await this.stock.generer(entrepriseId, user.utilisateurId, dto));
+  }
+
+  @Get('mouvements')
+  async journalDesMouvements(
+    @CurrentTenant() entrepriseId: string,
+    @CurrentUser() user: RequestContext,
+    @Query() dto: RapportMouvementsDto,
+    @Res() res: Response,
+  ) {
+    await envoyer(res, dto.format, await this.mouvements.generer(entrepriseId, user.utilisateurId, dto));
   }
 }
 
