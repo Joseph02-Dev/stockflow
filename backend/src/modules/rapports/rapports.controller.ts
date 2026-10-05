@@ -1,0 +1,44 @@
+import { Controller, Get, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
+import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import type { RequestContext } from '../../common/context/tenant-context.service.js';
+import { RapportStockDto } from './dto/rapports.dto.js';
+import { RapportStockService } from './rapport-stock.service.js';
+import { compterPages, type RapportGenere } from './rapports.types.js';
+
+/**
+ * Rapports PDF (et CSV) générés côté serveur : identiques quel que soit le
+ * poste qui les produit. Le document est téléchargé, jamais hébergé : un
+ * relevé de compte porte des données personnelles et des dettes.
+ */
+@Controller('rapports')
+export class RapportsController {
+  constructor(private readonly stock: RapportStockService) {}
+
+  @Get('stock')
+  async etatDuStock(
+    @CurrentTenant() entrepriseId: string,
+    @CurrentUser() user: RequestContext,
+    @Query() dto: RapportStockDto,
+    @Res() res: Response,
+  ) {
+    await envoyer(res, dto.format, await this.stock.generer(entrepriseId, user.utilisateurId, dto));
+  }
+}
+
+async function envoyer(res: Response, format: 'pdf' | 'csv', rapport: RapportGenere) {
+  // Données d'entreprise : jamais mises en cache par un intermédiaire.
+  res.setHeader('Cache-Control', 'no-store');
+  if (format === 'csv') {
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${rapport.nomFichier}.csv"`);
+    res.send(rapport.csv());
+    return;
+  }
+  const pdf = await rapport.pdf();
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${rapport.nomFichier}.pdf"`);
+  res.setHeader('X-Nombre-Pages', String(compterPages(pdf)));
+  res.send(pdf);
+}
