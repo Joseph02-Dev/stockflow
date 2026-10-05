@@ -1,0 +1,104 @@
+# Intégration continue : rien n'est fusionné sans lint, build et tests verts.
+# Les secrets de test (JWT, rôle restreint) sont générés à chaque exécution
+# pour une base jetable : aucune valeur réelle n'est utilisée ni stockée ici.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (lint, build, tests PostgreSQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: stockflow_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/stockflow_test
+      EMAIL_PROVIDER: dev
+      FRONTEND_URL: http://localhost:5173
+      # Facultatifs : le test d'envoi réel vers Cloudinary s'exécute seulement s'ils sont définis
+      # dans les secrets du dépôt (Settings → Secrets and variables → Actions).
+      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Secrets de test éphémères
+        run: |
+          {
+            echo "JWT_ACCESS_SECRET=$(openssl rand -hex 32)"
+            echo "JWT_REFRESH_SECRET=$(openssl rand -hex 32)"
+            echo "JWT_CONSOLE_SECRET=$(openssl rand -hex 32)"
+            echo "MOT_DE_PASSE_ROLE_APP=$(openssl rand -hex 16)"
+          } >> "$GITHUB_ENV"
+      - run: npm ci
+      # Un test du backend (import de catalogue) exerce le code de lecture
+      # CSV/Excel du frontend, qui dépend de ses propres paquets.
+      - name: Dépendances du frontend (lues par un test d'import)
+        run: npm ci
+        working-directory: frontend
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+      - name: Migrations
+        run: npx prisma migrate deploy
+      - name: Rôle restreint (tests de la Row-Level Security)
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v mot_de_passe="$MOT_DE_PASSE_ROLE_APP" \
+            -f scripts/rls/creer-role-application.sql
+          echo "DATABASE_URL_APPLICATION=postgresql://stockflow_app:${MOT_DE_PASSE_ROLE_APP}@localhost:5432/stockflow_test" >> "$GITHUB_ENV"
+      - name: Tests
+        run: npm test
+
+  frontend:
+    name: Frontend (lint, typage, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typage et build
+        run: npm run build

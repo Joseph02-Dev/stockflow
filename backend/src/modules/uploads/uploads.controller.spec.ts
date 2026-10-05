@@ -61,7 +61,10 @@ describe('Uploads — intégration réelle avec Cloudinary', () => {
     return connexion.body.accessToken as string;
   }
 
-  it(
+  // Seul test qui appelle réellement Cloudinary : il s'exécute dès que les
+  // identifiants sont fournis (même convention que REDIS_URL_TEST). Sans
+  // eux, l'échec ne dirait rien du code, seulement de l'environnement.
+  it.skipIf(!process.env.CLOUDINARY_API_SECRET)(
     'téléverse réellement une image vers Cloudinary et retourne une URL accessible',
     async () => {
       const accessToken = await creerAdmin();

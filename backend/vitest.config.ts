@@ -10,5 +10,9 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.spec.ts'],
+    // Les tests d'intégration partagent une vraie base PostgreSQL : un
+    // fichier à la fois, sinon le nettoyage ou l'empreinte de la base d'un
+    // test (isolation transverse) verrait les données d'un autre.
+    fileParallelism: false,
   },
 });
