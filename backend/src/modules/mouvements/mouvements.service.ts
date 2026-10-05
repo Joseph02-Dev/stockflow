@@ -507,6 +507,9 @@ export class MouvementsService {
       TRANSFERT: 'Transfert',
       AJUSTEMENT: 'Ajustement',
       PERIME: 'Périmé',
+      CASSE: 'Casse',
+      RETOUR_CLIENT: 'Retour client',
+      RETOUR_FOURNISSEUR: 'Retour fournisseur',
     } as const;
     await ecrire(
       ligneCsv([

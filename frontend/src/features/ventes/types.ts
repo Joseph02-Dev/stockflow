@@ -1,7 +1,8 @@
 import type { Client } from '@/features/clients/types';
 import type { TvaParTaux } from '@/lib/calculVente';
 
-export type ModePaiement = 'ESPECES' | 'ORANGE_MONEY' | 'MTN_MOMO' | 'CREDIT';
+// AVOIR : règlement créé par un retour client (déduit de la dette, jamais encaissé).
+export type ModePaiement = 'ESPECES' | 'ORANGE_MONEY' | 'MTN_MOMO' | 'CREDIT' | 'AVOIR';
 export type ModeReglement = Exclude<ModePaiement, 'CREDIT'>;
 export type StatutVente = 'VALIDEE' | 'ANNULEE';
 

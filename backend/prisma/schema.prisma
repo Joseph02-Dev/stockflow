@@ -24,6 +24,40 @@ enum TypeMouvement {
   AJUSTEMENT
   // Sortie d'un lot périmé (perte), distincte d'une SORTIE commerciale.
   PERIME
+  // Perte sèche (sortie) : motif obligatoire, valeur figée au prix d'achat.
+  CASSE
+  // Marchandise rendue par un client (entrée).
+  RETOUR_CLIENT
+  // Marchandise renvoyée au fournisseur (sortie), en attente d'avoir.
+  RETOUR_FOURNISSEUR
+}
+
+/// Motif d'une casse : liste fermée, sans quoi aucune statistique n'a de sens.
+enum MotifPerte {
+  CASSE_MANUTENTION
+  DEGAT_EAUX
+  VOL
+  ERREUR_SAISIE
+  AUTRE
+}
+
+enum StatutAvoir {
+  ATTENDU
+  RECU
+  REFUSE
+}
+
+/// Issue de la marchandise rendue par un client.
+enum EtatRetourClient {
+  REMISE_EN_STOCK
+  CASSE
+  RETOUR_FOURNISSEUR
+}
+
+/// Compensation du client lors d'un retour.
+enum CompensationRetour {
+  DEDUIRE_DETTE
+  REMBOURSEMENT
 }
 
 enum StatutImport {
@@ -130,6 +164,9 @@ model Entreprise {
   lots         Lot[]
   imports      ImportCatalogue[]
 
+  retoursFournisseur RetourFournisseur[]
+  retoursClient      RetourClient[]
+
   @@map("entreprise")
 }
 
@@ -168,6 +205,10 @@ model Utilisateur {
   reinitialisationsMotDePasse ReinitialisationMotDePasse[]
   verificationsEmail          VerificationEmail[]
   importsCatalogue            ImportCatalogue[]
+
+  mouvementsAnnules  Mouvement[]         @relation("MouvementAnnulePar")
+  retoursFournisseur RetourFournisseur[]
+  retoursClient      RetourClient[]
 
   @@index([entrepriseId])
   @@map("utilisateur")
@@ -272,6 +313,8 @@ model Emplacement {
   inventaires     Inventaire[]
   commandes       CommandeFournisseur[]
   lots            Lot[]
+
+  retoursFournisseur RetourFournisseur[]
 
   @@index([entrepriseId])
   @@map("emplacement")
@@ -383,6 +426,8 @@ model Fournisseur {
   mouvements       Mouvement[]
   commandes        CommandeFournisseur[]
 
+  retours RetourFournisseur[]
+
   @@index([entrepriseId])
   @@map("fournisseur")
 }
@@ -437,16 +482,40 @@ model Mouvement {
   // exactement les lots consommés.
   venteId String? @map("vente_id")
 
-  entreprise             Entreprise   @relation(fields: [entrepriseId], references: [id])
-  produit                Produit      @relation(fields: [produitId], references: [id])
-  emplacement            Emplacement  @relation(fields: [emplacementId], references: [id])
-  emplacementDestination Emplacement? @relation("MouvementDestination", fields: [emplacementDestinationId], references: [id])
-  fournisseur            Fournisseur? @relation(fields: [fournisseurId], references: [id])
-  utilisateur            Utilisateur  @relation(fields: [utilisateurId], references: [id])
-  lot                    Lot?         @relation(fields: [lotId], references: [id])
-  vente                  Vente?       @relation(fields: [venteId], references: [id])
+  // Pertes (CASSE) et retours : motif, valeur figée au prix d'achat du
+  // moment — si le prix change plus tard, la perte enregistrée ne bouge pas.
+  motifPerte          MotifPerte? @map("motif_perte")
+  valeurUnitaire      Int?        @map("valeur_unitaire")
+  valeurTotale        Int?        @map("valeur_totale")
+  commentaire         String?
+  photoUrl            String?     @map("photo_url")
+  // Annulation d'une casse (administrateur) : la déclaration reste, marquée
+  // annulée ; le mouvement inverse la désigne par annuleMouvementId.
+  annuleAt            DateTime?   @map("annule_at")
+  annuleParId         String?     @map("annule_par_id")
+  motifAnnulation     String?     @map("motif_annulation")
+  annuleMouvementId   String?     @unique @map("annule_mouvement_id")
+  retourFournisseurId String?     @map("retour_fournisseur_id")
+  retourClientId      String?     @map("retour_client_id")
+
+  entreprise             Entreprise         @relation(fields: [entrepriseId], references: [id])
+  produit                Produit            @relation(fields: [produitId], references: [id])
+  emplacement            Emplacement        @relation(fields: [emplacementId], references: [id])
+  emplacementDestination Emplacement?       @relation("MouvementDestination", fields: [emplacementDestinationId], references: [id])
+  fournisseur            Fournisseur?       @relation(fields: [fournisseurId], references: [id])
+  utilisateur            Utilisateur        @relation(fields: [utilisateurId], references: [id])
+  lot                    Lot?               @relation(fields: [lotId], references: [id])
+  vente                  Vente?             @relation(fields: [venteId], references: [id])
+  annulePar              Utilisateur?       @relation("MouvementAnnulePar", fields: [annuleParId], references: [id])
+  mouvementAnnule        Mouvement?         @relation("AnnulationMouvement", fields: [annuleMouvementId], references: [id])
+  annulation             Mouvement?         @relation("AnnulationMouvement")
+  retourFournisseur      RetourFournisseur? @relation(fields: [retourFournisseurId], references: [id])
+  retourClient           RetourClient?      @relation(fields: [retourClientId], references: [id])
 
   @@index([produitId, createdAt])
+  @@index([entrepriseId, type, createdAt])
+  @@index([retourFournisseurId])
+  @@index([retourClientId])
   @@index([entrepriseId, createdAt])
   @@index([lotId])
   @@index([venteId])
@@ -676,6 +745,9 @@ enum ModePaiement {
   ORANGE_MONEY
   MTN_MOMO
   CREDIT
+  // Avoir sur retour client : réduit le solde dû, mais n'est jamais compté
+  // comme argent encaissé ni comme montant à rembourser.
+  AVOIR
 }
 
 enum StatutVente {
@@ -705,13 +777,14 @@ model Vente {
   motifAnnulation String?      @map("motif_annulation")
   createdAt       DateTime     @default(now()) @map("created_at")
 
-  entreprise  Entreprise   @relation(fields: [entrepriseId], references: [id])
-  client      Client?      @relation(fields: [clientId], references: [id])
-  emplacement Emplacement  @relation(fields: [emplacementId], references: [id])
-  utilisateur Utilisateur  @relation(fields: [utilisateurId], references: [id])
+  entreprise  Entreprise     @relation(fields: [entrepriseId], references: [id])
+  client      Client?        @relation(fields: [clientId], references: [id])
+  emplacement Emplacement    @relation(fields: [emplacementId], references: [id])
+  utilisateur Utilisateur    @relation(fields: [utilisateurId], references: [id])
   lignes      LigneVente[]
   reglements  Reglement[]
   mouvements  Mouvement[]
+  retours     RetourClient[]
 
   @@unique([entrepriseId, numero])
   @@index([entrepriseId, createdAt])
@@ -731,8 +804,9 @@ model LigneVente {
   tauxTva      Int    @map("taux_tva")
   montantLigne Int    @map("montant_ligne") // quantite × prixUnitaire, hors taxes
 
-  vente   Vente   @relation(fields: [venteId], references: [id])
-  produit Produit @relation(fields: [produitId], references: [id])
+  vente   Vente               @relation(fields: [venteId], references: [id])
+  produit Produit             @relation(fields: [produitId], references: [id])
+  retours RetourClientLigne[]
 
   @@index([venteId])
   @@map("ligne_vente")
@@ -746,8 +820,9 @@ model Reglement {
   utilisateurId String       @map("utilisateur_id")
   createdAt     DateTime     @default(now()) @map("created_at")
 
-  vente       Vente       @relation(fields: [venteId], references: [id])
-  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id])
+  vente        Vente         @relation(fields: [venteId], references: [id])
+  utilisateur  Utilisateur   @relation(fields: [utilisateurId], references: [id])
+  retourClient RetourClient?
 
   @@index([venteId])
   @@map("reglement")
@@ -800,4 +875,78 @@ model ImportLigne {
 
   @@unique([importId, numero])
   @@map("import_ligne")
+}
+
+/**
+ * Renvoi de marchandise au fournisseur. Le stock sort au renvoi ; si
+ * l'avoir est refusé, plus aucun mouvement : seule la classification
+ * change — la valeur devient une perte (comptée une seule fois).
+ */
+model RetourFournisseur {
+  id            String      @id @default(uuid())
+  entrepriseId  String      @map("entreprise_id")
+  fournisseurId String      @map("fournisseur_id")
+  emplacementId String      @map("emplacement_id")
+  utilisateurId String      @map("utilisateur_id")
+  motif         String
+  valeurTotale  Int         @map("valeur_totale")
+  statutAvoir   StatutAvoir @default(ATTENDU) @map("statut_avoir")
+  avoirRecuAt   DateTime?   @map("avoir_recu_at")
+  refuseAt      DateTime?   @map("refuse_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  entreprise    Entreprise     @relation(fields: [entrepriseId], references: [id])
+  fournisseur   Fournisseur    @relation(fields: [fournisseurId], references: [id])
+  emplacement   Emplacement    @relation(fields: [emplacementId], references: [id])
+  utilisateur   Utilisateur    @relation(fields: [utilisateurId], references: [id])
+  mouvements    Mouvement[]
+  retoursClient RetourClient[]
+
+  @@index([entrepriseId, createdAt])
+  @@map("retour_fournisseur")
+}
+
+/**
+ * Retour de marchandise par un client, sur une vente. Montant au prix
+ * effectivement facturé (remise et TVA comprises, au prorata). Compensé
+ * par un avoir sur la dette (règlement de mode AVOIR) ou par un
+ * remboursement en espèces, tracé ici sans toucher à la dette.
+ */
+model RetourClient {
+  id                  String             @id @default(uuid())
+  entrepriseId        String             @map("entreprise_id")
+  venteId             String             @map("vente_id")
+  utilisateurId       String             @map("utilisateur_id")
+  etat                EtatRetourClient
+  compensation        CompensationRetour
+  montant             Int
+  reglementId         String?            @unique @map("reglement_id")
+  retourFournisseurId String?            @map("retour_fournisseur_id")
+  createdAt           DateTime           @default(now()) @map("created_at")
+
+  entreprise        Entreprise          @relation(fields: [entrepriseId], references: [id])
+  vente             Vente               @relation(fields: [venteId], references: [id])
+  utilisateur       Utilisateur         @relation(fields: [utilisateurId], references: [id])
+  reglement         Reglement?          @relation(fields: [reglementId], references: [id])
+  retourFournisseur RetourFournisseur?  @relation(fields: [retourFournisseurId], references: [id])
+  lignes            RetourClientLigne[]
+  mouvements        Mouvement[]
+
+  @@index([venteId])
+  @@index([entrepriseId, createdAt])
+  @@map("retour_client")
+}
+
+model RetourClientLigne {
+  id           String @id @default(uuid())
+  retourId     String @map("retour_id")
+  ligneVenteId String @map("ligne_vente_id")
+  quantite     Int
+  montant      Int
+
+  retour     RetourClient @relation(fields: [retourId], references: [id])
+  ligneVente LigneVente   @relation(fields: [ligneVenteId], references: [id])
+
+  @@index([ligneVenteId])
+  @@map("retour_client_ligne")
 }
