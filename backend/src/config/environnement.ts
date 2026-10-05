@@ -24,12 +24,15 @@ export function diagnostiquerEnvironnement(env: NodeJS.ProcessEnv): DiagnosticEn
   const avertissements: string[] = [];
   const production = env.NODE_ENV === 'production';
   const absente = (nom: string) => !env[nom]?.trim();
+  // « Absente » et « vide » n'ont pas la même cause (variable non liée au
+  // service ou à cet environnement, ou valeur effacée) : on les distingue.
+  const etat = (nom: string) => (env[nom] === undefined ? 'absente de ce service' : 'définie mais vide');
 
   for (const nom of ['DATABASE_URL', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET']) {
-    if (absente(nom)) erreurs.push(`${nom} est obligatoire.`);
+    if (absente(nom)) erreurs.push(`${nom} est obligatoire (${etat(nom)}).`);
   }
   // Sans FRONTEND_URL, le CORS reste fermé : l'application web ne peut rien appeler.
-  if (production && absente('FRONTEND_URL')) erreurs.push('FRONTEND_URL est obligatoire en production (CORS).');
+  if (production && absente('FRONTEND_URL')) erreurs.push(`FRONTEND_URL est obligatoire en production, CORS (${etat('FRONTEND_URL')}).`);
 
   for (const nom of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'JWT_CONSOLE_SECRET']) {
     const valeur = env[nom];
@@ -46,5 +49,24 @@ export function diagnostiquerEnvironnement(env: NodeJS.ProcessEnv): DiagnosticEn
   if (Number(env.WEB_CONCURRENCY ?? 1) > 1 && absente('REDIS_URL')) {
     avertissements.push('WEB_CONCURRENCY > 1 sans REDIS_URL : limites de débit multipliées par le nombre de processus.');
   }
+  if (erreurs.length > 0) erreurs.push(contexteDeploiement(env));
   return { erreurs, avertissements };
+}
+
+/**
+ * Aide au diagnostic d'une variable « manquante » alors qu'elle semble
+ * définie : où tourne ce processus, et quelles variables apparentées il
+ * voit réellement. Noms uniquement, jamais de valeur. Les variables
+ * RAILWAY_* sont fournies par Railway et ne sont pas secrètes.
+ */
+function contexteDeploiement(env: NodeJS.ProcessEnv): string {
+  const service = env.RAILWAY_SERVICE_NAME ?? '?';
+  const environnement = env.RAILWAY_ENVIRONMENT_NAME ?? '?';
+  // Nom approchant (casse, espace parasite, préfixe) d'une variable attendue.
+  const proches = Object.keys(env)
+    .filter((nom) => /JWT|DATABASE|FRONTEND/i.test(nom))
+    .sort();
+  return `Contexte : service Railway « ${service} », environnement « ${environnement} ». Variables apparentées visibles par ce processus : ${
+    proches.length > 0 ? proches.map((nom) => JSON.stringify(nom)).join(', ') : 'aucune'
+  }.`;
 }
