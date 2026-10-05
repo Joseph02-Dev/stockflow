@@ -119,6 +119,18 @@ describe("Flux d'invitation AUTH-003 (intégration réelle, base PostgreSQL)", (
     expect(response.status).toBe(409);
   });
 
+  it('rejette avec 409 un email déjà utilisé dans une AUTRE entreprise (unicité sur toute la plateforme, RLS comprise)', async () => {
+    const { accessToken } = await creerAdmin();
+    const { emailAdmin: emailAutreEntreprise } = await creerAdmin();
+
+    const response = await request(app.getHttpServer())
+      .post('/users')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ email: emailAutreEntreprise, role: 'GESTIONNAIRE' });
+
+    expect(response.status).toBe(409);
+  });
+
   it('rejette avec 409 une seconde invitation active pour le même email', async () => {
     const { accessToken } = await creerAdmin();
     const emailInvite = `test-invite-dup-${Date.now()}@stockflow.dev`;

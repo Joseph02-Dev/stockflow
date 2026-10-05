@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { PrismaService } from '../../config/prisma.service.js';
@@ -7,6 +7,7 @@ import { MODULE_REQUIS_KEY } from '../decorators/module-requis.decorator.js';
 import type { ModuleOptionnel } from '../decorators/module-requis.decorator.js';
 import { IS_CONSOLE_KEY } from '../../modules/console/securite/console.metadata.js';
 import { erreurEntrepriseSuspendue } from '../entreprise-suspendue.js';
+import { erreurCompteDesactive } from '../compte-desactive.js';
 import type { RequestContext } from '../context/tenant-context.service.js';
 
 const LIBELLES_MODULES: Record<ModuleOptionnel, string> = {
@@ -15,16 +16,20 @@ const LIBELLES_MODULES: Record<ModuleOptionnel, string> = {
 };
 
 /**
- * Coupe immédiatement l'accès d'une entreprise suspendue par la console,
- * et refuse les routes d'un module désactivé pour cette entreprise.
+ * Garde de session : relit en base, à chaque requête authentifiée de
+ * l'application cliente, l'état réel de l'utilisateur et de son entreprise.
  *
- * Appliqué globalement, après RolesGuard : pour toute requête authentifiée
- * de l'application cliente, relit le statut de l'entreprise en base. Sans
- * cette vérification, un utilisateur déjà connecté continuerait d'utiliser
- * l'application jusqu'à l'expiration de son access token (15 min).
+ * - Compte désactivé par un administrateur → 403 COMPTE_DESACTIVE.
+ * - Utilisateur introuvable ou rattaché à une autre entreprise que celle du
+ *   token → 401 (le token ne correspond plus à aucune réalité).
+ * - Entreprise suspendue par la console → 403 ENTREPRISE_SUSPENDUE.
+ * - Rôle : celui de la base remplace celui du token. Un administrateur
+ *   rétrogradé perd ses droits immédiatement, pas à l'expiration du token.
+ * - Module désactivé pour l'entreprise → 403 MODULE_DESACTIVE.
  *
- * Coût : une lecture par clé primaire par requête authentifiée — le prix
- * d'une suspension réellement immédiate.
+ * Appliqué globalement, AVANT RolesGuard (qui décide donc sur le rôle à
+ * jour). Coût : une lecture par clé primaire avec jointure, la même
+ * qu'auparavant pour la seule entreprise.
  */
 @Injectable()
 export class EntrepriseActiveGuard implements CanActivate {
@@ -46,18 +51,31 @@ export class EntrepriseActiveGuard implements CanActivate {
     // Sans contexte, RolesGuard a déjà refusé la requête (401).
     if (!contexte) return true;
 
-    const entreprise = await this.prisma.entreprise.findUnique({
-      where: { id: contexte.entrepriseId },
-      select: { statut: true, moduleInventaires: true, moduleTransferts: true },
+    const utilisateur = await this.prisma.utilisateur.findUnique({
+      where: { id: contexte.utilisateurId },
+      select: {
+        entrepriseId: true,
+        role: true,
+        desactiveAt: true,
+        entreprise: { select: { statut: true, moduleInventaires: true, moduleTransferts: true } },
+      },
     });
-    if (entreprise?.statut === 'SUSPENDUE') {
+    if (!utilisateur || utilisateur.entrepriseId !== contexte.entrepriseId) {
+      throw new UnauthorizedException('Session invalide : reconnectez-vous.');
+    }
+    if (utilisateur.desactiveAt) throw erreurCompteDesactive();
+    const { entreprise } = utilisateur;
+    if (entreprise.statut === 'SUSPENDUE') {
       throw erreurEntrepriseSuspendue();
     }
+    // Le contexte est partagé avec AsyncLocalStorage (même objet) : la
+    // correction du rôle vaut pour toute la suite de la requête.
+    contexte.role = utilisateur.role;
 
     // Même lecture que le statut : les modules ne coûtent aucune requête de plus.
     const moduleRequis = this.reflector.getAllAndOverride<ModuleOptionnel | undefined>(MODULE_REQUIS_KEY, cibles);
-    const actif = { inventaires: entreprise?.moduleInventaires, transferts: entreprise?.moduleTransferts };
-    if (moduleRequis && entreprise && !actif[moduleRequis]) {
+    const actif = { inventaires: entreprise.moduleInventaires, transferts: entreprise.moduleTransferts };
+    if (moduleRequis && !actif[moduleRequis]) {
       throw new ForbiddenException({
         statusCode: 403,
         error: 'Forbidden',

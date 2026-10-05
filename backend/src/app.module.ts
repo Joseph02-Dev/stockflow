@@ -89,10 +89,11 @@ import {
     // En premier : une rafale est coupée avant toute vérification de
     // token ou lecture en base.
     { provide: APP_GUARD, useClass: LimitationDebitGuard },
-    { provide: APP_GUARD, useClass: RolesGuard },
-    // Après RolesGuard (ordre d'exécution = ordre de déclaration) : une
-    // requête non authentifiée reçoit d'abord son 401.
+    // Avant RolesGuard (ordre d'exécution = ordre de déclaration) : l'état
+    // du compte et le rôle sont relus en base, et RolesGuard décide sur le
+    // rôle à jour. Sans token, ce garde laisse passer et RolesGuard répond 401.
     { provide: APP_GUARD, useClass: EntrepriseActiveGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
 export class AppModule implements NestModule {

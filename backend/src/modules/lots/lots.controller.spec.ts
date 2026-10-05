@@ -501,8 +501,9 @@ describe('Suivi par lot (FEFO) — intégration réelle, base PostgreSQL', () =>
       expect(
         (await b.api.post(`/peremptions/lots/${lot.id}/sortir`, {})).status,
       ).toBe(404);
-      expect((await b.api.get(`/produits/${a.produitId}/lots`)).body).toEqual(
-        [],
+      // Produit d'une autre entreprise : 404, comme toute route à identifiant.
+      expect((await b.api.get(`/produits/${a.produitId}/lots`)).status).toBe(
+        404,
       );
       expect(
         (await prisma.lot.findUniqueOrThrow({ where: { id: lot.id } }))

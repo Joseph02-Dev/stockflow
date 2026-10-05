@@ -9,6 +9,17 @@ import { EMAIL_SERVICE, type EmailService } from '../../common/email/email.servi
 import { domaineEmailExiste } from '../../common/email/domaine-email.util.js';
 import type { InviteUserDto } from './dto/invite-user.dto.js';
 
+/** Champs exposés d'un utilisateur : jamais le hash du mot de passe. */
+const CHAMPS_PUBLICS = {
+  id: true,
+  email: true,
+  nom: true,
+  role: true,
+  photoUrl: true,
+  createdAt: true,
+  desactiveAt: true,
+} as const;
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -25,7 +36,7 @@ export class UsersService {
   async lister(entrepriseId: string) {
     return this.prisma.utilisateur.findMany({
       where: { entrepriseId },
-      select: { id: true, email: true, nom: true, role: true, photoUrl: true, createdAt: true },
+      select: { ...CHAMPS_PUBLICS, desactivePar: { select: { nom: true } } },
       orderBy: { createdAt: 'asc' },
     });
   }
@@ -47,7 +58,7 @@ export class UsersService {
 
     if (utilisateur.role === 'ADMIN' && nouveauRole !== 'ADMIN') {
       const nombreAdmins = await this.prisma.utilisateur.count({
-        where: { entrepriseId, role: 'ADMIN' },
+        where: { entrepriseId, role: 'ADMIN', desactiveAt: null },
       });
       if (nombreAdmins <= 1) {
         throw new ConflictException(
@@ -59,7 +70,57 @@ export class UsersService {
     return this.prisma.utilisateur.update({
       where: { id: utilisateurId },
       data: { role: nouveauRole },
-      select: { id: true, email: true, nom: true, role: true, photoUrl: true, createdAt: true },
+      select: CHAMPS_PUBLICS,
+    });
+  }
+
+  /**
+   * Retire l'accès d'un utilisateur (départ d'un employé) : le compte est
+   * conservé pour l'historique, ses sessions sont révoquées et le garde de
+   * session refuse dès la requête suivante tout token encore valide.
+   * Jamais soi-même ; jamais le dernier administrateur actif.
+   */
+  async desactiver(entrepriseId: string, adminId: string, utilisateurId: string) {
+    if (utilisateurId === adminId) {
+      throw new ConflictException('Vous ne pouvez pas retirer votre propre accès.');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM utilisateur WHERE id = ${utilisateurId} FOR UPDATE`;
+      const utilisateur = await tx.utilisateur.findUnique({ where: { id: utilisateurId } });
+      if (!utilisateur || utilisateur.entrepriseId !== entrepriseId) {
+        throw new NotFoundException('Utilisateur introuvable.');
+      }
+      if (utilisateur.desactiveAt) {
+        throw new ConflictException('L’accès de cet utilisateur est déjà retiré.');
+      }
+      if (utilisateur.role === 'ADMIN') {
+        const adminsActifs = await tx.utilisateur.count({ where: { entrepriseId, role: 'ADMIN', desactiveAt: null } });
+        if (adminsActifs <= 1) {
+          throw new ConflictException('Impossible de retirer l’accès du dernier administrateur.');
+        }
+      }
+      await tx.refreshToken.updateMany({ where: { utilisateurId, revokedAt: null }, data: { revokedAt: new Date() } });
+      return tx.utilisateur.update({
+        where: { id: utilisateurId },
+        data: { desactiveAt: new Date(), desactiveParId: adminId },
+        select: { ...CHAMPS_PUBLICS, desactivePar: { select: { nom: true } } },
+      });
+    });
+  }
+
+  /** Rend l'accès : la personne se reconnecte avec son mot de passe habituel. */
+  async reactiver(entrepriseId: string, utilisateurId: string) {
+    const utilisateur = await this.prisma.utilisateur.findUnique({ where: { id: utilisateurId } });
+    if (!utilisateur || utilisateur.entrepriseId !== entrepriseId) {
+      throw new NotFoundException('Utilisateur introuvable.');
+    }
+    if (!utilisateur.desactiveAt) {
+      throw new ConflictException('Cet utilisateur a déjà accès à l’application.');
+    }
+    return this.prisma.utilisateur.update({
+      where: { id: utilisateurId },
+      data: { desactiveAt: null, desactiveParId: null },
+      select: { ...CHAMPS_PUBLICS, desactivePar: { select: { nom: true } } },
     });
   }
 
@@ -123,7 +184,7 @@ export class UsersService {
     return this.prisma.utilisateur.update({
       where: { id: utilisateurId },
       data: { photoUrl },
-      select: { id: true, email: true, nom: true, role: true, photoUrl: true, createdAt: true },
+      select: CHAMPS_PUBLICS,
     });
   }
 }

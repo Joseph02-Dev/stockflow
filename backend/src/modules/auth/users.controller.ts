@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -33,6 +33,25 @@ export class UsersController {
     @Body() dto: UpdateRoleDto,
   ) {
     return this.usersService.modifierRole(entrepriseId, id, dto.role);
+  }
+
+  /** Retire l'accès d'un employé : compte conservé, sessions coupées immédiatement. */
+  @Roles('ADMIN')
+  @Post(':id/desactiver')
+  @HttpCode(HttpStatus.OK)
+  desactiver(
+    @CurrentTenant() entrepriseId: string,
+    @CurrentUser() user: RequestContext,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.usersService.desactiver(entrepriseId, user.utilisateurId, id);
+  }
+
+  @Roles('ADMIN')
+  @Post(':id/reactiver')
+  @HttpCode(HttpStatus.OK)
+  reactiver(@CurrentTenant() entrepriseId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.reactiver(entrepriseId, id);
   }
 
   @Roles('ADMIN')

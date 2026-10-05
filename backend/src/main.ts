@@ -5,6 +5,7 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module.js';
 import { configurerApplication } from './config/application.js';
+import { diagnostiquerEnvironnement } from './config/environnement.js';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -43,6 +44,16 @@ function demarrerProcessus(nombre: number) {
     });
   }
   journal.log(`${nombre} processus API démarrés.`);
+}
+
+// Environnement vérifié avant toute connexion : une variable manquante
+// arrête le démarrage avec un message clair ; une faiblesse est signalée.
+const diagnostic = diagnostiquerEnvironnement(process.env);
+const journalConfig = new Logger('Configuration');
+for (const avertissement of diagnostic.avertissements) journalConfig.warn(avertissement);
+if (diagnostic.erreurs.length > 0) {
+  for (const erreur of diagnostic.erreurs) journalConfig.error(erreur);
+  process.exit(1);
 }
 
 const nombreProcessus = Number(process.env.WEB_CONCURRENCY ?? 1);
