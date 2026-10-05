@@ -235,7 +235,7 @@ export function PertesPage() {
         <Card>
           <PanneauEntete titre="Où ça se concentre" meta={synthese.data ? `Pertes de ${libelleMois(synthese.data.mois)} par dépôt` : undefined} />
           <div className="flex flex-col gap-4 p-5">
-            {synthese.data?.analyse && <p className="text-corps text-ink-900">{synthese.data.analyse}</p>}
+            {synthese.data?.analyse && <p className="text-corps text-pretty text-ink-900">{synthese.data.analyse}</p>}
             {synthese.data?.parEmplacement.length === 0 && <p className="text-corps text-steel-500">Aucune perte ce mois-ci.</p>}
             {synthese.data?.parEmplacement.map((e) => (
               <div key={e.emplacementId} className="flex flex-col gap-1.5">

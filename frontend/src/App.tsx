@@ -26,6 +26,7 @@ import { CreancesPage } from '@/features/creances/CreancesPage';
 import { PeremptionsPage } from '@/features/peremptions/PeremptionsPage';
 import { PertesPage } from '@/features/pertes/PertesPage';
 import { DeclarationCassePage } from '@/features/pertes/DeclarationCassePage';
+import { RetoursFournisseurPage } from '@/features/retours/RetoursFournisseurPage';
 import { ParametresPage } from '@/features/parametres/ParametresPage';
 import { useSession } from '@/lib/useSession';
 import { LoadingState } from '@/components/patterns/States';
@@ -111,6 +112,7 @@ export function App() {
           <Route path="/peremptions" element={<PeremptionsPage />} />
           <Route path="/pertes" element={<PertesPage />} />
           <Route path="/pertes/declarer" element={<DeclarationCassePage />} />
+          <Route path="/retours-fournisseur" element={<RetoursFournisseurPage />} />
           <Route element={<RouteAdmin />}>
             <Route path="/parametres" element={<ParametresPage />} />
           </Route>

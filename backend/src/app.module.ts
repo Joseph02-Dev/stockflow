@@ -11,6 +11,7 @@ import { FournisseursModule } from './modules/fournisseurs/fournisseurs.module.j
 import { MouvementsModule } from './modules/mouvements/mouvements.module.js';
 import { LotsModule } from './modules/lots/lots.module.js';
 import { PertesModule } from './modules/pertes/pertes.module.js';
+import { RetoursModule } from './modules/retours/retours.module.js';
 import { AlertesModule } from './modules/alertes/alertes.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { PrismaModule } from './config/prisma.module.js';
@@ -67,6 +68,7 @@ import {
     MouvementsModule,
     LotsModule,
     PertesModule,
+    RetoursModule,
     AlertesModule,
     DashboardModule,
     CategoriesModule,

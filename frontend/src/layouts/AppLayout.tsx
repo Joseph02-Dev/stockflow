@@ -17,6 +17,7 @@ import {
   Settings,
   Tag,
   Truck,
+  Undo2,
   UserRound,
   Users,
   Warehouse,
@@ -39,6 +40,7 @@ const sectionPilotage = [
   { to: '/pertes', libelle: 'Pertes', Icone: PackageX },
   { to: '/stock', libelle: 'Stock & mouvements', Icone: Warehouse },
   { to: '/commandes', libelle: 'Commandes fournisseur', Icone: ClipboardList },
+  { to: '/retours-fournisseur', libelle: 'Retours fournisseur', Icone: Undo2 },
 ];
 
 // Fournisseurs reste accessible à tous (comme Produits) ; Catégories &
@@ -81,6 +83,7 @@ function filAriane(chemin: string, recherche: string): { libelle: string; to?: s
     creances: 'Créances',
     peremptions: 'Péremptions',
     pertes: 'Pertes',
+    'retours-fournisseur': 'Retours fournisseur',
     parametres: 'Paramètres',
   };
   const [racine, detail] = chemin.split('/').filter(Boolean);
@@ -469,6 +472,10 @@ export function AppLayout() {
             <NavLink to="/commandes" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
               <ClipboardList className="size-5 text-steel-500" aria-hidden="true" />
               Commandes fournisseur
+            </NavLink>
+            <NavLink to="/retours-fournisseur" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
+              <Undo2 className="size-5 text-steel-500" aria-hidden="true" />
+              Retours fournisseur
             </NavLink>
             <NavLink to="/fournisseurs" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
               <Truck className="size-5 text-steel-500" aria-hidden="true" />
