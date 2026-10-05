@@ -58,6 +58,11 @@ export function configurerApplication(app: NestExpressApplication): void {
   // Sans valeur définie, aucune origine n'est autorisée plutôt que
   // d'ouvrir le CORS à tout le monde par défaut.
   if (process.env.FRONTEND_URL) {
-    app.enableCors({ origin: process.env.FRONTEND_URL, credentials: true });
+    // Nom de fichier et nombre de pages des rapports, lus par l'écran de génération.
+    app.enableCors({
+      origin: process.env.FRONTEND_URL,
+      credentials: true,
+      exposedHeaders: ['Content-Disposition', 'X-Nombre-Pages'],
+    });
   }
 }
