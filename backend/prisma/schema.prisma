@@ -203,6 +203,15 @@ model Utilisateur {
   // alors renseigné immédiatement.
   emailVerifieAt DateTime? @map("email_verifie_at")
 
+  // Accès retiré par un administrateur (départ d'un employé). Le compte
+  // n'est jamais supprimé : son nom reste sur l'historique (ventes,
+  // mouvements, déclarations). Connexion, renouvellement de session et
+  // toute requête sont refusés dès la désactivation.
+  desactiveAt    DateTime?    @map("desactive_at")
+  desactiveParId String?      @map("desactive_par_id")
+  desactivePar   Utilisateur? @relation("UtilisateurDesactivePar", fields: [desactiveParId], references: [id])
+  desactives     Utilisateur[] @relation("UtilisateurDesactivePar")
+
   entreprise                  Entreprise                   @relation(fields: [entrepriseId], references: [id])
   mouvements                  Mouvement[]
   ventes                      Vente[]

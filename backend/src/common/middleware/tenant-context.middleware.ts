@@ -1,7 +1,7 @@
 import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { NextFunction, Request, Response } from 'express';
-import { TenantContextService } from '../context/tenant-context.service.js';
+import { TenantContextService, type RequestContext } from '../context/tenant-context.service.js';
 
 /**
  * Payload attendu à l'intérieur d'un access token JWT StockFlow.
@@ -62,18 +62,14 @@ export class TenantContextMiddleware implements NestMiddleware {
       throw new UnauthorizedException('Token valide mais incomplet.');
     }
 
-    this.tenantContext.run(
-      { entrepriseId: payload.entrepriseId, utilisateurId: payload.sub, role: payload.role },
-      () => {
-        // Attaché également à `req` pour un accès simple et synchrone via
-        // le décorateur @CurrentTenant()/@CurrentUser() dans les controllers.
-        (req as Request & { tenantContext: unknown }).tenantContext = {
-          entrepriseId: payload.entrepriseId,
-          utilisateurId: payload.sub,
-          role: payload.role,
-        };
-        next();
-      },
-    );
+    // Un seul objet, partagé par AsyncLocalStorage et `req` : le garde de
+    // session peut y corriger le rôle (relu en base) pour toute la requête.
+    const contexte: RequestContext = { entrepriseId: payload.entrepriseId, utilisateurId: payload.sub, role: payload.role };
+    this.tenantContext.run(contexte, () => {
+      // Attaché également à `req` pour un accès simple et synchrone via
+      // le décorateur @CurrentTenant()/@CurrentUser() dans les controllers.
+      (req as Request & { tenantContext: RequestContext }).tenantContext = contexte;
+      next();
+    });
   }
 }

@@ -30,20 +30,24 @@ api.interceptors.request.use((config) => {
 type RequeteRejouable = InternalAxiosRequestConfig & { _retry?: boolean };
 
 const CODE_ENTREPRISE_SUSPENDUE = 'ENTREPRISE_SUSPENDUE';
+const CODE_COMPTE_DESACTIVE = 'COMPTE_DESACTIVE';
 
 /**
- * Entreprise suspendue par la console : la session est inutilisable, on
- * la purge et on renvoie vers la connexion, qui explique pourquoi. Pas de
- * redirection depuis la connexion elle-même (elle affiche déjà le
- * message renvoyé par le serveur).
+ * Entreprise suspendue par la console, ou accès de l'utilisateur retiré par
+ * un administrateur : la session est inutilisable, on la purge et on
+ * renvoie vers la connexion, qui explique pourquoi. Pas de redirection
+ * depuis la connexion elle-même (elle affiche déjà le message renvoyé par
+ * le serveur).
  */
 function traiterSuspension(error: unknown): void {
   if (!axios.isAxiosError(error) || error.response?.status !== 403) return;
   const corps = error.response.data as { code?: string } | undefined;
-  if (corps?.code !== CODE_ENTREPRISE_SUSPENDUE) return;
+  const motif =
+    corps?.code === CODE_ENTREPRISE_SUSPENDUE ? 'suspendue' : corps?.code === CODE_COMPTE_DESACTIVE ? 'desactive' : null;
+  if (!motif) return;
   clearSession();
   if (window.location.pathname !== '/connexion') {
-    window.location.replace('/connexion?suspendue=1');
+    window.location.replace(`/connexion?${motif}=1`);
   }
 }
 

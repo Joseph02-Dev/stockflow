@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus } from 'lucide-react';
+import { Plus, UserCheck, UserX } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -16,12 +16,15 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/Stat
 import { useSession } from '@/lib/useSession';
 import { getSession, setSession, sessionActuelleEstPersistante } from '@/lib/session';
 import { Badge } from '@/components/ui/Badge';
+import { dateCourte } from '@/lib/montant';
 
 interface UtilisateurListe {
   id: string;
   email: string;
   nom: string;
   role: 'ADMIN' | 'GESTIONNAIRE';
+  desactiveAt: string | null;
+  desactivePar: { nom: string } | null;
 }
 
 const schema = z.object({
@@ -37,6 +40,7 @@ export function UtilisateursSection() {
   const [modaleOuverte, setModaleOuverte] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [succes, setSucces] = useState<string | null>(null);
+  const [aDesactiver, setADesactiver] = useState<UtilisateurListe | null>(null);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['utilisateurs'],
@@ -83,6 +87,27 @@ export function UtilisateursSection() {
     onError: (err) => setErreur(messageErreur(err, 'La modification du rôle a échoué.')),
   });
 
+  // Retrait d'accès : effet immédiat côté serveur (sessions coupées,
+  // token refusé dès la requête suivante) ; le compte reste dans l'historique.
+  const acces = useMutation({
+    mutationFn: async ({ utilisateur, action }: { utilisateur: UtilisateurListe; action: 'desactiver' | 'reactiver' }) =>
+      api.post(`/users/${utilisateur.id}/${action}`),
+    onSuccess: (_reponse, { utilisateur, action }) => {
+      setErreur(null);
+      setADesactiver(null);
+      setSucces(
+        action === 'desactiver'
+          ? `L’accès de ${utilisateur.nom} est retiré : ses sessions sont coupées immédiatement.`
+          : `${utilisateur.nom} peut de nouveau se connecter avec son mot de passe habituel.`,
+      );
+      queryClient.invalidateQueries({ queryKey: ['utilisateurs'] });
+    },
+    onError: (err) => {
+      setADesactiver(null);
+      setErreur(messageErreur(err, 'La modification de l’accès a échoué.'));
+    },
+  });
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -110,8 +135,8 @@ export function UtilisateursSection() {
         ) : data && data.length > 0 ? (
           <ul className="divide-y divide-rule">
             {data.map((utilisateur) => (
-              <li key={utilisateur.id} className="flex items-center justify-between gap-4 px-4 py-3 sm:px-5">
-                <div className="min-w-0">
+              <li key={utilisateur.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5">
+                <div className={utilisateur.desactiveAt ? 'min-w-0 opacity-60' : 'min-w-0'}>
                   <p className="truncate text-corps font-medium text-ink-900">
                     {utilisateur.nom}
                     {utilisateur.id === session?.utilisateur.id && (
@@ -119,12 +144,22 @@ export function UtilisateursSection() {
                     )}
                   </p>
                   <p className="truncate text-corps text-steel-500">{utilisateur.email}</p>
+                  {utilisateur.desactiveAt && (
+                    <p className="truncate text-meta text-steel-500">
+                      Accès retiré le {dateCourte(utilisateur.desactiveAt)}
+                      {utilisateur.desactivePar && ` par ${utilisateur.desactivePar.nom}`}
+                    </p>
+                  )}
                 </div>
 
-                <div className="flex shrink-0 items-center gap-3">
-                  <Badge variant={utilisateur.role === 'ADMIN' ? 'action' : 'neutral'}>
-                    {utilisateur.role === 'ADMIN' ? 'Administrateur' : 'Gestionnaire'}
-                  </Badge>
+                <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end sm:gap-3">
+                  {utilisateur.desactiveAt ? (
+                    <Badge variant="rupture">Accès retiré</Badge>
+                  ) : (
+                    <Badge variant={utilisateur.role === 'ADMIN' ? 'action' : 'neutral'}>
+                      {utilisateur.role === 'ADMIN' ? 'Administrateur' : 'Gestionnaire'}
+                    </Badge>
+                  )}
                   <Selecteur
                     aria-label={`Rôle de ${utilisateur.nom}`}
                     taille="sm"
@@ -141,6 +176,31 @@ export function UtilisateursSection() {
                       changerRole.mutate({ id: utilisateur.id, role: role as 'ADMIN' | 'GESTIONNAIRE' })
                     }
                   />
+                  {utilisateur.id !== session?.utilisateur.id &&
+                    (utilisateur.desactiveAt ? (
+                      <Button
+                        variant="secondary"
+                        taille="sm"
+                        loading={acces.isPending && acces.variables?.utilisateur.id === utilisateur.id}
+                        onClick={() => acces.mutate({ utilisateur, action: 'reactiver' })}
+                      >
+                        <UserCheck className="size-4" aria-hidden="true" />
+                        Rendre l’accès
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        taille="sm"
+                        className="text-rupture hover:bg-rupture-wash"
+                        onClick={() => {
+                          setSucces(null);
+                          setADesactiver(utilisateur);
+                        }}
+                      >
+                        <UserX className="size-4" aria-hidden="true" />
+                        Retirer l’accès
+                      </Button>
+                    ))}
                 </div>
               </li>
             ))}
@@ -149,6 +209,32 @@ export function UtilisateursSection() {
           <EmptyState titre="Aucun utilisateur" />
         )}
       </Card>
+
+      <Modal
+        ouvert={aDesactiver !== null}
+        onFermer={() => setADesactiver(null)}
+        titre={`Retirer l’accès de ${aDesactiver?.nom ?? ''} ?`}
+        description="La personne est déconnectée immédiatement, sur tous ses appareils. Son nom reste sur l’historique (ventes, mouvements, déclarations) ; vous pourrez lui rendre l’accès."
+        pied={
+          <>
+            <Button type="button" variant="secondary" onClick={() => setADesactiver(null)}>
+              Annuler
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              loading={acces.isPending}
+              onClick={() => aDesactiver && acces.mutate({ utilisateur: aDesactiver, action: 'desactiver' })}
+            >
+              Retirer l’accès
+            </Button>
+          </>
+        }
+      >
+        <p className="text-corps text-ink-900">
+          {aDesactiver?.email} · {aDesactiver?.role === 'ADMIN' ? 'Administrateur' : 'Gestionnaire'}
+        </p>
+      </Modal>
 
       <Modal
         ouvert={modaleOuverte}

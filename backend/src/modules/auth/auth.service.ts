@@ -8,6 +8,7 @@ import { PrismaService } from '../../config/prisma.service.js';
 import { EMAIL_SERVICE, type EmailService } from '../../common/email/email.service.js';
 import { domaineEmailExiste } from '../../common/email/domaine-email.util.js';
 import { hashToken } from './token-hash.util.js';
+import { erreurCompteDesactive } from '../../common/compte-desactive.js';
 import { erreurEntrepriseSuspendue } from '../../common/entreprise-suspendue.js';
 import type { RegisterDto } from './dto/register.dto.js';
 import type { LoginDto } from './dto/login.dto.js';
@@ -142,6 +143,10 @@ export class AuthService {
       );
     }
 
+    // Mot de passe juste mais accès retiré : on le dit (la personne a
+    // prouvé son identité, aucune information n'est divulguée à un tiers).
+    if (utilisateur.desactiveAt) throw erreurCompteDesactive();
+
     // Connexion réussie : on efface toute trace d'échecs précédents.
     if (utilisateur.tentativesEchouees > 0 || utilisateur.bloqueJusqua) {
       await this.prisma.utilisateur.update({
@@ -224,6 +229,11 @@ export class AuthService {
     });
     if (!utilisateur || !utilisateur.emailVerifieAt) {
       throw new UnauthorizedException(SESSION_EXPIREE);
+    }
+    // Compte désactivé : toutes ses sessions sont coupées, sans retour.
+    if (utilisateur.desactiveAt) {
+      await this.revoquerToutesLesSessions(utilisateur.id);
+      throw erreurCompteDesactive();
     }
     // Vérifiée avant la rotation : le token n'est pas consommé par un
     // refus, la personne retrouvera sa session si l'accès est rétabli.

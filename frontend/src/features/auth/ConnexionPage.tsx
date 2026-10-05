@@ -135,6 +135,9 @@ export function ConnexionPage() {
         {parametres.get('suspendue') && !erreur && (
           <Alert variant="error">L’accès de votre entreprise a été suspendu. Contactez votre administrateur.</Alert>
         )}
+        {parametres.get('desactive') && !erreur && (
+          <Alert variant="error">Votre accès a été retiré par un administrateur de votre entreprise.</Alert>
+        )}
         {erreur && <Alert variant="error">{erreur}</Alert>}
         {emailNonConfirme &&
           (renvoiConfirme ? (
