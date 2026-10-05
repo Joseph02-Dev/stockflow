@@ -21,7 +21,7 @@ export class CloudinaryService implements OnModuleInit {
    */
   async televerserImage(
     fichier: Express.Multer.File,
-    dossier: 'produits' | 'fournisseurs' | 'utilisateurs',
+    dossier: 'produits' | 'fournisseurs' | 'utilisateurs' | 'pertes',
     entrepriseId: string,
   ): Promise<string> {
     return new Promise((resolve, reject) => {

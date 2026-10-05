@@ -10,6 +10,7 @@ import { ImportModule } from './modules/import/import.module.js';
 import { FournisseursModule } from './modules/fournisseurs/fournisseurs.module.js';
 import { MouvementsModule } from './modules/mouvements/mouvements.module.js';
 import { LotsModule } from './modules/lots/lots.module.js';
+import { PertesModule } from './modules/pertes/pertes.module.js';
 import { AlertesModule } from './modules/alertes/alertes.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { PrismaModule } from './config/prisma.module.js';
@@ -65,6 +66,7 @@ import {
     FournisseursModule,
     MouvementsModule,
     LotsModule,
+    PertesModule,
     AlertesModule,
     DashboardModule,
     CategoriesModule,
