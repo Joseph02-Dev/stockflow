@@ -5,6 +5,7 @@ import { cn } from '@/lib/cn';
 import { formatNombre, pluriel } from '@/lib/format';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
+import { Selecteur } from '@/components/ui/Selecteur';
 import { Card, PanneauEntete } from '@/components/patterns/Page';
 import type { OptionsImport, RapportImport } from './types';
 
@@ -38,24 +39,21 @@ function Associations({
               <span className="text-corps text-ink-900">
                 « {nom} »{lignes !== undefined && <span className="text-steel-500"> · {lignes} {pluriel('ligne', lignes)}</span>}
               </span>
-              <select
+              <Selecteur
                 aria-label={`Que faire de « ${nom} »`}
+                className="sm:w-72"
+                options={[
+                  { valeur: '', libelle: `Créer « ${nom} »` },
+                  ...existantes.map((e) => ({ valeur: e.id, libelle: `Associer à « ${e.nom} »` })),
+                ]}
                 value={choix[nom] ?? ''}
-                onChange={(e) => {
+                onChange={(valeur) => {
                   const suivant = { ...choix };
-                  if (e.target.value) suivant[nom] = e.target.value;
+                  if (valeur) suivant[nom] = valeur;
                   else delete suivant[nom];
                   onChoix(suivant);
                 }}
-                className="h-9 rounded-md border border-rule-strong bg-surface px-3 text-corps text-ink-900 sm:w-72"
-              >
-                <option value="">Créer « {nom} »</option>
-                {existantes.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    Associer à « {e.nom} »
-                  </option>
-                ))}
-              </select>
+              />
             </li>
           );
         })}

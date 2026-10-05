@@ -5,6 +5,7 @@ import { CHAMPS_IMPORT, LIBELLES_CHAMPS, type ChampImport } from '@/lib/import/c
 import { Alert } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Selecteur } from '@/components/ui/Selecteur';
 import { Card, PanneauEntete } from '@/components/patterns/Page';
 import type { ChoixColonne, FichierLu } from './types';
 
@@ -78,30 +79,29 @@ export function EtapeColonnes({
                   etat === 'ignoree' && 'opacity-60',
                 )}
               >
-                <label htmlFor={id} className="truncate font-mono text-corps text-ink-900" title={entete}>
+                <span className="truncate font-mono text-corps text-ink-900" title={entete}>
                   {entete || <span className="text-steel-400">(sans titre)</span>}
-                </label>
+                </span>
                 <span className="truncate text-corps text-steel-500" title={extrait(i)}>
                   {extrait(i) || <span className="text-steel-400">vide</span>}
                 </span>
-                <select
+                <Selecteur
                   id={id}
+                  aria-label={`Champ StockFlow de la colonne ${entete || i + 1}`}
+                  placeholder="Choisir un champ…"
+                  attention={etat === 'choisir'}
+                  options={[
+                    ...CHAMPS_IMPORT.map((champ) => ({
+                      valeur: champ,
+                      libelle: LIBELLES_CHAMPS[champ],
+                      sousTitre: utilises.has(champ) && valeur !== champ ? 'Déjà associé à une autre colonne' : undefined,
+                      desactive: utilises.has(champ) && valeur !== champ,
+                    })),
+                    { valeur: 'IGNORER', libelle: 'Ignorer cette colonne' },
+                  ]}
                   value={valeur}
-                  onChange={(e) => changer(i, e.target.value as ChoixColonne)}
-                  className={cn(
-                    'h-9 w-full min-w-0 rounded-md border bg-surface px-3 text-corps text-ink-900',
-                    etat === 'choisir' ? 'border-faible' : 'border-rule-strong',
-                  )}
-                >
-                  <option value="">Choisir un champ…</option>
-                  {CHAMPS_IMPORT.map((champ) => (
-                    <option key={champ} value={champ} disabled={utilises.has(champ) && valeur !== champ}>
-                      {LIBELLES_CHAMPS[champ]}
-                      {utilises.has(champ) && valeur !== champ ? ' (déjà associé)' : ''}
-                    </option>
-                  ))}
-                  <option value="IGNORER">Ignorer cette colonne</option>
-                </select>
+                  onChange={(v) => changer(i, v as ChoixColonne)}
+                />
                 <span>
                   {etat === 'reconnue' ? (
                     <Badge variant="ok">Reconnue</Badge>
@@ -120,21 +120,17 @@ export function EtapeColonnes({
       {utilises.has('quantite') && (
         <Card>
           <div className="flex flex-col gap-2 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <label htmlFor="emplacement-import" className="text-corps text-ink-900">
+            <span className="text-corps text-ink-900" aria-hidden="true">
               Les quantités initiales entrent dans
-            </label>
-            <select
+            </span>
+            <Selecteur
               id="emplacement-import"
+              aria-label="Emplacement des quantités initiales"
+              className="sm:w-64"
+              options={emplacements.map((e) => ({ valeur: e.id, libelle: e.nom }))}
               value={emplacementId}
-              onChange={(e) => onEmplacement(e.target.value)}
-              className="h-9 rounded-md border border-rule-strong bg-surface px-3 text-corps text-ink-900 sm:w-64"
-            >
-              {emplacements.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.nom}
-                </option>
-              ))}
-            </select>
+              onChange={onEmplacement}
+            />
           </div>
         </Card>
       )}

@@ -24,6 +24,8 @@ interface Commun {
   options: OptionSelecteur[];
   placeholder?: string;
   error?: string;
+  /** Bordure ambre : choix attendu (ex. colonne d'import encore à associer). */
+  attention?: boolean;
   hint?: string;
   disabled?: boolean;
   id?: string;
@@ -98,6 +100,7 @@ export function Selecteur(props: SelecteurProps) {
     options,
     placeholder = 'Choisir…',
     error,
+    attention,
     hint,
     disabled,
     className,
@@ -534,7 +537,7 @@ export function Selecteur(props: SelecteurProps) {
           mobile && 'min-h-11',
           'hover:border-steel-400 hover:bg-[#FCFCFD] focus-visible:border-action focus-visible:shadow-[0_0_0_3px_rgba(34,66,199,.12)]',
           ouvert && 'border-action shadow-[0_0_0_3px_rgba(34,66,199,.12)]',
-          error ? 'border-rupture' : !ouvert && 'border-rule-strong',
+          error ? 'border-rupture' : !ouvert && (attention ? 'border-faible' : 'border-rule-strong'),
           disabled && 'pointer-events-none cursor-not-allowed opacity-50',
         )}
       >
