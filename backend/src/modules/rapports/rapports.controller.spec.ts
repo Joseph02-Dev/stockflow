@@ -40,7 +40,9 @@ describe('Rapports PDF — intégration réelle, base PostgreSQL', () => {
     const pdf = (url: string) => get(url).buffer(true).parse(binaire);
     const post = (url: string, corps: object) =>
       request(app.getHttpServer()).post(url).set('Authorization', `Bearer ${token}`).send(corps);
-    return { entreprise, get, pdf, post };
+    const patch = (url: string, corps: object) =>
+      request(app.getHttpServer()).patch(url).set('Authorization', `Bearer ${token}`).send(corps);
+    return { entreprise, get, pdf, post, patch };
   }
 
   /** Catalogue en masse (insertion directe) : n références réparties sur deux dépôts. */
@@ -317,6 +319,64 @@ describe('Rapports PDF — intégration réelle, base PostgreSQL', () => {
     }
     expect((await b.get(`/rapports/client/${crypto.randomUUID()}`)).status).toBe(404);
     expect((await b.get('/rapports/client/pas-un-uuid')).status).toBe(400);
+  });
+
+  /**
+   * Pertes construites pour Madina 46 % des pertes / 38 % du stock :
+   * stock final 380 000 (Madina) et 620 000 (Matoto) au prix d'achat de 1 000 ;
+   * pertes 46 000 (casse) et 54 000 (casse 34 000 + avoir refusé 20 000).
+   */
+  async function pertes(c: Awaited<ReturnType<typeof contexte>>) {
+    const produit = (await c.post('/produits', { nom: 'Sac de ciment', prixAchat: 1000, prixVente: 1300 })).body;
+    const madina = (await c.post('/emplacements', { nom: 'Dépôt Madina' })).body;
+    const matoto = (await c.post('/emplacements', { nom: 'Réserve Matoto' })).body;
+    const fournisseur = (await c.post('/fournisseurs', { nom: 'Ciments de Guinée' })).body;
+    await c.post('/mouvements/entree', { produitId: produit.id, emplacementId: madina.id, quantite: 426 });
+    await c.post('/mouvements/entree', { produitId: produit.id, emplacementId: matoto.id, quantite: 674 });
+    await c.post('/pertes', { produitId: produit.id, emplacementId: madina.id, quantite: 46, motif: 'VOL', commentaire: 'Effraction du dépôt' });
+    await c.post('/pertes', { produitId: produit.id, emplacementId: matoto.id, quantite: 34, motif: 'DEGAT_EAUX' });
+    const [annulee] = (await c.post('/pertes', { produitId: produit.id, emplacementId: madina.id, quantite: 10, motif: 'CASSE_MANUTENTION' })).body;
+    await c.post(`/pertes/${annulee.id}/annuler`, { motif: 'Sacs retrouvés intacts' });
+    const retour = (await c.post('/retours-fournisseur', { fournisseurId: fournisseur.id, emplacementId: matoto.id, motif: 'Sacs durcis', lignes: [{ produitId: produit.id, quantite: 20 }] })).body;
+    return { produit, madina, matoto, retourId: retour.id as string };
+  }
+
+  it('rapport de pertes : totaux, motifs, annulées non comptées, concentration calculée (46 % des pertes pour 38 % du stock)', async () => {
+    const c = await contexte();
+    const { retourId } = await pertes(c);
+    // L'avoir est refusé par l'API : il entre dans les pertes sans nouvelle sortie de stock.
+expect((await c.patch(`/retours-fournisseur/${retourId}/avoir`, { statut: 'REFUSE' })).status).toBe(200);
+
+    const csv = await c.get('/rapports/pertes?format=csv');
+    const lignes = csv.text.replace(/^\uFEFF/, '').trim().split('\r\n').slice(1).map((l) => l.split(';'));
+    expect(lignes.map((l) => [l[1], l[3], l[6]])).toEqual([
+      ['Sac de ciment', 'Vol', '46000'],
+      ['Sac de ciment', 'Dégât des eaux', '34000'],
+      ['Avoir refusé — Ciments de Guinée', 'Avoir fournisseur refusé', '20000'],
+    ]);
+
+    const r = await c.pdf('/rapports/pertes?signature=true');
+    expect(r.status).toBe(200);
+    const texte = (await lirePdf(r.body as Buffer)).pages.join(' ');
+    expect(texte).toContain('Rapport de pertes');
+    expect(texte).toContain(`Pertes de la période ${enTexte(100000)} GNF`);
+    expect(texte).toContain('1 annulée(s), non comptée(s)');
+    expect(texte).toContain(`Part du stock 10 % de ${enTexte(1000000)} GNF en stock`);
+    expect(texte).toContain(`Dépôt Madina ${enTexte(46000)} 46 % ${enTexte(380000)} 38 % +8 pts`);
+    expect(texte).toContain(`Réserve Matoto ${enTexte(54000)} 54 % ${enTexte(620000)} 62 % −8 pts`);
+    expect(texte).toContain(`Total ${enTexte(100000)}`);
+    expect(texte).toContain('Déclarée par');
+    expect(texte).not.toContain('Sacs retrouvés intacts');
+  });
+
+  it('rapport de pertes : isolation multi-entreprise et période', async () => {
+    const a = await contexte('Entreprise A');
+    const b = await contexte('Entreprise B');
+    await pertes(a);
+    const csv = await b.get('/rapports/pertes?format=csv');
+    expect(csv.text.replace(/^\uFEFF/, '').trim().split('\r\n')).toHaveLength(1);
+    const ancien = await a.get('/rapports/pertes?format=csv&debut=2025-01-01&fin=2025-01-31');
+    expect(ancien.text.replace(/^\uFEFF/, '').trim().split('\r\n')).toHaveLength(1);
   });
 
   it('paramètres invalides → 400', async () => {

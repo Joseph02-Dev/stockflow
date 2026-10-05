@@ -3,7 +3,8 @@ import type { Response } from 'express';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { RequestContext } from '../../common/context/tenant-context.service.js';
-import { PeriodeDto, RapportMouvementsDto, RapportStockDto } from './dto/rapports.dto.js';
+import { PeriodeDto, RapportMouvementsDto, RapportPeriodeDto, RapportStockDto } from './dto/rapports.dto.js';
+import { RapportPertesService } from './rapport-pertes.service.js';
 import { RapportClientService } from './rapport-client.service.js';
 import { RapportMouvementsService } from './rapport-mouvements.service.js';
 import { RapportStockService } from './rapport-stock.service.js';
@@ -20,6 +21,7 @@ export class RapportsController {
     private readonly stock: RapportStockService,
     private readonly mouvements: RapportMouvementsService,
     private readonly client: RapportClientService,
+    private readonly pertes: RapportPertesService,
   ) {}
 
   @Get('stock')
@@ -52,6 +54,16 @@ export class RapportsController {
     @Res() res: Response,
   ) {
     await envoyer(res, dto.format, await this.client.generer(entrepriseId, user.utilisateurId, id, dto));
+  }
+
+  @Get('pertes')
+  async rapportDePertes(
+    @CurrentTenant() entrepriseId: string,
+    @CurrentUser() user: RequestContext,
+    @Query() dto: RapportPeriodeDto,
+    @Res() res: Response,
+  ) {
+    await envoyer(res, dto.format, await this.pertes.generer(entrepriseId, user.utilisateurId, dto));
   }
 }
 
