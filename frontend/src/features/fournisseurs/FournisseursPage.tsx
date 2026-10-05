@@ -221,8 +221,20 @@ export function FournisseursPage() {
         onFermer={() => setDrawerOuvert(false)}
         titre="Nouveau fournisseur"
         description="Seul le nom est obligatoire."
+        modifie={formState.isDirty || !!photoUrl}
+        pied={
+          <>
+            <Button type="button" variant="secondary" onClick={() => setDrawerOuvert(false)}>
+              Annuler
+            </Button>
+            <Button type="submit" form="formulaire-fournisseur" loading={creer.isPending}>
+              Enregistrer
+            </Button>
+          </>
+        }
       >
         <form
+          id="formulaire-fournisseur"
           onSubmit={handleSubmit((valeurs) => creer.mutate(valeurs))}
           className="flex flex-col gap-4"
           noValidate
@@ -251,14 +263,6 @@ export function FournisseursPage() {
             {...register('delaiLivraisonJours', { valueAsNumber: true })}
           />
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setDrawerOuvert(false)}>
-              Annuler
-            </Button>
-            <Button type="submit" loading={creer.isPending}>
-              Enregistrer
-            </Button>
-          </div>
         </form>
       </Drawer>
     </div>

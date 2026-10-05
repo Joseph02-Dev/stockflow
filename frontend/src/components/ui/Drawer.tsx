@@ -7,5 +7,5 @@ import type { FenetreProps } from './Fenetre';
  * Sous 768 px : feuille montante. Structure en trois zones : voir Fenetre.
  */
 export function Drawer(props: FenetreProps) {
-  return <Fenetre {...props} variante="tiroir" largeur="w-[430px] max-w-full" />;
+  return <Fenetre {...props} variante="tiroir" largeur="max-w-[430px]" />;
 }

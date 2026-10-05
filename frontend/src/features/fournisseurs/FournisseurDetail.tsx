@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { Modal } from '@/components/ui/Modal';
+import { Selecteur } from '@/components/ui/Selecteur';
 import { ImageUploadField } from '@/components/patterns/ImageUploadField';
 import { Card } from '@/components/patterns/Page';
 import { Onglets } from '@/components/patterns/Onglets';
@@ -373,23 +374,16 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
         {catalogue.isLoading ? (
           <LoadingState />
         ) : produitsDisponibles.length > 0 ? (
-          <ul className="flex max-h-80 flex-col gap-1 overflow-y-auto">
-            {produitsDisponibles.map((produit) => (
-              <li key={produit.id}>
-                <button
-                  type="button"
-                  onClick={() => associer.mutate(produit.id)}
-                  disabled={associer.isPending}
-                  className="flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-corps transition-colors hover:bg-paper disabled:opacity-50"
-                >
-                  <span className="truncate text-ink-900">{produit.nom}</span>
-                  {produit.reference && (
-                    <span className="shrink-0 font-mono text-meta text-steel-500">{produit.reference}</span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
+          // Choisir un produit l'associe aussitôt, comme le clic sur la liste d'avant.
+          <Selecteur
+            label="Produit"
+            placeholder="Rechercher un produit à associer…"
+            options={produitsDisponibles.map((p) => ({ valeur: p.id, libelle: p.nom, sousTitre: p.reference ?? undefined }))}
+            value=""
+            onChange={(id) => associer.mutate(id)}
+            disabled={associer.isPending}
+            vide={{ titre: 'Aucun produit trouvé', nomPluriel: 'produits disponibles' }}
+          />
         ) : (
           <p className="py-4 text-center text-corps text-steel-500">
             Tous vos produits sont déjà associés à ce fournisseur.
@@ -397,8 +391,24 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
         )}
       </Modal>
 
-      <Modal ouvert={editionOuverte} onFermer={() => setEditionOuverte(false)} titre="Modifier le fournisseur">
+      <Modal
+        ouvert={editionOuverte}
+        onFermer={() => setEditionOuverte(false)}
+        titre="Modifier le fournisseur"
+        modifie={formState.isDirty || photoUrl !== (fournisseur.data?.photoUrl ?? undefined)}
+        pied={
+          <>
+            <Button type="button" variant="secondary" onClick={() => setEditionOuverte(false)}>
+              Annuler
+            </Button>
+            <Button type="submit" form="formulaire-edition-fournisseur" loading={modifier.isPending}>
+              Enregistrer
+            </Button>
+          </>
+        }
+      >
         <form
+          id="formulaire-edition-fournisseur"
           onSubmit={handleSubmit((v) => modifier.mutate(v))}
           className="flex flex-col gap-4"
           noValidate
@@ -427,14 +437,6 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
             {...register('delaiLivraisonJours', { valueAsNumber: true })}
           />
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setEditionOuverte(false)}>
-              Annuler
-            </Button>
-            <Button type="submit" loading={modifier.isPending}>
-              Enregistrer
-            </Button>
-          </div>
         </form>
       </Modal>
     </div>
