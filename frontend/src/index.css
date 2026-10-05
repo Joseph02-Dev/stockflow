@@ -283,7 +283,21 @@ body {
 .points-chargement > span:nth-child(2) { animation-delay: 0.15s; }
 .points-chargement > span:nth-child(3) { animation-delay: 0.3s; }
 
+/* Feuille montante (mobile) : sélecteurs et fenêtres glissent depuis le bas. */
+@keyframes feuille-montee {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+.feuille-montee {
+  animation: feuille-montee 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .feuille-montee,
   .entree-page > * > *,
   .entree-page table,
   .apparition {
