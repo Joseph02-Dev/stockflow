@@ -142,22 +142,26 @@ export function ReferenceListSection({ endpoint, libelleSingulier, libellePlurie
         ouvert={modaleOuverte}
         onFermer={() => setModaleOuverte(false)}
         titre={enEdition ? `Modifier la ${libelleSingulier}` : `Nouvelle ${libelleSingulier}`}
+        modifie={formState.isDirty}
+        pied={
+          <>
+            <Button type="button" variant="secondary" onClick={() => setModaleOuverte(false)}>
+              Annuler
+            </Button>
+            <Button type="submit" form="formulaire-reference" loading={enregistrer.isPending}>
+              Enregistrer
+            </Button>
+          </>
+        }
       >
         <form
+          id="formulaire-reference"
           onSubmit={handleSubmit((valeurs) => enregistrer.mutate(valeurs))}
           className="flex flex-col gap-4"
           noValidate
         >
           {erreur && <Alert variant="error">{erreur}</Alert>}
           <Input label="Nom" error={formState.errors.nom?.message} {...register('nom')} />
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setModaleOuverte(false)}>
-              Annuler
-            </Button>
-            <Button type="submit" loading={enregistrer.isPending}>
-              Enregistrer
-            </Button>
-          </div>
         </form>
       </Modal>
 

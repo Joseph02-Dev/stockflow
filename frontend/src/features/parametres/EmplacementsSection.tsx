@@ -138,6 +138,17 @@ export function EmplacementsSection() {
         ouvert={modaleOuverte}
         onFermer={() => setModaleOuverte(false)}
         titre={enEdition ? 'Modifier l’emplacement' : 'Nouvel emplacement'}
+        modifie={formState.isDirty}
+        pied={
+          <>
+            <Button type="button" variant="secondary" onClick={() => setModaleOuverte(false)}>
+              Annuler
+            </Button>
+            <Button type="submit" form="formulaire-emplacement" loading={enregistrer.isPending}>
+              Enregistrer
+            </Button>
+          </>
+        }
       >
         <form
           id="formulaire-emplacement"
@@ -149,14 +160,6 @@ export function EmplacementsSection() {
           <Input label="Nom" error={formState.errors.nom?.message} {...register('nom')} />
           <Input label="Adresse (facultatif)" {...register('adresse')} />
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setModaleOuverte(false)}>
-              Annuler
-            </Button>
-            <Button type="submit" loading={enregistrer.isPending}>
-              Enregistrer
-            </Button>
-          </div>
         </form>
       </Modal>
 

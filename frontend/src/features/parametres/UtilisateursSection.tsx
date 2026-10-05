@@ -7,7 +7,8 @@ import { Plus } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import { Selecteur } from '@/components/ui/Selecteur';
+import { SelecteurChamp } from '@/components/ui/SelecteurChamp';
 import { Alert } from '@/components/ui/Alert';
 import { Modal } from '@/components/ui/Modal';
 import { Card } from '@/components/patterns/Page';
@@ -42,7 +43,7 @@ export function UtilisateursSection() {
     queryFn: async () => (await api.get<UtilisateurListe[]>('/users')).data,
   });
 
-  const { register, handleSubmit, reset, formState } = useForm<Formulaire>({
+  const { register, handleSubmit, reset, control, formState } = useForm<Formulaire>({
     resolver: zodResolver(schema),
     defaultValues: { role: 'GESTIONNAIRE' },
   });
@@ -124,21 +125,22 @@ export function UtilisateursSection() {
                   <Badge variant={utilisateur.role === 'ADMIN' ? 'action' : 'neutral'}>
                     {utilisateur.role === 'ADMIN' ? 'Administrateur' : 'Gestionnaire'}
                   </Badge>
-                  <select
+                  <Selecteur
                     aria-label={`Rôle de ${utilisateur.nom}`}
+                    taille="sm"
+                    className="w-40"
+                    options={[
+                      { valeur: 'GESTIONNAIRE', libelle: 'Gestionnaire' },
+                      { valeur: 'ADMIN', libelle: 'Administrateur' },
+                    ]}
                     value={utilisateur.role}
                     disabled={changerRole.isPending}
-                    onChange={(event) =>
-                      changerRole.mutate({
-                        id: utilisateur.id,
-                        role: event.target.value as 'ADMIN' | 'GESTIONNAIRE',
-                      })
+                    onChange={(role) =>
+                      // Comme le <select> d'avant : rien n'est envoyé si le rôle ne change pas.
+                      role !== utilisateur.role &&
+                      changerRole.mutate({ id: utilisateur.id, role: role as 'ADMIN' | 'GESTIONNAIRE' })
                     }
-                    className="rounded-md border border-rule bg-surface px-2 py-1 text-corps text-ink-900 disabled:opacity-50"
-                  >
-                    <option value="GESTIONNAIRE">Gestionnaire</option>
-                    <option value="ADMIN">Administrateur</option>
-                  </select>
+                  />
                 </div>
               </li>
             ))}
@@ -153,8 +155,20 @@ export function UtilisateursSection() {
         onFermer={() => setModaleOuverte(false)}
         titre="Inviter un utilisateur"
         description="La personne recevra un email avec un lien pour créer son compte."
+        modifie={formState.isDirty}
+        pied={
+          <>
+            <Button type="button" variant="secondary" onClick={() => setModaleOuverte(false)}>
+              Annuler
+            </Button>
+            <Button type="submit" form="formulaire-invitation" loading={inviter.isPending}>
+              Envoyer l’invitation
+            </Button>
+          </>
+        }
       >
         <form
+          id="formulaire-invitation"
           onSubmit={handleSubmit((valeurs) => inviter.mutate(valeurs))}
           className="flex flex-col gap-4"
           noValidate
@@ -167,24 +181,15 @@ export function UtilisateursSection() {
             error={formState.errors.email?.message}
             {...register('email')}
           />
-          <Select
+          <SelecteurChamp
+            name="role"
+            control={control}
             label="Rôle"
             options={[
               { valeur: 'GESTIONNAIRE', libelle: 'Gestionnaire de stock' },
               { valeur: 'ADMIN', libelle: 'Administrateur' },
             ]}
-            error={formState.errors.role?.message}
-            {...register('role')}
           />
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setModaleOuverte(false)}>
-              Annuler
-            </Button>
-            <Button type="submit" loading={inviter.isPending}>
-              Envoyer l’invitation
-            </Button>
-          </div>
         </form>
       </Modal>
     </div>
