@@ -13,7 +13,7 @@ import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.
 import { CloudinaryService } from './cloudinary.service.js';
 import { LIMITES_STRICTES, LimiteStricte } from '../../common/limitation/limitation.js';
 
-const DOSSIERS_AUTORISES = ['produits', 'fournisseurs', 'utilisateurs', 'pertes'] as const;
+const DOSSIERS_AUTORISES = ['produits', 'fournisseurs', 'utilisateurs', 'pertes', 'entreprise'] as const;
 type Dossier = (typeof DOSSIERS_AUTORISES)[number];
 
 const TYPES_MIME_AUTORISES = ['image/jpeg', 'image/png', 'image/webp'];

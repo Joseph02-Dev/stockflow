@@ -123,6 +123,16 @@ model Entreprise {
   nom       String
   createdAt DateTime @default(now()) @map("created_at")
 
+  // Coordonnées imprimées en en-tête des rapports PDF. Facultatives : un
+  // rapport reste générable sans elles, mais n'a alors guère de valeur
+  // auprès d'un banquier ou d'un contrôleur.
+  adresse   String?
+  telephone String?
+  email     String?
+  rccm      String? // Registre du commerce et du crédit mobilier
+  nif       String? // Numéro d'identification fiscale
+  logoUrl   String? @map("logo_url")
+
   // Saisis à l'étape 2 de l'inscription. secteurActivite reste indicatif
   // (aucune logique n'en dépend pour l'instant) ; tauxTvaParDefaut, lui,
   // est réellement exploité : il pré-remplit le taux de TVA à la

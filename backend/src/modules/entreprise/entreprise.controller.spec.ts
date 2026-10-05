@@ -97,6 +97,30 @@ describe('GET/PATCH /entreprise (intégration réelle, base PostgreSQL)', () => 
     expect(response.body.nom).toBe('Nouveau Nom Entreprise');
   });
 
+  it('l’Admin renseigne puis efface les coordonnées imprimées sur les rapports', async () => {
+    const { accessTokenAdmin } = await creerAdminEtGestionnaire();
+    const patch = (corps: object) =>
+      request(app.getHttpServer()).patch('/entreprise').set('Authorization', `Bearer ${accessTokenAdmin}`).send(corps);
+
+    const remplie = await patch({
+      adresse: '  Marché Madina, Conakry  ',
+      telephone: '+224 622 45 18 03',
+      email: 'contact@camara.gn',
+      rccm: 'GN.TCC.2021.B.04512',
+      nif: '123456789',
+      logoUrl: 'https://res.cloudinary.com/demo/image/upload/logo.png',
+    });
+    expect(remplie.status).toBe(200);
+    expect(remplie.body).toMatchObject({ adresse: 'Marché Madina, Conakry', rccm: 'GN.TCC.2021.B.04512', nif: '123456789' });
+
+    const effacee = await patch({ rccm: '', logoUrl: null });
+    expect(effacee.status).toBe(200);
+    expect(effacee.body).toMatchObject({ rccm: null, logoUrl: null, nif: '123456789' });
+
+    expect((await patch({ email: 'pas-un-email' })).status).toBe(400);
+    expect((await patch({ logoUrl: 'http://exemple.com/logo.png' })).status).toBe(400);
+  });
+
   it('rejette avec 403 une modification tentée par un Gestionnaire', async () => {
     const { accessTokenGestionnaire } = await creerAdminEtGestionnaire();
 
