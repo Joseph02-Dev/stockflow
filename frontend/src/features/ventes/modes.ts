@@ -1,4 +1,4 @@
-import { Banknote, Clock3, Smartphone } from 'lucide-react';
+import { Banknote, Clock3, Smartphone, Undo2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ModePaiement } from './types';
 
@@ -16,4 +16,5 @@ export const MODES: Record<ModePaiement, { libelle: string; Icone: LucideIcon; a
   },
   MTN_MOMO: { libelle: 'MTN MoMo', Icone: Smartphone, actif: 'border-mtn bg-mtn text-ink-900', point: 'bg-mtn' },
   CREDIT: { libelle: 'Crédit', Icone: Clock3, actif: 'border-faible bg-faible text-white', point: 'bg-faible' },
+  AVOIR: { libelle: 'Avoir (retour)', Icone: Undo2, actif: 'border-action bg-action text-white', point: 'bg-action' },
 };

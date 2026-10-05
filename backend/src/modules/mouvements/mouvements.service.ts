@@ -14,6 +14,7 @@ import type { EntreeStockDto } from './dto/entree-stock.dto.js';
 import type { SortieStockDto } from './dto/sortie-stock.dto.js';
 import type { TransfertStockDto } from './dto/transfert-stock.dto.js';
 import { ligneCsv } from '../../common/pagination/csv.js';
+import type { MotifPerte } from '../../generated/prisma/enums.js';
 import {
   joursRestants,
   lireDatePeremption,
@@ -28,6 +29,20 @@ export type TransactionPrisma = Parameters<
 
 /** Numéro du lot qui reçoit le stock antérieur au suivi par lot. */
 export const NUMERO_LOT_SANS_DATE = 'SANS-LOT';
+
+/**
+ * Informations portées par un mouvement de perte ou de retour. La valeur
+ * est figée au prix d'achat du moment : valeurTotale = quantité × unitaire.
+ */
+export interface DonneesMouvement {
+  motifPerte?: MotifPerte;
+  valeurUnitaire?: number;
+  commentaire?: string;
+  photoUrl?: string;
+  retourFournisseurId?: string;
+  retourClientId?: string;
+  annuleMouvementId?: string;
+}
 
 export interface AlerteANotifier {
   type: 'STOCK_FAIBLE' | 'RUPTURE';
@@ -85,7 +100,13 @@ export class MouvementsService {
     entrepriseId: string,
     utilisateurId: string,
     dto: EntreeStockDto,
-    options: { lotId?: string; venteId?: string } = {},
+    options: {
+      lotId?: string;
+      venteId?: string;
+      /** ENTREE par défaut ; RETOUR_CLIENT, ou AJUSTEMENT pour l'annulation d'une casse. */
+      type?: 'ENTREE' | 'RETOUR_CLIENT' | 'AJUSTEMENT';
+      donnees?: DonneesMouvement;
+    } = {},
   ) {
     {
       await this.verrouillerProduit(tx, dto.produitId);
@@ -117,12 +138,13 @@ export class MouvementsService {
           entrepriseId,
           produitId: dto.produitId,
           emplacementId: dto.emplacementId,
-          type: 'ENTREE',
+          type: options.type ?? 'ENTREE',
           quantite: dto.quantite,
           fournisseurId: dto.fournisseurId,
           utilisateurId,
           lotId,
           venteId: options.venteId,
+          ...this.champsDonnees(options.donnees, dto.quantite),
         },
       });
 
@@ -194,7 +216,14 @@ export class MouvementsService {
     entrepriseId: string,
     utilisateurId: string,
     dto: SortieStockDto,
-    options: { venteId?: string } = {},
+    options: {
+      venteId?: string;
+      /** SORTIE par défaut ; CASSE ou RETOUR_FOURNISSEUR pour une perte ou un renvoi. */
+      type?: 'SORTIE' | 'CASSE' | 'RETOUR_FOURNISSEUR';
+      /** Produit suivi par lot : lot désigné ; sinon ordre FEFO. */
+      lotId?: string;
+      donnees?: DonneesMouvement;
+    } = {},
   ) {
     {
       await this.verrouillerProduit(tx, dto.produitId);
@@ -216,6 +245,11 @@ export class MouvementsService {
       const produit = await tx.produit.findUniqueOrThrow({
         where: { id: dto.produitId },
       });
+      if (options.lotId && !produit.suiviParLot) {
+        throw new BadRequestException(
+          'Ce produit n’est pas suivi par lot : aucun lot à désigner.',
+        );
+      }
 
       const mouvements = produit.suiviParLot
         ? await this.sortirDesLots(tx, {
@@ -224,8 +258,10 @@ export class MouvementsService {
             produitId: dto.produitId,
             emplacementId: dto.emplacementId,
             quantite: dto.quantite,
-            type: 'SORTIE',
+            type: options.type ?? 'SORTIE',
             venteId: options.venteId,
+            lotId: options.lotId,
+            donnees: options.donnees,
           })
         : [
             await tx.mouvement.create({
@@ -233,10 +269,11 @@ export class MouvementsService {
                 entrepriseId,
                 produitId: dto.produitId,
                 emplacementId: dto.emplacementId,
-                type: 'SORTIE',
+                type: options.type ?? 'SORTIE',
                 quantite: dto.quantite,
                 utilisateurId,
                 venteId: options.venteId,
+                ...this.champsDonnees(options.donnees, dto.quantite),
               },
             }),
           ];
@@ -507,6 +544,9 @@ export class MouvementsService {
       TRANSFERT: 'Transfert',
       AJUSTEMENT: 'Ajustement',
       PERIME: 'Périmé',
+      CASSE: 'Casse',
+      RETOUR_CLIENT: 'Retour client',
+      RETOUR_FOURNISSEUR: 'Retour fournisseur',
     } as const;
     await ecrire(
       ligneCsv([
@@ -780,9 +820,10 @@ export class MouvementsService {
       produitId: string;
       emplacementId: string;
       quantite: number;
-      type: 'SORTIE' | 'PERIME';
+      type: 'SORTIE' | 'PERIME' | 'CASSE' | 'RETOUR_FOURNISSEUR';
       venteId?: string;
       lotId?: string;
+      donnees?: DonneesMouvement;
     },
   ) {
     const lots = await this.lotsFefoVerrouilles(
@@ -816,11 +857,31 @@ export class MouvementsService {
             utilisateurId: p.utilisateurId,
             lotId: part.lot.id,
             venteId: p.venteId,
+            ...this.champsDonnees(p.donnees, part.quantite),
           },
         }),
       );
     }
     return mouvements;
+  }
+
+  /** Champs de perte ou de retour d'un mouvement (vide pour un mouvement ordinaire). */
+  private champsDonnees(d: DonneesMouvement | undefined, quantite: number) {
+    if (!d) return {};
+    return {
+      motifPerte: d.motifPerte,
+      commentaire: d.commentaire,
+      photoUrl: d.photoUrl,
+      retourFournisseurId: d.retourFournisseurId,
+      retourClientId: d.retourClientId,
+      annuleMouvementId: d.annuleMouvementId,
+      ...(d.valeurUnitaire !== undefined
+        ? {
+            valeurUnitaire: d.valeurUnitaire,
+            valeurTotale: d.valeurUnitaire * quantite,
+          }
+        : {}),
+    };
   }
 
   /**

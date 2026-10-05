@@ -87,11 +87,13 @@ export class CreancesService {
         SELECT v.client_id, MAX(r.created_at) AS dernier
         FROM reglement r JOIN vente v ON v.id = r.vente_id
         WHERE v.entreprise_id = ${entrepriseId} AND v.statut = 'VALIDEE' AND v.client_id IS NOT NULL
+          AND r.mode <> 'AVOIR'
         GROUP BY v.client_id`,
       this.prisma.$queryRaw<{ total: bigint | null }[]>`
         SELECT SUM(r.montant) AS total
         FROM reglement r JOIN vente v ON v.id = r.vente_id
         WHERE v.entreprise_id = ${entrepriseId} AND v.statut = 'VALIDEE' AND v.mode_paiement = 'CREDIT'
+          AND r.mode <> 'AVOIR'
           AND r.created_at >= ${debutSemaine(new Date(maintenant))}`,
     ]);
     const clientParId = new Map(clients.map((c) => [c.id, c]));

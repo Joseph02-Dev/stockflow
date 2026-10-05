@@ -1,6 +1,23 @@
-import { ArrowDownToLine, ArrowRightLeft, ArrowUpFromLine, CalendarX2, SlidersHorizontal } from 'lucide-react';
+import {
+  ArrowDownToLine,
+  ArrowRightLeft,
+  ArrowUpFromLine,
+  CalendarX2,
+  PackageX,
+  SlidersHorizontal,
+  Truck,
+  Undo2,
+} from 'lucide-react';
 
-export type TypeMouvement = 'ENTREE' | 'SORTIE' | 'TRANSFERT' | 'AJUSTEMENT' | 'PERIME';
+export type TypeMouvement =
+  | 'ENTREE'
+  | 'SORTIE'
+  | 'TRANSFERT'
+  | 'AJUSTEMENT'
+  | 'PERIME'
+  | 'CASSE'
+  | 'RETOUR_CLIENT'
+  | 'RETOUR_FOURNISSEUR';
 
 /**
  * Grammaire d'un mouvement : marqueur carré (fond -wash + icône), libellé
@@ -21,12 +38,17 @@ export const presentationMouvement: Record<
   },
   // Perte d'un lot périmé : distincte d'une sortie commerciale.
   PERIME: { libelle: 'Périmé', Icone: CalendarX2, fond: 'bg-rupture-wash text-rupture', couleur: 'text-rupture' },
+  // Pertes et retours.
+  CASSE: { libelle: 'Casse', Icone: PackageX, fond: 'bg-rupture-wash text-rupture', couleur: 'text-rupture' },
+  RETOUR_CLIENT: { libelle: 'Retour client', Icone: Undo2, fond: 'bg-ok-wash text-ok', couleur: 'text-ok' },
+  RETOUR_FOURNISSEUR: { libelle: 'Retour fournisseur', Icone: Truck, fond: 'bg-faible-wash text-faible', couleur: 'text-faible' },
 };
 
 /** « +12 », « −5 », « 8 » (transfert : le total ne change pas). */
 export function quantiteSignee(type: TypeMouvement, quantite: number): string {
   if (type === 'ENTREE') return `+${quantite}`;
-  if (type === 'SORTIE' || type === 'PERIME') return `−${quantite}`;
+  if (type === 'SORTIE' || type === 'PERIME' || type === 'CASSE' || type === 'RETOUR_FOURNISSEUR') return `−${quantite}`;
+  if (type === 'RETOUR_CLIENT') return `+${quantite}`;
   // Un ajustement d'inventaire enregistre l'écart, déjà signé.
   if (type === 'AJUSTEMENT') return quantite > 0 ? `+${quantite}` : `−${Math.abs(quantite)}`;
   return String(quantite);

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { Ban, Plus } from 'lucide-react';
+import { Ban, Plus, Undo2 } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { dateCourte, dateHeure, gnf } from '@/lib/montant';
+import { formatNombre, pluriel } from '@/lib/format';
 import { texteRecu } from '@/lib/recu';
 import { texteRecuWhatsApp } from '@/lib/whatsapp';
 import { BoutonWhatsApp } from '@/components/patterns/BoutonWhatsApp';
@@ -14,9 +15,16 @@ import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Card, PageHeader, PanneauEntete } from '@/components/patterns/Page';
 import { ErrorState, LoadingState } from '@/components/patterns/States';
+import { FormulaireRetourClient } from './FormulaireRetourClient';
 import { PastillesPaiement } from './PastillesPaiement';
 import { MODES } from './modes';
-import type { ModeReglement, VenteDetail } from './types';
+import type { EtatRetourClient, ModeReglement, VenteDetail } from './types';
+
+const ETATS_RETOUR: Record<EtatRetourClient, string> = {
+  REMISE_EN_STOCK: 'remise en stock',
+  CASSE: 'déclarée en casse',
+  RETOUR_FOURNISSEUR: 'renvoi au fournisseur',
+};
 
 const MODES_REGLEMENT: ModeReglement[] = ['ESPECES', 'ORANGE_MONEY', 'MTN_MOMO'];
 
@@ -31,6 +39,8 @@ export function VenteDetailPage() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [annulationOuverte, setAnnulationOuverte] = useState(false);
   const [motif, setMotif] = useState('');
+  const [retourOuvert, setRetourOuvert] = useState(false);
+  const [succesRetour, setSuccesRetour] = useState<string | null>(null);
 
   const { data: vente, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['ventes', id],
@@ -67,6 +77,9 @@ export function VenteDetailPage() {
   if (isError || !vente) return <ErrorState message={messageErreur(error, 'Vente introuvable.')} onRetry={() => refetch()} />;
 
   const annulee = vente.statut === 'ANNULEE';
+  const retournable = vente.lignes.some(
+    (l) => l.quantite > vente.retours.flatMap((r) => r.lignes).filter((x) => x.ligneVenteId === l.id).reduce((a, x) => a + x.quantite, 0),
+  );
   const montantSaisi = Number.parseInt(montant, 10) || 0;
 
   return (
@@ -92,6 +105,7 @@ export function VenteDetailPage() {
           {gnf(etat.alertePlafond.solde)} pour un plafond de {gnf(etat.alertePlafond.plafondCredit)}.
         </Alert>
       )}
+      {succesRetour && <Alert variant="success">{succesRetour}</Alert>}
       {annulee && (
         <Alert variant="warning">
           Annulée le {dateHeure(vente.annuleeAt!)} — {vente.motifAnnulation}. Le stock a été restitué.
@@ -188,14 +202,69 @@ export function VenteDetailPage() {
             )}
           </Card>
 
+          {vente.retours.length > 0 && (
+            <Card>
+              <PanneauEntete titre="Retours" meta={`${gnf(vente.retours.reduce((a, r) => a + r.montant, 0))} retournés`} />
+              <ul className="divide-y divide-rule">
+                {vente.retours.map((r) => (
+                  <li key={r.id} className="flex items-center gap-3 px-5 py-3">
+                    <Undo2 className="size-4 shrink-0 text-steel-500" aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-corps text-ink-900">
+                        {formatNombre(r.lignes.reduce((a, l) => a + l.quantite, 0))} {pluriel('unité', r.lignes.reduce((a, l) => a + l.quantite, 0))} · {ETATS_RETOUR[r.etat]}
+                      </p>
+                      <p className="text-meta text-steel-500">
+                        {r.compensation === 'DEDUIRE_DETTE' ? 'Déduit de la dette' : 'Remboursé en espèces'} · {dateHeure(r.createdAt)} ·{' '}
+                        {r.utilisateur.nom}
+                      </p>
+                    </div>
+                    <span className="text-corps font-semibold text-ink-900">{gnf(r.montant)}</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
           {!annulee && (
-            <Button variant="ghost" className="self-start text-rupture hover:bg-rupture-wash" onClick={() => setAnnulationOuverte(true)}>
-              <Ban className="size-4" aria-hidden="true" />
-              Annuler cette vente
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {retournable && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setSuccesRetour(null);
+                    setRetourOuvert(true);
+                  }}
+                >
+                  <Undo2 className="size-4" aria-hidden="true" />
+                  Retour client
+                </Button>
+              )}
+              {vente.retours.length === 0 && (
+                <Button variant="ghost" className="text-rupture hover:bg-rupture-wash" onClick={() => setAnnulationOuverte(true)}>
+                  <Ban className="size-4" aria-hidden="true" />
+                  Annuler cette vente
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </div>
+
+      {retourOuvert && (
+        <FormulaireRetourClient
+          vente={vente}
+          onFermer={() => setRetourOuvert(false)}
+          onRetourne={(r) => {
+            setRetourOuvert(false);
+            setSuccesRetour(
+              r.compensation === 'DEDUIRE_DETTE'
+                ? `Retour enregistré : ${gnf(r.montant)} déduits de la dette${r.soldeClient !== null ? `, qui passe à ${gnf(r.soldeClient)}` : ''}.`
+                : `Retour enregistré : ${gnf(r.montant)} à rembourser au client en espèces.`,
+            );
+            refetch();
+          }}
+        />
+      )}
 
       <Modal
         ouvert={annulationOuverte}

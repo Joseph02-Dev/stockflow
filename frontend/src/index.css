@@ -73,6 +73,13 @@
   --color-whatsapp-dark: #1da851;
   /* Vieillissement des créances : < 8 j, 8–30 j, 31–60 j, > 60 j. */
   --color-age-recent: #2cc48a;
+  /* Pertes par motif : casse, dégât des eaux, vol, erreur, autre, avoir refusé. */
+  --color-perte-casse: #e05a4b;
+  --color-perte-eaux: #d9922b;
+  --color-perte-vol: #9b7bd4;
+  --color-perte-erreur: #6a91c9;
+  --color-perte-autre: #8a94a6;
+  --color-perte-avoir: #c9cfda;
   /* Péremptions : périmé, moins de 7 j, 8 à 30 j, plus de 30 j (filets). */
   --color-peremption-perime: #e05a4b;
   --color-peremption-urgent: #d9922b;
