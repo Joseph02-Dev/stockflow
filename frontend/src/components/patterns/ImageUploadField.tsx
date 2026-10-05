@@ -6,7 +6,7 @@ import { cn } from '@/lib/cn';
 interface ImageUploadFieldProps {
   label: string;
   valeur?: string;
-  dossier: 'produits' | 'fournisseurs' | 'utilisateurs' | 'pertes';
+  dossier: 'produits' | 'fournisseurs' | 'utilisateurs' | 'pertes' | 'entreprise';
   onChange: (url: string | undefined) => void;
   /** Forme ronde pour les avatars, carrée pour produits/fournisseurs. */
   forme?: 'carre' | 'rond';

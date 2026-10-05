@@ -17,6 +17,12 @@ export class EntrepriseService {
         ...(dto.nom !== undefined ? { nom: dto.nom } : {}),
         ...(dto.secteurActivite !== undefined ? { secteurActivite: dto.secteurActivite } : {}),
         ...(dto.tauxTvaParDefaut !== undefined ? { tauxTvaParDefaut: dto.tauxTvaParDefaut } : {}),
+        ...(dto.adresse !== undefined ? { adresse: dto.adresse } : {}),
+        ...(dto.telephone !== undefined ? { telephone: dto.telephone } : {}),
+        ...(dto.email !== undefined ? { email: dto.email } : {}),
+        ...(dto.rccm !== undefined ? { rccm: dto.rccm } : {}),
+        ...(dto.nif !== undefined ? { nif: dto.nif } : {}),
+        ...(dto.logoUrl !== undefined ? { logoUrl: dto.logoUrl } : {}),
       },
     });
   }
