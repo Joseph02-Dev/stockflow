@@ -238,6 +238,87 @@ describe('Rapports PDF — intégration réelle, base PostgreSQL', () => {
     expect(csv.text.replace(/^\uFEFF/, '').trim().split('\r\n')).toHaveLength(1);
   });
 
+  /** Compte client : vente antérieure, ventes de la période, règlements partiels, avoir, vente annulée. */
+  async function compteClient(c: Awaited<ReturnType<typeof contexte>>) {
+    const produit = (await c.post('/produits', { nom: 'Fer à béton 12 mm', prixAchat: 60000, prixVente: 75000 })).body;
+    const depot = (await c.post('/emplacements', { nom: 'Dépôt Madina' })).body;
+    await c.post('/mouvements/entree', { produitId: produit.id, emplacementId: depot.id, quantite: 500 });
+    const client = (await c.post('/clients', { nom: 'Mamadou Bah', telephone: '+224 622 45 18 03', plafondCredit: 10000000 })).body;
+    const vendre = async (quantite: number) =>
+      (await c.post('/ventes', { clientId: client.id, emplacementId: depot.id, modePaiement: 'CREDIT', lignes: [{ produitId: produit.id, quantite }] })).body;
+
+    const ancienne = await vendre(40); // 3 000 000
+    await c.post(`/ventes/${ancienne.id}/reglements`, { montant: 550000, mode: 'ESPECES' });
+    await prisma.vente.update({ where: { id: ancienne.id }, data: { createdAt: new Date('2025-12-10T09:00:00Z') } });
+    await prisma.reglement.updateMany({ where: { venteId: ancienne.id }, data: { createdAt: new Date('2025-12-20T09:00:00Z') } });
+
+    const v1 = await vendre(20); // 1 500 000
+    await c.post(`/ventes/${v1.id}/reglements`, { montant: 400000, mode: 'ORANGE_MONEY' });
+    const v2 = await vendre(10); // 750 000
+    const retour = await c.post(`/ventes/${v2.id}/retour`, {
+      lignes: [{ ligneVenteId: v2.lignes[0].id, quantite: 2 }],
+      etat: 'REMISE_EN_STOCK',
+      compensation: 'DEDUIRE_DETTE',
+    });
+    expect(retour.status).toBe(201);
+    const annulee = await vendre(4);
+    await c.post(`/ventes/${annulee.id}/reglements`, { montant: 100000, mode: 'MTN_MOMO' });
+    await c.post(`/ventes/${annulee.id}/annuler`, { motif: 'Erreur de client' });
+    return { client, ancienne, v1, v2, annulee };
+  }
+
+  it('relevé client : solde ligne à ligne, report antérieur, règlements partiels et avoir, solde final = solde dû réel', async () => {
+    const c = await contexte();
+    const { client, v1, v2, annulee } = await compteClient(c);
+    const reel = (await c.get(`/clients/${client.id}/situation`)).body.solde as number;
+    expect(reel).toBe(3000000 - 550000 + 1500000 - 400000 + 750000 - 150000);
+
+    const csv = await c.get(`/rapports/client/${client.id}?format=csv&debut=2026-01-01`);
+    expect(csv.status).toBe(200);
+    const lignes = csv.text.replace(/^\uFEFF/, '').trim().split('\r\n').slice(1).map((l) => l.split(';'));
+    expect(lignes[0]).toEqual(['01/01/2026', '', 'Report du solde antérieur', '', '', '2450000']);
+    let solde = 2450000;
+    for (const [, , , debit, credit, s] of lignes.slice(1)) {
+      solde += Number(debit || 0) - Number(credit || 0);
+      expect(Number(s)).toBe(solde);
+    }
+    expect(solde).toBe(reel);
+    const libelles = lignes.slice(1).map((l) => `${l[1]} ${l[2]}`);
+    expect(libelles).toEqual([
+      `${v1.numero} Vente — 20 articles`,
+      `${v1.numero} Règlement Orange Money`,
+      `${v2.numero} Vente — 10 articles`,
+      `${v2.numero} Avoir sur retour de marchandise`,
+    ]);
+    expect(csv.text).not.toContain(annulee.numero);
+
+    const r = await c.pdf(`/rapports/client/${client.id}?debut=2026-01-01`);
+    expect(r.status).toBe(200);
+    expect(r.headers['content-type']).toBe('application/pdf');
+    expect(r.headers['content-disposition']).toMatch(/filename="releve-mamadou-bah-\d{4}-\d{2}-\d{2}\.pdf"/);
+    const texte = (await lirePdf(r.body as Buffer)).pages.join(' ');
+    expect(texte).toContain('Relevé de compte client');
+    expect(texte).toContain('Report du solde antérieur');
+    expect(texte).toContain(`Totaux de la période et solde dû ${enTexte(2250000)} ${enTexte(550000)} ${enTexte(reel)}`);
+    expect(texte).toContain('En cas de désaccord sur ce relevé, merci de nous contacter sous huit jours.');
+    expect(texte).toContain('Le client, pour accord');
+    expect(texte).toContain(`Plafond de crédit : ${enTexte(10000000)} GNF`);
+  });
+
+  it('relevé client : client d’une autre entreprise → 404, jamais le document', async () => {
+    const a = await contexte('Entreprise A');
+    const b = await contexte('Entreprise B');
+    const { client } = await compteClient(a);
+    for (const format of ['pdf', 'csv']) {
+      const r = await b.pdf(`/rapports/client/${client.id}?format=${format}`);
+      expect(r.status).toBe(404);
+      expect(r.headers['content-type']).not.toMatch(/pdf|csv/);
+      expect((r.body as Buffer).toString()).not.toContain('Mamadou');
+    }
+    expect((await b.get(`/rapports/client/${crypto.randomUUID()}`)).status).toBe(404);
+    expect((await b.get('/rapports/client/pas-un-uuid')).status).toBe(400);
+  });
+
   it('paramètres invalides → 400', async () => {
     const c = await contexte();
     expect((await c.get('/rapports/stock?format=docx')).status).toBe(400);

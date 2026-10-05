@@ -1,9 +1,10 @@
-import { Controller, Get, Query, Res } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { RequestContext } from '../../common/context/tenant-context.service.js';
-import { RapportMouvementsDto, RapportStockDto } from './dto/rapports.dto.js';
+import { PeriodeDto, RapportMouvementsDto, RapportStockDto } from './dto/rapports.dto.js';
+import { RapportClientService } from './rapport-client.service.js';
 import { RapportMouvementsService } from './rapport-mouvements.service.js';
 import { RapportStockService } from './rapport-stock.service.js';
 import { compterPages, type RapportGenere } from './rapports.types.js';
@@ -18,6 +19,7 @@ export class RapportsController {
   constructor(
     private readonly stock: RapportStockService,
     private readonly mouvements: RapportMouvementsService,
+    private readonly client: RapportClientService,
   ) {}
 
   @Get('stock')
@@ -38,6 +40,18 @@ export class RapportsController {
     @Res() res: Response,
   ) {
     await envoyer(res, dto.format, await this.mouvements.generer(entrepriseId, user.utilisateurId, dto));
+  }
+
+  /** Relevé de compte : client d'une autre entreprise → 404, jamais le document. */
+  @Get('client/:id')
+  async releveClient(
+    @CurrentTenant() entrepriseId: string,
+    @CurrentUser() user: RequestContext,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() dto: PeriodeDto,
+    @Res() res: Response,
+  ) {
+    await envoyer(res, dto.format, await this.client.generer(entrepriseId, user.utilisateurId, id, dto));
   }
 }
 
