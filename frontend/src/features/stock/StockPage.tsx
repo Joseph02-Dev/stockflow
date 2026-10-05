@@ -6,6 +6,7 @@ import { exporterCsv, telechargerExport } from '@/lib/exporterCsv';
 import { pageSuivante, urlPage } from '@/lib/pagination';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Selecteur } from '@/components/ui/Selecteur';
 import { Card, PageHeader } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { MouvementModal } from './MouvementModal';
@@ -154,22 +155,20 @@ export function StockPage() {
 
         {actifVisible !== 'inventaires' && (
           <div className="flex items-center gap-2">
-            <label htmlFor="filtre-emplacement" className="text-corps text-steel-500">
+            <span className="text-corps text-steel-500" aria-hidden="true">
               Emplacement
-            </label>
-            <select
+            </span>
+            <Selecteur
               id="filtre-emplacement"
+              aria-label="Emplacement"
+              className="w-56"
+              options={[
+                { valeur: '', libelle: 'Tous les emplacements' },
+                ...(emplacements.data ?? []).map((e) => ({ valeur: e.id, libelle: e.nom })),
+              ]}
               value={emplacementFiltre}
-              onChange={(event) => setEmplacementFiltre(event.target.value)}
-              className="h-9 min-w-0 rounded-md border border-rule-strong bg-surface px-3 text-corps text-ink-900 hover:border-steel-400"
-            >
-              <option value="">Tous les emplacements</option>
-              {(emplacements.data ?? []).map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.nom}
-                </option>
-              ))}
-            </select>
+              onChange={setEmplacementFiltre}
+            />
           </div>
         )}
       </div>

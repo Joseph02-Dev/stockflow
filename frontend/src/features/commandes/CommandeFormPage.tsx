@@ -5,7 +5,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import { Selecteur } from '@/components/ui/Selecteur';
 import { Alert } from '@/components/ui/Alert';
 import { Card, PageHeader, PanneauEntete } from '@/components/patterns/Page';
 
@@ -50,7 +50,7 @@ export function CommandeFormPage() {
   });
   const produits = useQuery({
     queryKey: ['produits', '', false],
-    queryFn: async () => (await api.get<ElementReference[]>('/produits')).data,
+    queryFn: async () => (await api.get<(ElementReference & { reference: string | null })[]>('/produits')).data,
   });
 
   const creer = useMutation({
@@ -91,10 +91,7 @@ export function CommandeFormPage() {
   const produitsChoisis = lignes.map((l) => l.produitId).filter(Boolean);
   const doublons = produitsChoisis.length !== new Set(produitsChoisis).size;
 
-  const optionsProduits = [
-    { valeur: '', libelle: 'Sélectionner un produit…' },
-    ...(produits.data ?? []).map((p) => ({ valeur: p.id, libelle: p.nom })),
-  ];
+  const optionsProduits = (produits.data ?? []).map((p) => ({ valeur: p.id, libelle: p.nom, sousTitre: p.reference ?? undefined }));
 
   return (
     <div className="flex flex-col gap-5">
@@ -113,23 +110,20 @@ export function CommandeFormPage() {
       <Card>
         <div className="flex flex-col gap-4 p-5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Select
+            <Selecteur
               label="Fournisseur"
-              options={[
-                { valeur: '', libelle: 'Sélectionner un fournisseur…' },
-                ...(fournisseurs.data ?? []).map((f) => ({ valeur: f.id, libelle: f.nom })),
-              ]}
+              placeholder="Sélectionner un fournisseur…"
+              options={(fournisseurs.data ?? []).map((f) => ({ valeur: f.id, libelle: f.nom }))}
               value={fournisseurId}
-              onChange={(e) => setFournisseurId(e.target.value)}
+              onChange={setFournisseurId}
+              vide={{ titre: 'Aucun fournisseur trouvé', nomPluriel: 'fournisseurs' }}
             />
-            <Select
+            <Selecteur
               label="Emplacement de réception"
-              options={[
-                { valeur: '', libelle: 'Sélectionner un emplacement…' },
-                ...(emplacements.data ?? []).map((e) => ({ valeur: e.id, libelle: e.nom })),
-              ]}
+              placeholder="Sélectionner un emplacement…"
+              options={(emplacements.data ?? []).map((e) => ({ valeur: e.id, libelle: e.nom }))}
               value={emplacementId}
-              onChange={(e) => setEmplacementId(e.target.value)}
+              onChange={setEmplacementId}
             />
           </div>
         </div>
@@ -144,12 +138,14 @@ export function CommandeFormPage() {
           {lignes.map((ligne, index) => (
             <div key={index} className="flex items-end gap-2">
               <div className="min-w-0 flex-1">
-                <Select
-                  label={index === 0 ? 'Produit' : ''}
+                <Selecteur
+                  label={index === 0 ? 'Produit' : undefined}
                   aria-label={`Produit, ligne ${index + 1}`}
+                  placeholder="Sélectionner un produit…"
                   options={optionsProduits}
                   value={ligne.produitId}
-                  onChange={(e) => modifierLigne(index, 'produitId', e.target.value)}
+                  onChange={(valeur) => modifierLigne(index, 'produitId', valeur)}
+                  vide={{ titre: 'Aucune référence trouvée', nomPluriel: 'références' }}
                 />
               </div>
               <div className="w-24 shrink-0 sm:w-28">

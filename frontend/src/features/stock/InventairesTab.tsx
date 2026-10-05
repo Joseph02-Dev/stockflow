@@ -7,7 +7,7 @@ import { api, messageErreur } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Alert } from '@/components/ui/Alert';
-import { Select } from '@/components/ui/Select';
+import { Selecteur } from '@/components/ui/Selecteur';
 import { Modal } from '@/components/ui/Modal';
 import { Card } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
@@ -56,10 +56,7 @@ export function InventairesTab({ emplacements }: { emplacements: Emplacement[] |
     setModaleOuverte(true);
   }
 
-  const optionsEmplacements = [
-    { valeur: '', libelle: 'Sélectionner un emplacement…' },
-    ...(emplacements ?? []).map((e) => ({ valeur: e.id, libelle: e.nom })),
-  ];
+  const optionsEmplacements = (emplacements ?? []).map((e) => ({ valeur: e.id, libelle: e.nom }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -122,24 +119,28 @@ export function InventairesTab({ emplacements }: { emplacements: Emplacement[] |
         ouvert={modaleOuverte}
         onFermer={() => setModaleOuverte(false)}
         titre="Nouvel inventaire"
+        modifie={emplacementChoisi !== ''}
         description="Toutes les références actives du catalogue seront à compter sur cet emplacement."
-      >
-        <div className="flex flex-col gap-4">
-          {erreur && <Alert variant="error">{erreur}</Alert>}
-          <Select
-            label="Emplacement"
-            options={optionsEmplacements}
-            value={emplacementChoisi}
-            onChange={(e) => setEmplacementChoisi(e.target.value)}
-          />
-          <div className="flex justify-end gap-2 pt-2">
+        pied={
+          <>
             <Button variant="secondary" onClick={() => setModaleOuverte(false)}>
               Annuler
             </Button>
             <Button onClick={() => creer.mutate()} loading={creer.isPending} disabled={!emplacementChoisi}>
               Commencer le comptage
             </Button>
-          </div>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          {erreur && <Alert variant="error">{erreur}</Alert>}
+          <Selecteur
+            label="Emplacement"
+            placeholder="Sélectionner un emplacement…"
+            options={optionsEmplacements}
+            value={emplacementChoisi}
+            onChange={setEmplacementChoisi}
+          />
         </div>
       </Modal>
     </div>

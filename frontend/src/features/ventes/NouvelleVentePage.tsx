@@ -12,6 +12,7 @@ import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
+import { Selecteur } from '@/components/ui/Selecteur';
 import { Card, PageHeader, PanneauEntete } from '@/components/patterns/Page';
 import { EmptyState, LoadingState } from '@/components/patterns/States';
 import { Vignette } from '@/components/patterns/Vignette';
@@ -304,18 +305,14 @@ export function NouvelleVentePage() {
               meta={`${lignes.length} ${lignes.length > 1 ? 'lignes' : 'ligne'}`}
               action={
                 actifs.length > 1 && (
-                  <select
+                  <Selecteur
                     aria-label="Dépôt de sortie"
+                    taille="sm"
+                    className="w-44"
+                    options={actifs.map((e) => ({ valeur: e.id, libelle: e.nom }))}
                     value={emplacementId ?? ''}
-                    onChange={(e) => setEmplacementChoisi(e.target.value)}
-                    className="h-8 max-w-40 rounded-md border border-rule-strong bg-surface px-2 text-corps text-ink-900"
-                  >
-                    {actifs.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.nom}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setEmplacementChoisi}
+                  />
                 )
               }
             />
