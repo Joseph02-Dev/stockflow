@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
 import type { Pagination } from '../../common/pagination/pagination.js';
 import { comparerFefo, debutJour, joursRestants } from './fefo.js';
@@ -160,6 +160,16 @@ export class LotsService {
     emplacementId?: string,
     maintenant = new Date(),
   ) {
+    // Produit d'une autre entreprise (ou inexistant) : 404, comme toute
+    // route à identifiant — jamais une liste vide qui laisserait croire
+    // que la ressource existe.
+    const produit = await this.prisma.produit.findUnique({
+      where: { id: produitId },
+      select: { entrepriseId: true },
+    });
+    if (!produit || produit.entrepriseId !== entrepriseId) {
+      throw new NotFoundException('Produit introuvable.');
+    }
     const lots = await this.prisma.lot.findMany({
       where: {
         entrepriseId,
