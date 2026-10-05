@@ -404,7 +404,7 @@ describe('Pertes (casse) — intégration réelle, base PostgreSQL', () => {
       });
       // Stock : Madina 96 sacs, Coyah 99 sacs → 49 % du stock.
       expect(s.analyse).toBe(
-        `« Dépôt Madina » concentre 75 % des pertes pour 49 % du stock. Les dégâts des eaux y ont triplé depuis ${depuis}.`,
+        `«\u00a0Dépôt Madina\u00a0» concentre 75\u00a0% des pertes pour 49\u00a0% du stock. Les dégâts des eaux y ont triplé depuis ${depuis}.`,
       );
       expect(s.evolution).toHaveLength(6);
       expect(s.evolution[1].valeur).toBe(72000);

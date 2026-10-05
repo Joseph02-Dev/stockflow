@@ -374,8 +374,8 @@ export class PertesService {
     if (!premier) return null;
     let phrase =
       parEmplacement.length === 1
-        ? `Toutes les pertes du mois viennent de « ${premier.nom} ».`
-        : `« ${premier.nom} » concentre ${formatPart(premier.partPertes)} % des pertes pour ${formatPart(premier.partStock)} % du stock.`;
+        ? `Toutes les pertes du mois viennent de «\u00a0${premier.nom}\u00a0».`
+        : `«\u00a0${premier.nom}\u00a0» concentre ${formatPart(premier.partPertes)}\u00a0% des pertes pour ${formatPart(premier.partStock)}\u00a0% du stock.`;
 
     const debutRecent = ajouterMois(debut, -2);
     let meilleure: { motif: string; ratio: number } | null = null;

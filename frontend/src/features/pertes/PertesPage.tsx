@@ -34,7 +34,7 @@ function Bandeau({ s }: { s: SynthesePertes }) {
               {gnf(s.total)}
             </h2>
             <p className="mt-1.5 text-corps text-white/65">
-              {s.nombre} {pluriel('déclaration', s.nombre)}
+              {s.nombre} {pluriel('perte', s.nombre)}
               {s.nombre > 0 && ` · ${gnf(s.moyenne)} en moyenne`}
             </p>
           </div>
