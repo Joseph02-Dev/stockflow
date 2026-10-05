@@ -80,12 +80,12 @@ function ChampPhoto({ valeur, onChange }: { valeur?: string; onChange: (url: str
         <div className="flex items-center gap-3 rounded-md border border-rule p-2">
           <img src={valeur} alt="Photo de la casse" className="size-14 rounded-md object-cover" />
           <span className="flex-1 text-corps text-ink-900">Photo jointe</span>
-          <Button variant="ghost" icone aria-label="Retirer la photo" onClick={() => onChange(undefined)}>
+          <Button type="button" variant="ghost" icone aria-label="Retirer la photo" onClick={() => onChange(undefined)}>
             <X className="size-4" aria-hidden="true" />
           </Button>
         </div>
       ) : (
-        <Button variant="secondary" className="w-full max-md:h-12" loading={enCours} onClick={() => entree.current?.click()}>
+        <Button type="button" variant="secondary" className="w-full max-md:h-12" loading={enCours} onClick={() => entree.current?.click()}>
           <Camera className="size-4" aria-hidden="true" />
           Ajouter une photo (facultatif)
         </Button>
@@ -260,6 +260,7 @@ export function FormulaireCasse({
         </label>
         <div className="flex items-stretch gap-2">
           <Button
+            type="button"
             variant="secondary"
             icone
             className={cn(page ? 'size-14' : 'size-10')}
@@ -280,6 +281,7 @@ export function FormulaireCasse({
             )}
           />
           <Button
+            type="button"
             variant="secondary"
             icone
             className={cn(page ? 'size-14' : 'size-10')}
@@ -360,7 +362,7 @@ export function FormulaireCasse({
         large
         pied={
           <>
-            <Button variant="secondary" onClick={onFermer}>
+            <Button type="button" variant="secondary" onClick={onFermer}>
               Annuler
             </Button>
             {enregistrer}
@@ -381,7 +383,7 @@ export function FormulaireCasse({
       {corps}
       {/* Validation fixe en bas, au-dessus de la barre de navigation mobile. */}
       <div className="fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 flex gap-2 border-t border-rule bg-surface px-4 py-3 md:static md:border-0 md:bg-transparent md:p-0">
-        <Button variant="secondary" className="h-12 md:h-9" onClick={onFermer}>
+        <Button type="button" variant="secondary" className="h-12 md:h-9" onClick={onFermer}>
           Annuler
         </Button>
         <div className="flex-1">{enregistrer}</div>
@@ -390,7 +392,7 @@ export function FormulaireCasse({
   );
 }
 
-function BoutonMotif({
+export function BoutonMotif({
   motif,
   actif,
   page,
