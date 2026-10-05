@@ -459,10 +459,12 @@ export class AuthService {
     }
 
     const payload = { sub: utilisateur.id, entrepriseId: entreprise.id, role: utilisateur.role };
-    const accessToken = this.jwtService.sign({ ...payload, jti: randomUUID() });
+    // Type explicite : un jeton de renouvellement n'est jamais accepté comme
+    // jeton d'accès (TenantContextMiddleware), quel que soit son secret.
+    const accessToken = this.jwtService.sign({ ...payload, typ: 'access', jti: randomUUID() });
     const refreshExpiration = (process.env.JWT_REFRESH_EXPIRATION ?? '7d') as StringValue;
     const refreshToken = this.jwtService.sign(
-      { ...payload, jti: randomUUID() },
+      { ...payload, typ: 'refresh', jti: randomUUID() },
       { secret: process.env.JWT_REFRESH_SECRET, expiresIn: refreshExpiration },
     );
 

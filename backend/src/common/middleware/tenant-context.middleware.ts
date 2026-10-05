@@ -1,5 +1,7 @@
 import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import ms from 'ms';
+import type { StringValue } from 'ms';
 import type { NextFunction, Request, Response } from 'express';
 import { TenantContextService, type RequestContext } from '../context/tenant-context.service.js';
 
@@ -11,6 +13,18 @@ interface JwtPayload {
   sub: string; // utilisateur_id
   entrepriseId: string;
   role: 'ADMIN' | 'GESTIONNAIRE';
+  typ?: 'access' | 'refresh';
+  iat?: number;
+  exp?: number;
+}
+
+/** Tolérance d'horloge ajoutée à la durée de vie maximale d'un jeton d'accès. */
+const MARGE_SECONDES = 60;
+
+/** Durée de vie maximale d'un jeton d'accès, en secondes (JWT_ACCESS_EXPIRATION, 15 min par défaut). */
+function dureeMaxAcces(): number {
+  const duree = ms((process.env.JWT_ACCESS_EXPIRATION ?? '15m') as StringValue);
+  return Math.ceil((Number.isFinite(duree) ? duree : 15 * 60_000) / 1000) + MARGE_SECONDES;
 }
 
 /**
@@ -60,6 +74,18 @@ export class TenantContextMiddleware implements NestMiddleware {
 
     if (!payload.entrepriseId || !payload.sub || !payload.role) {
       throw new UnauthorizedException('Token valide mais incomplet.');
+    }
+    // Un jeton de renouvellement ne vaut jamais jeton d'accès. Les anciens
+    // jetons (sans « typ ») sont reconnus à leur durée de vie : signés avec
+    // le secret d'accès quand JWT_REFRESH_SECRET manquait, ils auraient
+    // sinon ouvert l'API pendant 7 jours, hors de toute révocation.
+    if (
+      payload.typ === 'refresh' ||
+      typeof payload.iat !== 'number' ||
+      typeof payload.exp !== 'number' ||
+      payload.exp - payload.iat > dureeMaxAcces()
+    ) {
+      throw new UnauthorizedException('Token invalide ou expiré.');
     }
 
     // Un seul objet, partagé par AsyncLocalStorage et `req` : le garde de

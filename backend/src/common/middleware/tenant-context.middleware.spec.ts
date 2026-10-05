@@ -53,7 +53,7 @@ describe('TenantContextMiddleware', () => {
   });
 
   it('accepte un token valide et dépose le contexte (entreprise, utilisateur, rôle)', () => {
-    const token = jwtService.sign({ sub: 'user-1', entrepriseId: 'ent-1', role: 'GESTIONNAIRE' });
+    const token = jwtService.sign({ sub: 'user-1', entrepriseId: 'ent-1', role: 'GESTIONNAIRE' }, { expiresIn: '15m' });
     const req = buildRequest(`Bearer ${token}`);
     let contextPendantLaRequete: unknown;
 
@@ -83,5 +83,35 @@ describe('TenantContextMiddleware', () => {
     const req = buildRequest(`Bearer ${token}`);
 
     expect(() => middleware.use(req, {} as any, () => {})).toThrow(UnauthorizedException);
+  });
+
+  describe('un jeton de renouvellement ne vaut jamais jeton d’accès', () => {
+    const payload = { sub: 'user-1', entrepriseId: 'ent-1', role: 'ADMIN' as const };
+
+    it('rejette un jeton marqué « refresh », même signé avec le secret d’accès', () => {
+      const token = jwtService.sign({ ...payload, typ: 'refresh' }, { expiresIn: '15m' });
+      expect(() => middleware.use(buildRequest(`Bearer ${token}`), {} as any, () => {})).toThrow(UnauthorizedException);
+    });
+
+    it('rejette un ancien jeton de renouvellement sans « typ » (7 jours, signé avec le secret d’accès)', () => {
+      const token = jwtService.sign(payload, { expiresIn: '7d' });
+      expect(() => middleware.use(buildRequest(`Bearer ${token}`), {} as any, () => {})).toThrow(UnauthorizedException);
+    });
+
+    it('rejette un jeton sans expiration', () => {
+      const token = jwtService.sign(payload);
+      expect(() => middleware.use(buildRequest(`Bearer ${token}`), {} as any, () => {})).toThrow(UnauthorizedException);
+    });
+
+    it('accepte un jeton d’accès de 15 minutes, avec ou sans « typ » (jetons déjà émis)', () => {
+      for (const extra of [{ typ: 'access' }, {}]) {
+        const token = jwtService.sign({ ...payload, ...extra }, { expiresIn: '15m' });
+        const req = buildRequest(`Bearer ${token}`);
+        let suite = false;
+        middleware.use(req, {} as any, () => (suite = true));
+        expect(suite).toBe(true);
+        expect(req.tenantContext).toMatchObject({ entrepriseId: 'ent-1', utilisateurId: 'user-1' });
+      }
+    });
   });
 });
