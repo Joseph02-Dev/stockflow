@@ -133,7 +133,6 @@ describe('Rapports PDF — intégration réelle, base PostgreSQL', () => {
     expect(tout).toContain(`Total général ${enTexte(Number(quantite))} ${enTexte(Number(valeur))}`);
     expect(pages[0]).toContain(`${enTexte(Number(valeur))} GNF`);
     expect(pages[0]).toContain('428');
-    if (process.env.SORTIE_PDF) (await import('node:fs')).writeFileSync(process.env.SORTIE_PDF, r.body as Buffer);
     console.info(`État du stock, 428 références : ${pages.length} pages en ${duree} ms`);
   });
 

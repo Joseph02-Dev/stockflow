@@ -225,7 +225,7 @@ function cellule(c: Cellule, colonne: Colonne, options: { gras?: boolean } = {})
     color: c.couleur,
     // Courier a des métriques plus hautes que Roboto : léger décalage pour
     // garder la même ligne de base que les cellules voisines.
-    ...(c.mono ? { font: 'Courier', fontSize: 7.5, margin: [0, 1.7, 0, 0] as [number, number, number, number] } : {}),
+    ...(c.mono ? { font: 'Courier', fontSize: 7.5, margin: [0, 2.2, 0, 0] as [number, number, number, number] } : {}),
   };
   return c.sousLigne
     ? { stack: [principal, { text: c.sousLigne, style: 'sousLigne', alignment }] }

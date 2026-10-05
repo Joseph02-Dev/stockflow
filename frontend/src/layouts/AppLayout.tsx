@@ -8,6 +8,7 @@ import {
   PackageX,
   ChevronRight,
   ClipboardList,
+  FileText,
   HandCoins,
   LayoutDashboard,
   LogOut,
@@ -41,6 +42,7 @@ const sectionPilotage = [
   { to: '/stock', libelle: 'Stock & mouvements', Icone: Warehouse },
   { to: '/commandes', libelle: 'Commandes fournisseur', Icone: ClipboardList },
   { to: '/retours-fournisseur', libelle: 'Retours fournisseur', Icone: Undo2 },
+  { to: '/rapports', libelle: 'Rapports', Icone: FileText },
 ];
 
 // Fournisseurs reste accessible à tous (comme Produits) ; Catégories &
@@ -84,6 +86,7 @@ function filAriane(chemin: string, recherche: string): { libelle: string; to?: s
     peremptions: 'Péremptions',
     pertes: 'Pertes',
     'retours-fournisseur': 'Retours fournisseur',
+    rapports: 'Rapports',
     parametres: 'Paramètres',
   };
   const [racine, detail] = chemin.split('/').filter(Boolean);
@@ -476,6 +479,10 @@ export function AppLayout() {
             <NavLink to="/retours-fournisseur" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
               <Undo2 className="size-5 text-steel-500" aria-hidden="true" />
               Retours fournisseur
+            </NavLink>
+            <NavLink to="/rapports" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
+              <FileText className="size-5 text-steel-500" aria-hidden="true" />
+              Rapports
             </NavLink>
             <NavLink to="/fournisseurs" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
               <Truck className="size-5 text-steel-500" aria-hidden="true" />

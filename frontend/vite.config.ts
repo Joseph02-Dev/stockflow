@@ -24,6 +24,8 @@ export default defineConfig({
               test: /node_modules[\\/](papaparse|read-excel-file|fflate|saxen|unzipper-esm|worker-f)[\\/]/,
               priority: 2,
             },
+            // pdf.js (aperçu des rapports) : chargé seulement par l'écran Rapports.
+            { name: 'apercu-pdf', test: /node_modules[\\/]pdfjs-dist[\\/]/, priority: 2 },
             { name: 'vendor', test: /node_modules/, priority: 1 },
           ],
         },

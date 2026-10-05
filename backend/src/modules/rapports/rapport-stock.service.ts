@@ -192,7 +192,7 @@ export class RapportStockService {
       contenu.push(
         titreSection('Répartition par emplacement', 'Valeur d’achat du stock détenu par chaque emplacement'),
         barreRepartition(
-          d.parEmplacement.map((e, i) => ({ libelle: e.nom, valeur: e.valeur, couleur: COULEURS_SERIES[i % COULEURS_SERIES.length] })),
+          [...d.parEmplacement].sort((a, b) => b.valeur - a.valeur).map((e, i) => ({ libelle: e.nom, valeur: e.valeur, couleur: COULEURS_SERIES[i % COULEURS_SERIES.length] })),
         ),
       );
     }
@@ -200,13 +200,13 @@ export class RapportStockService {
     if (filtres.detail) {
       const colonnes = [
         { titre: 'Désignation', largeur: '*' as const },
-        { titre: 'Référence', largeur: 58 },
-        { titre: 'Emplacement', largeur: 62 },
-        { titre: 'Qté', largeur: 34, chiffres: true },
-        { titre: 'Prix d’achat', largeur: 48, chiffres: true },
-        { titre: 'Valeur', largeur: 62, chiffres: true },
+        { titre: 'Référence', largeur: 50 },
+        { titre: 'Emplacement', largeur: 58 },
+        { titre: 'Qté', largeur: 30, chiffres: true },
+        { titre: 'Prix d’achat', largeur: 46, chiffres: true },
+        { titre: 'Valeur', largeur: 58, chiffres: true },
         ...(d.avecPeremption ? [{ titre: 'Péremption', largeur: 44 }] : []),
-        { titre: 'État', largeur: 38 },
+        { titre: 'État', largeur: 34 },
       ];
       const couleurEtat = { 'En stock': COULEURS.ok, Seuil: COULEURS.faible, Rupture: COULEURS.rupture } as const;
       const ligneTableau = (l: LigneStock): LigneTableau => ({
