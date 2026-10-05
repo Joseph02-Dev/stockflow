@@ -48,6 +48,7 @@ export interface VenteDetail {
   entreprise: { nom: string };
   lignes: LigneVente[];
   reglements: Reglement[];
+  retours: RetourClientResume[];
   alertePlafond?: { plafondCredit: number; solde: number; depassement: number } | null;
 }
 
@@ -69,4 +70,26 @@ export interface SituationClient {
   clientId: string;
   solde: number;
   plafondCredit: number | null;
+}
+
+export type EtatRetourClient = 'REMISE_EN_STOCK' | 'CASSE' | 'RETOUR_FOURNISSEUR';
+export type CompensationRetour = 'DEDUIRE_DETTE' | 'REMBOURSEMENT';
+
+export interface RetourClientResume {
+  id: string;
+  etat: EtatRetourClient;
+  compensation: CompensationRetour;
+  montant: number;
+  createdAt: string;
+  utilisateur: { nom: string };
+  lignes: { ligneVenteId: string; quantite: number; montant: number }[];
+}
+
+export interface RetourClientCree {
+  id: string;
+  montant: number;
+  etat: EtatRetourClient;
+  compensation: CompensationRetour;
+  resteDuVente: number;
+  soldeClient: number | null;
 }

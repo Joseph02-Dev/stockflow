@@ -245,6 +245,20 @@ export class VentesService {
           orderBy: { createdAt: 'asc' },
         },
         entreprise: { select: { nom: true } },
+        retours: {
+          select: {
+            id: true,
+            etat: true,
+            compensation: true,
+            montant: true,
+            createdAt: true,
+            utilisateur: { select: { nom: true } },
+            lignes: {
+              select: { ligneVenteId: true, quantite: true, montant: true },
+            },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
     if (!vente || vente.entrepriseId !== entrepriseId) {
@@ -281,6 +295,13 @@ export class VentesService {
       const vente = await this.verrouillerVente(tx, entrepriseId, venteId);
       if (vente.statut !== 'VALIDEE') {
         throw new ConflictException('Cette vente est déjà annulée.');
+      }
+      // Un retour a déjà fait rentrer (et peut-être ressortir) une partie
+      // de la marchandise : l'annulation restituerait deux fois.
+      if ((await tx.retourClient.count({ where: { venteId } })) > 0) {
+        throw new ConflictException(
+          'Cette vente a fait l’objet d’un retour : elle ne peut plus être annulée.',
+        );
       }
       const lignes = await tx.ligneVente.findMany({ where: { venteId } });
       // Produits suivis par lot : chaque quantité retourne dans le lot

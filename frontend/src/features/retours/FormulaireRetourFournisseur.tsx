@@ -136,7 +136,7 @@ export function FormulaireRetourFournisseur({ onFermer, onCree }: { onFermer: ()
       modifie={formState.isDirty}
       pied={
         <>
-          <Button variant="secondary" onClick={onFermer}>
+          <Button type="button" variant="secondary" onClick={onFermer}>
             Annuler
           </Button>
           <Button type="submit" form={idFormulaire} loading={creer.isPending}>
@@ -221,6 +221,7 @@ export function FormulaireRetourFournisseur({ onFermer, onCree }: { onFermer: ()
                   {valeur > 0 ? gnf(valeur) : '—'}
                 </span>
                 <Button
+                  type="button"
                   variant="ghost"
                   icone
                   aria-label={`Retirer la ligne ${index + 1}`}
@@ -234,6 +235,7 @@ export function FormulaireRetourFournisseur({ onFermer, onCree }: { onFermer: ()
           })}
           {formState.errors.lignes?.root && <p className="text-meta text-rupture">{formState.errors.lignes.root.message}</p>}
           <Button
+            type="button"
             variant="secondary"
             className="self-start"
             disabled={fields.length >= 50}

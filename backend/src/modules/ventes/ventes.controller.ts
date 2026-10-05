@@ -1,17 +1,31 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { RequestContext } from '../../common/context/tenant-context.service.js';
 import { VentesService } from './ventes.service.js';
 import { CreancesService } from './creances.service.js';
+import { RetoursClientService } from './retours-client.service.js';
 import { CreerVenteDto } from './dto/creer-vente.dto.js';
 import { ReglementDto } from './dto/reglement.dto.js';
 import { AnnulerVenteDto } from './dto/annuler-vente.dto.js';
 import { ListerVentesDto } from './dto/lister-ventes.dto.js';
+import { RetourClientDto } from './dto/retour-client.dto.js';
 
 @Controller('ventes')
 export class VentesController {
-  constructor(private readonly ventesService: VentesService) {}
+  constructor(
+    private readonly ventesService: VentesService,
+    private readonly retoursClient: RetoursClientService,
+  ) {}
 
   @Post()
   creer(
@@ -51,6 +65,23 @@ export class VentesController {
       utilisateur.utilisateurId,
       id,
       dto.motif,
+    );
+  }
+
+  /** Retour client : rentrée en stock, état de la marchandise et dédommagement, en une transaction. */
+  @Post(':id/retour')
+  @HttpCode(HttpStatus.CREATED)
+  retourner(
+    @CurrentTenant() entrepriseId: string,
+    @CurrentUser() utilisateur: RequestContext,
+    @Param('id') id: string,
+    @Body() dto: RetourClientDto,
+  ) {
+    return this.retoursClient.retourner(
+      entrepriseId,
+      utilisateur.utilisateurId,
+      id,
+      dto,
     );
   }
 
