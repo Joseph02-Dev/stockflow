@@ -44,6 +44,24 @@ describe('Auth — renouvellement de session', () => {
   const tokenEnBase = (refreshToken: string) =>
     prisma.refreshToken.findUniqueOrThrow({ where: { tokenHash: hashToken(refreshToken) } });
 
+  it('un refresh token n’ouvre jamais l’API comme jeton d’accès, même si JWT_REFRESH_SECRET manque', async () => {
+    const { refreshToken } = await sessionOuverte();
+    const refus = await request(app.getHttpServer()).get('/produits').set('Authorization', `Bearer ${refreshToken}`);
+    expect(refus.status).toBe(401);
+
+    // Configuration incomplète (cas réel en production) : la bibliothèque JWT
+    // signe alors le refresh token avec le secret d'accès. Il reste refusé.
+    const secretRefresh = process.env.JWT_REFRESH_SECRET;
+    delete process.env.JWT_REFRESH_SECRET;
+    try {
+      const { refreshToken: signeAvecSecretAcces } = await sessionOuverte();
+      const r = await request(app.getHttpServer()).get('/produits').set('Authorization', `Bearer ${signeAvecSecretAcces}`);
+      expect(r.status).toBe(401);
+    } finally {
+      process.env.JWT_REFRESH_SECRET = secretRefresh;
+    }
+  });
+
   it('un refresh token valide donne une nouvelle paire, au format de la connexion', async () => {
     const { utilisateur, entreprise, refreshToken } = await sessionOuverte();
 
