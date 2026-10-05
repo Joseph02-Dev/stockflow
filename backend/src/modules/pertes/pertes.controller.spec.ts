@@ -307,4 +307,126 @@ describe('Pertes (casse) — intégration réelle, base PostgreSQL', () => {
     ).toBe(404);
     expect(await stock(a.produitId, a.depotId)).toBe(97);
   });
+
+  describe('Synthèse', () => {
+    it('totalise par motif, exclut les casses annulées, et rapporte la perte à la valeur du stock', async () => {
+      const c = await contexte();
+      const declarer = (quantite: number, motif: string) =>
+        c.gestionnaire.post('/pertes', {
+          produitId: c.produitId,
+          emplacementId: c.depotId,
+          quantite,
+          motif,
+        });
+      await declarer(8, 'CASSE_MANUTENTION');
+      await declarer(2, 'CASSE_MANUTENTION');
+      await declarer(1, 'VOL');
+      const annulee = await declarer(5, 'DEGAT_EAUX');
+      await c.admin.post(`/pertes/${annulee.body[0].id}/annuler`, {
+        motif: 'Erreur',
+      });
+
+      const s = (await c.admin.get('/pertes/synthese')).body;
+      expect(s.total).toBe(11 * 72000);
+      expect(s.nombre).toBe(3);
+      expect(s.moyenne).toBe(264000);
+      const motif = (m: string) =>
+        s.parMotif.find((p: { motif: string }) => p.motif === m);
+      expect(motif('CASSE_MANUTENTION')).toEqual({
+        motif: 'CASSE_MANUTENTION',
+        valeur: 720000,
+        nombre: 2,
+      });
+      expect(motif('VOL')).toEqual({ motif: 'VOL', valeur: 72000, nombre: 1 });
+      expect(motif('DEGAT_EAUX')).toEqual({
+        motif: 'DEGAT_EAUX',
+        valeur: 0,
+        nombre: 0,
+      });
+      // Stock restant : 89 sacs × 72 000.
+      expect(s.valeurStock).toBe(89 * 72000);
+      expect(s.partDuStock).toBe(
+        Math.round((792000 * 1000) / (89 * 72000)) / 10,
+      );
+    });
+
+    it('calcule la phrase d’analyse depuis les données : concentration et motif en hausse', async () => {
+      const c = await contexte();
+      const coyah = await c.admin.post('/emplacements', {
+        nom: 'Boutique Coyah',
+      });
+      await c.admin.post('/mouvements/entree', {
+        produitId: c.produitId,
+        emplacementId: coyah.body.id,
+        quantite: 100,
+      });
+      // Avant : 1 sac d'eau à Madina, il y a 4 mois ; ce mois-ci : 3 sacs d'eau à Madina, 1 cassé à Coyah.
+      const ancienne = await c.gestionnaire.post('/pertes', {
+        produitId: c.produitId,
+        emplacementId: c.depotId,
+        quantite: 1,
+        motif: 'DEGAT_EAUX',
+      });
+      const ilYaQuatreMois = new Date();
+      ilYaQuatreMois.setUTCMonth(ilYaQuatreMois.getUTCMonth() - 4, 15);
+      await prisma.mouvement.update({
+        where: { id: ancienne.body[0].id },
+        data: { createdAt: ilYaQuatreMois },
+      });
+      await c.gestionnaire.post('/pertes', {
+        produitId: c.produitId,
+        emplacementId: c.depotId,
+        quantite: 3,
+        motif: 'DEGAT_EAUX',
+      });
+      await c.gestionnaire.post('/pertes', {
+        produitId: c.produitId,
+        emplacementId: coyah.body.id,
+        quantite: 1,
+        motif: 'CASSE_MANUTENTION',
+      });
+
+      const s = (await c.admin.get('/pertes/synthese')).body;
+      expect(
+        s.parEmplacement.map((e: { nom: string; partPertes: number }) => [
+          e.nom,
+          e.partPertes,
+        ]),
+      ).toEqual([
+        ['Dépôt Madina', 75],
+        ['Boutique Coyah', 25],
+      ]);
+      const depuis = new Date(
+        Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 2, 1),
+      ).toLocaleDateString('fr-FR', {
+        month: 'long',
+        timeZone: 'UTC',
+      });
+      // Stock : Madina 96 sacs, Coyah 99 sacs → 49 % du stock.
+      expect(s.analyse).toBe(
+        `« Dépôt Madina » concentre 75 % des pertes pour 49 % du stock. Les dégâts des eaux y ont triplé depuis ${depuis}.`,
+      );
+      expect(s.evolution).toHaveLength(6);
+      expect(s.evolution[1].valeur).toBe(72000);
+    });
+
+    it('isole les entreprises et valide le mois', async () => {
+      const a = await contexte();
+      const b = await contexte();
+      await a.gestionnaire.post('/pertes', {
+        produitId: a.produitId,
+        emplacementId: a.depotId,
+        quantite: 4,
+        motif: 'VOL',
+      });
+      expect((await b.admin.get('/pertes/synthese')).body).toMatchObject({
+        total: 0,
+        nombre: 0,
+        analyse: null,
+      });
+      expect((await a.admin.get('/pertes/synthese?mois=2026-13')).status).toBe(
+        400,
+      );
+    });
+  });
 });

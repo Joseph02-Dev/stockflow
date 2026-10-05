@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
   CalendarClock,
+  PackageX,
   ChevronRight,
   ClipboardList,
   HandCoins,
@@ -35,6 +36,7 @@ const sectionPilotage = [
   { to: '/creances', libelle: 'Créances', Icone: HandCoins },
   { to: '/alertes', libelle: 'Alertes', Icone: Bell },
   { to: '/peremptions', libelle: 'Péremptions', Icone: CalendarClock },
+  { to: '/pertes', libelle: 'Pertes', Icone: PackageX },
   { to: '/stock', libelle: 'Stock & mouvements', Icone: Warehouse },
   { to: '/commandes', libelle: 'Commandes fournisseur', Icone: ClipboardList },
 ];
@@ -78,6 +80,7 @@ function filAriane(chemin: string, recherche: string): { libelle: string; to?: s
     ventes: 'Ventes',
     creances: 'Créances',
     peremptions: 'Péremptions',
+    pertes: 'Pertes',
     parametres: 'Paramètres',
   };
   const [racine, detail] = chemin.split('/').filter(Boolean);
@@ -89,24 +92,25 @@ function filAriane(chemin: string, recherche: string): { libelle: string; to?: s
   if (!detail) return [{ libelle: section }];
 
   const parent = racine === 'inventaires' ? '/stock' : `/${racine}`;
+  // Pages d'action dont le libellé ne dépend pas de la section.
+  const pagesAction: Record<string, string> = { import: 'Importer un catalogue', declarer: 'Déclarer une casse' };
   const libelleDetail =
-    detail === 'import'
-      ? 'Importer un catalogue'
-      : detail === 'nouveau' || detail === 'nouvelle'
-        ? racine === 'commandes'
-          ? 'Nouvelle commande'
-          : racine === 'ventes'
-            ? 'Nouvelle vente'
-            : 'Nouveau produit'
-        : (
-            {
-              inventaires: 'Inventaire',
-              commandes: 'Commande',
-              fournisseurs: 'Fournisseur',
-              ventes: 'Vente',
-              produits: 'Fiche produit',
-            } as Record<string, string>
-          )[racine] ?? 'Fiche';
+    pagesAction[detail] ??
+    (detail === 'nouveau' || detail === 'nouvelle'
+      ? racine === 'commandes'
+        ? 'Nouvelle commande'
+        : racine === 'ventes'
+          ? 'Nouvelle vente'
+          : 'Nouveau produit'
+      : ((
+          {
+            inventaires: 'Inventaire',
+            commandes: 'Commande',
+            fournisseurs: 'Fournisseur',
+            ventes: 'Vente',
+            produits: 'Fiche produit',
+          } as Record<string, string>
+        )[racine] ?? 'Fiche'));
   return [{ libelle: section, to: parent }, { libelle: libelleDetail }];
 }
 
@@ -453,6 +457,10 @@ export function AppLayout() {
                   {nombrePeremptions}
                 </span>
               )}
+            </NavLink>
+            <NavLink to="/pertes" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
+              <PackageX className="size-5 text-steel-500" aria-hidden="true" />
+              Pertes
             </NavLink>
             <NavLink to="/produits" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
               <Package className="size-5 text-steel-500" aria-hidden="true" />

@@ -121,6 +121,16 @@ export function Selecteur(props: SelecteurProps) {
   const [ouvert, setOuvert] = useState(false);
   const [terme, setTerme] = useState('');
   const [actif, setActif] = useState(0);
+  // Saisie au vol (listes sans filtre) : les lettres tapées à moins de 700 ms
+  // d'intervalle se cumulent, comme dans un <select> natif (« cim » → Ciment).
+  const frappe = useRef({ texte: '', instant: 0 });
+  function cumulerFrappe(touche: string, instant: number): string {
+    frappe.current = {
+      texte: instant - frappe.current.instant < 700 ? frappe.current.texte + touche : touche,
+      instant,
+    };
+    return frappe.current.texte;
+  }
   const [position, setPosition] = useState<Position | null>(null);
 
   const selection = useMemo(
@@ -143,13 +153,13 @@ export function Selecteur(props: SelecteurProps) {
     if (rendreFocus) champRef.current?.focus();
   }, []);
 
-  function ouvrir(saisie = '') {
+  function ouvrir(saisie = '', instant = 0) {
     if (disabled) return;
     const filtre = avecRecherche ? saisie : '';
     const candidates = filtre ? options.filter((o) => normaliser(o.libelle).includes(normaliser(filtre))) : options;
-    // Sans champ de filtrage, une lettre tapée active la première entrée qui commence par elle.
-    const parLettre =
-      !avecRecherche && saisie ? options.findIndex((o) => normaliser(o.libelle).startsWith(normaliser(saisie))) : -1;
+    // Sans champ de filtrage, la saisie active la première entrée qui commence par elle.
+    const prefixe = !avecRecherche && saisie ? normaliser(cumulerFrappe(saisie, instant)) : '';
+    const parLettre = prefixe ? options.findIndex((o) => normaliser(o.libelle).startsWith(prefixe)) : -1;
     const dejaChoisie = candidates.findIndex((o) => selection.has(o.valeur));
     setTerme(filtre);
     setActif(parLettre >= 0 ? parLettre : Math.max(0, dejaChoisie));
@@ -192,7 +202,7 @@ export function Selecteur(props: SelecteurProps) {
         retirer(props.value[props.value.length - 1]);
       } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
-        ouvrir(e.key);
+        ouvrir(e.key, e.timeStamp);
       }
       return;
     }
@@ -235,9 +245,10 @@ export function Selecteur(props: SelecteurProps) {
           rechercheRef.current?.focus();
           break;
         }
-        // Sans champ de filtrage : une lettre saute à la première entrée correspondante.
+        // Sans champ de filtrage : la saisie cumulée saute à la première entrée correspondante.
         if (!avecRecherche && e.key.length === 1) {
-          const i = visibles.findIndex((o) => normaliser(o.libelle).startsWith(normaliser(e.key)));
+          const prefixe = normaliser(cumulerFrappe(e.key, e.timeStamp));
+          const i = visibles.findIndex((o) => normaliser(o.libelle).startsWith(prefixe));
           if (i >= 0) setActif(i);
         }
     }

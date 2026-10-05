@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -34,6 +35,18 @@ export class PertesController {
     @Body() dto: DeclarerCasseDto,
   ) {
     return this.pertesService.declarer(entrepriseId, user.utilisateurId, dto);
+  }
+
+  /** Synthèse du mois (?mois=AAAA-MM, mois en cours par défaut). */
+  @Get('synthese')
+  synthese(
+    @CurrentTenant() entrepriseId: string,
+    @Query('mois') mois?: string,
+  ) {
+    if (mois !== undefined && !/^\d{4}-\d{2}$/.test(mois)) {
+      throw new BadRequestException('Mois au format AAAA-MM.');
+    }
+    return this.pertesService.synthese(entrepriseId, mois);
   }
 
   @Get()
