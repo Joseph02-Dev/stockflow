@@ -57,12 +57,13 @@ jobs:
             frontend/package-lock.json
       - name: Secrets de test éphémères
         run: |
-          {
-            echo "JWT_ACCESS_SECRET=$(openssl rand -hex 32)"
-            echo "JWT_REFRESH_SECRET=$(openssl rand -hex 32)"
-            echo "JWT_CONSOLE_SECRET=$(openssl rand -hex 32)"
-            echo "MOT_DE_PASSE_ROLE_APP=$(openssl rand -hex 16)"
-          } >> "$GITHUB_ENV"
+          # Masqués avant d'entrer dans l'environnement : sinon les journaux
+          # de chaque étape les affichent en clair.
+          for nom in JWT_ACCESS_SECRET JWT_REFRESH_SECRET JWT_CONSOLE_SECRET MOT_DE_PASSE_ROLE_APP; do
+            valeur=$(openssl rand -hex 32)
+            echo "::add-mask::$valeur"
+            echo "$nom=$valeur" >> "$GITHUB_ENV"
+          done
       - run: npm ci
       # Un test du backend (import de catalogue) exerce le code de lecture
       # CSV/Excel du frontend, qui dépend de ses propres paquets.
