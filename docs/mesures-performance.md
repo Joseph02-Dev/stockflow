@@ -1,0 +1,93 @@
+# Mesures de performance — octobre 2026 (Phase 3, brique 3.1)
+
+But : savoir **où** StockFlow ralentit avant d'optimiser quoi que ce soit.
+
+## Méthode (reproductible)
+
+Outils versionnés dans `backend/scripts/charge/` :
+
+| Fichier | Rôle |
+|---|---|
+| `jeu-de-donnees.sql` | 500 entreprises « normales » (100 produits, 1 000 mouvements, 30 clients, 300 ventes à crédit chacune) + 1 « grosse » (2 000 produits, 200 000 mouvements, 500 clients, 20 000 ventes). Total : 52 000 produits, 700 000 mouvements, 170 000 ventes, 226 666 règlements. |
+| `injecteur.mjs` | N utilisateurs simultanés, un par entreprise, chacun avec son adresse IP. Parcours pondéré en boucle : tableau de bord (6 requêtes), produits, ventes, créances, clients, mouvements, pertes, **enregistrement d'une vente** (10 %), rapport PDF (3 %). Pause de 1 à 3 s entre deux actions, départs étalés. Résultat : p50, p95 et p99 par parcours. |
+
+```bash
+# Base locale ou de test uniquement, jamais la production.
+psql "$DATABASE_URL" -v entreprises=500 -f scripts/charge/jeu-de-donnees.sql
+NODE_ENV=production LOG_LEVEL=warn PORT=3100 node dist/main.js &
+node scripts/charge/injecteur.mjs 100 60 2000          # 100 utilisateurs, 60 s, pause 2 s
+node scripts/charge/injecteur.mjs 8 60 2000 gros       # 8 utilisateurs sur la grosse entreprise
+```
+
+Conditions : machine de 4 vCPU, partagée entre l'API, PostgreSQL 16 et
+l'injecteur. Build de production, toutes les protections actives
+(limitation de débit, contrôles d'accès). PostgreSQL observé avec
+`pg_stat_statements`. Les chiffres absolus dépendent de la machine : la
+production Railway sera à re-mesurer. Les **rapports entre scénarios**,
+eux, sont fiables.
+
+Un « utilisateur » de l'injecteur agit toutes les 1 à 3 s, bien plus
+souvent qu'un vrai gérant ou vendeur, qui agit plutôt toutes les 10 à
+30 s. 100 utilisateurs de l'injecteur représentent donc plusieurs centaines
+de personnes connectées en même temps.
+
+## Résultats
+
+### Montée en charge, 1 processus API
+
+| Utilisateurs | Débit | Tableau de bord p50 / p95 | Vente p50 / p95 | PDF p50 | Erreurs |
+|---|---|---|---|---|---|
+| 100 | 106 req/s | 19 / 90 ms | 24 / 163 ms | 80 ms | 0 |
+| 300 | 251 req/s | 421 / 1 135 ms | 903 / 2 226 ms | 618 ms | 0 |
+| 500 | 243 req/s | 1 977 / 3 083 ms | 3 977 / 4 862 ms | 3 106 ms | 0 |
+| 300, **rapports coupés** | 304 req/s | **35** / 195 ms | 69 / 357 ms | — | 0* |
+
+\* 1,2 % de réponses 503 : les rapports volontairement coupés par l'interrupteur `FONCTIONNALITES_DESACTIVEES`.
+
+### Montée en charge, 3 processus API (`WEB_CONCURRENCY=3`)
+
+| Utilisateurs | Débit | Tableau de bord p50 / p95 | Vente p50 / p95 | PDF p50 |
+|---|---|---|---|---|
+| 300 | 309 req/s | **15** / 122 ms | 30 / 257 ms | 87 ms |
+| 500 | 455 req/s | 180 / 1 031 ms | 448 / 1 649 ms | 313 ms |
+
+### Grosse entreprise (8 utilisateurs)
+
+Tout reste sous 100 ms au p50, sauf **Créances** (p50 216 ms, p95 566 ms) et
+le **PDF d'état du stock** (2 000 références, environ 0,6 s).
+
+## Constats
+
+1. **Le goulot est le processeur de Node, pas la base.** Pendant la
+   saturation, le fil principal de l'API est à 80-100 % d'un cœur, alors
+   que PostgreSQL reste presque inactif : aucune requête au-delà de 6 ms
+   pour les entreprises normales. Un processus plafonne vers 250 req/s sur
+   cette machine.
+2. **La génération des PDF bloque tout le monde.** pdfmake travaille sur
+   le fil principal : pendant qu'un rapport se construit, aucune autre
+   requête n'avance. Couper les rapports divise le temps médian du tableau
+   de bord par 12 à 300 utilisateurs (421 → 35 ms).
+3. **Le mode multi-processus, déjà présent dans le code, passe à l'échelle.**
+   Avec 3 processus, le débit maximal double presque (243 → 455 req/s). Il
+   faut des vCPU disponibles et Redis pour partager la limitation de débit.
+   C'est la Partie B, réservée à l'offre payante.
+4. **Créances : coût qui grandit avec toute la plateforme.** La requête des
+   ventes impayées lit **tous les règlements de toutes les entreprises**
+   (lecture séquentielle de 226 666 lignes, 93 ms) dès qu'une entreprise a
+   beaucoup de ventes. La table `reglement` n'a pas d'`entreprise_id`.
+5. **Connexions** : argon2 est volontairement coûteux. On mesure environ
+   20 connexions par seconde par processus (300 connexions simultanées en
+   14,5 s). C'est suffisant ; ne pas affaiblir argon2 pour gagner du temps.
+6. **Pas de cache nécessaire pour l'instant** : les synthèses du tableau
+   de bord coûtent moins de 1 ms en base pour une entreprise normale. Un
+   cache ajouterait de la complexité et des risques de chiffres périmés,
+   sans gain mesurable.
+
+## Suites recommandées (par gain mesuré)
+
+| Priorité | Action | Gain attendu | Coût |
+|---|---|---|---|
+| 1 | Générer les PDF **hors du fil principal** (`worker_threads`) | Les rapports ne ralentissent plus les autres utilisateurs (constat 2) | Gratuit, code local |
+| 2 | Créances : borner la lecture des règlements à l'entreprise. Soit un index et une requête qui part des ventes impayées, soit `entreprise_id` sur `reglement` (migration additive) | Le temps ne dépend plus de la taille de la plateforme (constat 4) | Gratuit ; décision à prendre sur le schéma |
+| 3 | `WEB_CONCURRENCY` avec Redis, à l'ouverture | Débit environ ×2 avec 3 processus (constat 3) | Offre payante |
+| — | Cache des synthèses (brique 3.3) | Aucun gain mesuré | **Reportée** : à rouvrir seulement si une mesure le justifie |

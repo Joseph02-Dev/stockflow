@@ -50,6 +50,15 @@ Prisma qui les embarque (vérifier avec `npm ls deepmerge-ts mysql2`).
 
 ## Phase 3 — Préparation de la montée en charge
 
-Redis obligatoire en multi-instance, file de traitements (BullMQ) pour
-emails et notifications, `pg_stat_statements` et revue des index, cache des
-synthèses lourdes, plusieurs instances Railway.
+Mesures faites le 2026-10-06 ([rapport](mesures-performance.md)) : le goulot
+est le processeur de Node (génération PDF sur le fil principal), pas la base.
+
+| Brique | Priorité | Statut |
+|---|---|---|
+| 3.1 Mesurer : jeu de données et injecteur de charge reproductibles (`backend/scripts/charge/`) | P1 | Fait |
+| 3.2 PDF hors du fil principal (`worker_threads`) | P1 | À faire |
+| 3.3 Créances : lecture des règlements bornée à l'entreprise | P1 | À faire (décision schéma) |
+| 3.4 Robustesse des envois d'emails (délai, nouvelle tentative) | P2 | À faire |
+| 3.5 Réglage du pool de connexions (`DB_POOL_MAX`) | P2 | À faire |
+| 3.6 Cache des synthèses | — | Reporté : aucun gain mesuré |
+| 3.7 Redis + `WEB_CONCURRENCY` (débit environ ×2 mesuré avec 3 processus), BullMQ, plusieurs instances, sauvegardes automatiques | P1 à l'ouverture | Offre payante |
