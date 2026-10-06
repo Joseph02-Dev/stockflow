@@ -16,7 +16,8 @@ Revenir en arrière **d'abord**, chercher la cause **ensuite**, dès que l'un
 de ces signes suit un déploiement :
 
 - le healthcheck `/health` échoue ou l'application ne démarre plus ;
-- les logs Railway montrent une hausse d'erreurs (`@level:error`) ;
+- les logs Railway montrent une hausse d'erreurs (`@level:error`), ou Sentry
+  signale de nouvelles erreurs juste après le déploiement ;
 - une fonction essentielle est cassée : connexion, vente, mouvement de stock ;
 - des données affichées sont fausses ou appartiennent à une autre entreprise
   (incident de sécurité : revenir en arrière **et** prévenir immédiatement).

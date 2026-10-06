@@ -1,4 +1,6 @@
 import 'dotenv/config';
+// Avant tout le reste : remontée des erreurs (Sentry), si SENTRY_DSN est défini.
+import './instrument.js';
 import cluster from 'node:cluster';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
