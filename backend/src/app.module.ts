@@ -1,5 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AuthModule } from './modules/auth/auth.module.js';
@@ -22,6 +22,7 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
 import { RolesGuard } from './common/guards/roles.guard.js';
 import { EntrepriseActiveGuard } from './common/guards/entreprise-active.guard.js';
 import { FonctionnaliteGuard } from './common/guards/fonctionnalite.guard.js';
+import { FiltreErreursInattendues } from './common/filters/erreurs-inattendues.filter.js';
 import { EmailModule } from './common/email/email.module.js';
 import { CategoriesModule } from './modules/categories/categories.module.js';
 import { MarquesModule } from './modules/marques/marques.module.js';
@@ -101,6 +102,8 @@ import {
     // rôle à jour. Sans token, ce garde laisse passer et RolesGuard répond 401.
     { provide: APP_GUARD, useClass: EntrepriseActiveGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    // Erreurs inattendues envoyées à Sentry (sans effet sans SENTRY_DSN).
+    { provide: APP_FILTER, useClass: FiltreErreursInattendues },
   ],
 })
 export class AppModule implements NestModule {
