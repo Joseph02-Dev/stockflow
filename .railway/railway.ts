@@ -13,7 +13,7 @@ export default defineRailway(() => {
     healthcheckTimeout: 300,
     // builder from CaC: "RAILPACK"
   });
-  return project("stockflow", {
+  return project("stockflowgn", {
     resources: [stockflow],
   });
 });

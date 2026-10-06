@@ -17,7 +17,8 @@ CLI officielle `@railway/cli` (v5.63.4, aide de `railway config`).
 railway config migrate --service stockflow --apply
 ```
 
-- Le service s'appelle **`stockflow`** (nom réel du service Railway, vu dans
+- Le projet s'appelle **`stockflowgn`** et le service **`stockflow`** (noms
+  réels sur Railway : le projet confirmé par l'exploitant, le service vu dans
   les journaux de démarrage). Sans `--service`, l'outil l'aurait nommé
   `backend`, d'après le dossier, et un `apply` aurait pu créer un second
   service.
@@ -43,7 +44,7 @@ jeton Railway dans le dépôt ni dans une conversation.
    ```
 2. **Lier le dépôt**, à la racine du dépôt à jour (`git pull` sur `main`) :
    ```bash
-   railway link        # projet StockFlow, environnement production, service stockflow
+   railway link        # projet stockflowgn, environnement production, service stockflow
    railway config migrate status
    ```
    `status` doit indiquer que `stockflow` lit encore Config as Code.
@@ -61,8 +62,8 @@ jeton Railway dans le dépôt ni dans une conversation.
    plan propose :
    - la création d'un service, ou la suppression d'un service ou d'une base ;
    - la suppression de variables ;
-   - le renommage du projet : le fichier indique `project("stockflow", …)`.
-     Si votre projet porte un autre nom sur Railway, donnez-le-moi.
+   - le renommage du projet : le fichier indique `project("stockflowgn", …)`,
+     le nom réel du projet sur Railway.
 
    Dans ce cas : `railway config migrate undo`, puis envoyez-moi la sortie du
    plan. Les valeurs y sont masquées par défaut, n'utilisez pas
