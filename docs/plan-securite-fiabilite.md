@@ -40,7 +40,7 @@ du pool PostgreSQL depuis le contexte de requête n'est donc pas fiable.
 | 2.4 Logs structurés JSON (pino) : identifiant de requête (`X-Request-Id`), entreprise, utilisateur, statut, durée ; ni en-têtes, ni corps, ni IP, paramètres d'URL sensibles masqués ; `/health` non journalisé | P1 | Fait |
 | 2.5 Suivi des erreurs (Sentry) — nécessite un DSN fourni par vous | P1 | À faire |
 | 2.6 Procédure de retour arrière : [runbook](runbook-retour-arriere.md) Railway / Vercel / base ; migrations compatibles avec la version précédente vérifiées en CI | P1 | Fait |
-| 2.7 Drapeaux de fonctionnalité par variable d'environnement | P2 | À faire |
+| 2.7 Interrupteurs globaux `FONCTIONNALITES_DESACTIVEES` (import, rapports, uploads) : 503 `FONCTIONNALITE_SUSPENDUE` avant tout accès base, interface masquée ; complète les modules par entreprise de la console | P2 | Fait |
 | 2.8 Vulnérabilités des dépendances : `npm audit` à 0 (backend et frontend) ; audit des dépendances de production bloquant en CI | P0 | Fait |
 
 **Dépendances (2.8)** — `backend/package.json` force `deepmerge-ts` ^8 et

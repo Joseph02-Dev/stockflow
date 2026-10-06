@@ -1,3 +1,5 @@
+import { FONCTIONNALITES, fonctionnalitesInconnues } from './fonctionnalites.js';
+
 /**
  * Validation de l'environnement au démarrage, avant toute connexion.
  *
@@ -48,6 +50,12 @@ export function diagnostiquerEnvironnement(env: NodeJS.ProcessEnv): DiagnosticEn
   }
   if (Number(env.WEB_CONCURRENCY ?? 1) > 1 && absente('REDIS_URL')) {
     avertissements.push('WEB_CONCURRENCY > 1 sans REDIS_URL : limites de débit multipliées par le nombre de processus.');
+  }
+  const inconnues = fonctionnalitesInconnues(env);
+  if (inconnues.length > 0) {
+    avertissements.push(
+      `FONCTIONNALITES_DESACTIVEES : nom(s) inconnu(s) ignoré(s) : ${inconnues.join(', ')} (valeurs possibles : ${FONCTIONNALITES.join(', ')}).`,
+    );
   }
   if (erreurs.length > 0) erreurs.push(contexteDeploiement(env));
   return { erreurs, avertissements };

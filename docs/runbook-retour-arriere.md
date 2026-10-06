@@ -24,6 +24,11 @@ de ces signes suit un déploiement :
 Un défaut mineur, sans perte de données ni blocage, se corrige par une PR
 normale, sans retour arrière.
 
+Si le défaut se limite à l'import de catalogue, aux rapports ou à l'envoi
+d'images, il suffit de couper cette fonctionnalité : variable Railway
+`FONCTIONNALITES_DESACTIVEES` (par exemple `rapports`), le reste de
+l'application continue de fonctionner. Retirer la valeur une fois corrigé.
+
 ## 2. Quel côté revenir
 
 | Symptôme | Côté à revenir |

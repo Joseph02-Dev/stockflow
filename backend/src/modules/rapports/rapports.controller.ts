@@ -9,12 +9,14 @@ import { RapportClientService } from './rapport-client.service.js';
 import { RapportMouvementsService } from './rapport-mouvements.service.js';
 import { RapportStockService } from './rapport-stock.service.js';
 import { compterPages, type RapportGenere } from './rapports.types.js';
+import { Fonctionnalite } from '../../common/decorators/fonctionnalite.decorator.js';
 
 /**
  * Rapports PDF (et CSV) générés côté serveur : identiques quel que soit le
  * poste qui les produit. Le document est téléchargé, jamais hébergé : un
  * relevé de compte porte des données personnelles et des dettes.
  */
+@Fonctionnalite('rapports')
 @Controller('rapports')
 export class RapportsController {
   constructor(

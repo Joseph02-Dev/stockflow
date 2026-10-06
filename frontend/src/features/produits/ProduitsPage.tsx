@@ -15,6 +15,7 @@ import { Vignette } from '@/components/patterns/Vignette';
 import { libelleStatut, statutStock, varianteStatut } from '@/components/patterns/statutStock';
 import { useDebounce } from '@/lib/useDebounce';
 import { cn } from '@/lib/cn';
+import { useModules } from '@/lib/useModules';
 
 interface Produit {
   id: string;
@@ -60,6 +61,7 @@ function Emplacements({ noms }: { noms: string[] }) {
 
 export function ProduitsPage() {
   const navigate = useNavigate();
+  const modules = useModules();
   const queryClient = useQueryClient();
   const [recherche, setRecherche] = useState('');
   const [afficherArchives, setAfficherArchives] = useState(false);
@@ -159,10 +161,12 @@ export function ProduitsPage() {
               <Download className="size-4" aria-hidden="true" />
               Exporter CSV
             </Button>
-            <Button variant="secondary" onClick={() => navigate('/produits/import')}>
-              <Upload className="size-4" aria-hidden="true" />
-              Importer
-            </Button>
+            {modules.import && (
+              <Button variant="secondary" onClick={() => navigate('/produits/import')}>
+                <Upload className="size-4" aria-hidden="true" />
+                Importer
+              </Button>
+            )}
             <Button onClick={() => navigate('/produits/nouveau')}>
               <Plus className="size-4" aria-hidden="true" />
               Nouveau produit

@@ -3,6 +3,7 @@ import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { EntrepriseService } from './entreprise.service.js';
 import { UpdateEntrepriseDto } from './dto/update-entreprise.dto.js';
+import { fonctionnalitesSuspendues } from '../../config/fonctionnalites.js';
 
 @Controller('entreprise')
 export class EntrepriseController {
@@ -11,9 +12,11 @@ export class EntrepriseController {
   // Accessible à tout utilisateur authentifié (Admin ou Gestionnaire) :
   // le nom de l'entreprise est affiché dans la barre supérieure de
   // l'application pour tous, pas seulement pour l'Admin (voir UX validée).
+  // Les interrupteurs globaux suspendus y sont joints : l'interface masque
+  // ce qui est coupé (le serveur refuse de toute façon).
   @Get()
-  getEntreprise(@CurrentTenant() entrepriseId: string) {
-    return this.entrepriseService.getEntreprise(entrepriseId);
+  async getEntreprise(@CurrentTenant() entrepriseId: string) {
+    return { ...(await this.entrepriseService.getEntreprise(entrepriseId)), fonctionnalitesSuspendues: fonctionnalitesSuspendues() };
   }
 
   @Roles('ADMIN')
