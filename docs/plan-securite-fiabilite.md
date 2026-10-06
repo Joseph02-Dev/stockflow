@@ -35,7 +35,7 @@ du pool PostgreSQL depuis le contexte de requête n'est donc pas fiable.
 | Brique | Priorité | État |
 |---|---|---|
 | 2.1 Intégration continue GitHub Actions : lint, build, tests sur PostgreSQL (dont RLS avec rôle restreint) | P1 | Fait |
-| 2.2 Migration de `railway.json` (Config as Code) vers l'Infrastructure as Code de Railway — **échéance ferme : 1er décembre 2026** (arrêt annoncé par Railway, [documentation](https://docs.railway.com/config-as-code)). La commande de démarrage (migrations puis API) et le healthcheck y sont définis. | **P0 (échéance)** | À faire |
+| 2.2 Migration de `railway.json` (Config as Code) vers l'Infrastructure as Code de Railway — **échéance ferme : 1er décembre 2026** (arrêt annoncé par Railway, [documentation](https://docs.railway.com/config-as-code)). La commande de démarrage (migrations puis API) et le healthcheck y sont définis. Fichier `.railway/railway.ts` généré par l'outil officiel ; bascule à faire par l'exploitant ([procédure](migration-railway-iac.md)). | **P0 (échéance)** | En cours : bascule à faire |
 | 2.3 Route `/health` vérifiant la base (`SELECT 1`, délai 3 s, 503 sans détail), utilisée par le healthcheck Railway. Redis non bloquant (repli mémoire existant) | P1 | Fait |
 | 2.4 Logs structurés JSON (pino) : identifiant de requête (`X-Request-Id`), entreprise, utilisateur, statut, durée ; ni en-têtes, ni corps, ni IP, paramètres d'URL sensibles masqués ; `/health` non journalisé | P1 | Fait |
 | 2.5 Suivi des erreurs (Sentry) — nécessite un DSN fourni par vous | P1 | À faire |
