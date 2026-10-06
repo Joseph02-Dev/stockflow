@@ -8,7 +8,8 @@ export async function lirePdf(pdf: Buffer): Promise<{ pages: string[] }> {
   const { createRequire } = await import('node:module');
   const { dirname } = await import('node:path');
   const polices = `${dirname(createRequire(import.meta.url).resolve('pdfjs-dist/package.json'))}/standard_fonts/`;
-  const document = await getDocument({ data: new Uint8Array(pdf), useSystemFonts: false, standardFontDataUrl: polices }).promise;
+  const chargement = getDocument({ data: new Uint8Array(pdf), useSystemFonts: false, standardFontDataUrl: polices });
+  const document = await chargement.promise;
   const pages: string[] = [];
   for (let n = 1; n <= document.numPages; n++) {
     const page = await document.getPage(n);
@@ -21,7 +22,7 @@ export async function lirePdf(pdf: Buffer): Promise<{ pages: string[] }> {
         .replace(/\s+/g, ' '),
     );
   }
-  await document.destroy();
+  await chargement.destroy();
   return { pages };
 }
 
