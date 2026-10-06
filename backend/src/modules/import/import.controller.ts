@@ -20,11 +20,13 @@ import {
   OptionsImportDto,
   OuvrirImportDto,
 } from './dto/import.dto.js';
+import { Fonctionnalite } from '../../common/decorators/fonctionnalite.decorator.js';
 
 /**
  * Import de catalogue. Le fichier reste dans le navigateur : seules ses
  * lignes, déjà associées aux champs, arrivent ici, par lots de 200.
  */
+@Fonctionnalite('import')
 @Controller('produits/import')
 export class ImportController {
   constructor(private readonly importService: ImportService) {}

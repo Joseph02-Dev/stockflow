@@ -12,6 +12,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CloudinaryService } from './cloudinary.service.js';
 import { LIMITES_STRICTES, LimiteStricte } from '../../common/limitation/limitation.js';
+import { Fonctionnalite } from '../../common/decorators/fonctionnalite.decorator.js';
 
 const DOSSIERS_AUTORISES = ['produits', 'fournisseurs', 'utilisateurs', 'pertes', 'entreprise'] as const;
 type Dossier = (typeof DOSSIERS_AUTORISES)[number];
@@ -19,6 +20,7 @@ type Dossier = (typeof DOSSIERS_AUTORISES)[number];
 const TYPES_MIME_AUTORISES = ['image/jpeg', 'image/png', 'image/webp'];
 const TAILLE_MAX_OCTETS = 5 * 1024 * 1024; // 5 Mo
 
+@Fonctionnalite('uploads')
 @Controller('uploads')
 export class UploadsController {
   constructor(private readonly cloudinaryService: CloudinaryService) {}

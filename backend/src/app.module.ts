@@ -21,6 +21,7 @@ import { TenantContextModule } from './common/context/tenant-context.module.js';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
 import { EntrepriseActiveGuard } from './common/guards/entreprise-active.guard.js';
+import { FonctionnaliteGuard } from './common/guards/fonctionnalite.guard.js';
 import { EmailModule } from './common/email/email.module.js';
 import { CategoriesModule } from './modules/categories/categories.module.js';
 import { MarquesModule } from './modules/marques/marques.module.js';
@@ -93,6 +94,8 @@ import {
     // En premier : une rafale est coupée avant toute vérification de
     // token ou lecture en base.
     { provide: APP_GUARD, useClass: LimitationDebitGuard },
+    // Interrupteurs globaux (FONCTIONNALITES_DESACTIVEES) : sans accès à la base.
+    { provide: APP_GUARD, useClass: FonctionnaliteGuard },
     // Avant RolesGuard (ordre d'exécution = ordre de déclaration) : l'état
     // du compte et le rôle sont relus en base, et RolesGuard décide sur le
     // rôle à jour. Sans token, ce garde laisse passer et RolesGuard répond 401.

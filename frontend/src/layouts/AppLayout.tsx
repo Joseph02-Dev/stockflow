@@ -31,6 +31,7 @@ import { Logo } from '@/components/patterns/Logo';
 import { ProfilModal } from '@/features/profil/ProfilModal';
 import { useSynchronisation } from '@/lib/useSynchronisation';
 import { BarreProgression } from '@/components/patterns/BarreProgression';
+import { useModules } from '@/lib/useModules';
 
 const sectionPilotage = [
   { to: '/', libelle: 'Tableau de bord', Icone: LayoutDashboard, exact: true },
@@ -207,6 +208,7 @@ const classesLienPlus =
 
 export function AppLayout() {
   const session = useSession();
+  const modules = useModules();
   const navigate = useNavigate();
   const location = useLocation();
   const [profilOuvert, setProfilOuvert] = useState(false);
@@ -278,9 +280,11 @@ export function AppLayout() {
 
         <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3 pt-5" aria-label="Navigation principale">
           <SectionNav titre="Pilotage">
-            {sectionPilotage.map((lien) => (
-              <LienNav key={lien.to} {...lien} nombreAlertes={nombreAlertes} nombrePeremptions={nombrePeremptions} />
-            ))}
+            {sectionPilotage
+              .filter((lien) => lien.to !== '/rapports' || modules.rapports)
+              .map((lien) => (
+                <LienNav key={lien.to} {...lien} nombreAlertes={nombreAlertes} nombrePeremptions={nombrePeremptions} />
+              ))}
           </SectionNav>
 
           <SectionNav titre="Référentiel">
@@ -480,10 +484,12 @@ export function AppLayout() {
               <Undo2 className="size-5 text-steel-500" aria-hidden="true" />
               Retours fournisseur
             </NavLink>
-            <NavLink to="/rapports" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
-              <FileText className="size-5 text-steel-500" aria-hidden="true" />
-              Rapports
-            </NavLink>
+            {modules.rapports && (
+              <NavLink to="/rapports" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
+                <FileText className="size-5 text-steel-500" aria-hidden="true" />
+                Rapports
+              </NavLink>
+            )}
             <NavLink to="/fournisseurs" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
               <Truck className="size-5 text-steel-500" aria-hidden="true" />
               Fournisseurs
