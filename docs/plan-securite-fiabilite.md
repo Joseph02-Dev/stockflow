@@ -41,6 +41,12 @@ du pool PostgreSQL depuis le contexte de requête n'est donc pas fiable.
 | 2.5 Suivi des erreurs (Sentry) — nécessite un DSN fourni par vous | P1 | À faire |
 | 2.6 Procédure de migration et de retour arrière (migrations additives, sauvegarde avant migration) | P1 | À faire |
 | 2.7 Drapeaux de fonctionnalité par variable d'environnement | P2 | À faire |
+| 2.8 Vulnérabilités des dépendances : `npm audit` à 0 (backend et frontend) ; audit des dépendances de production bloquant en CI | P0 | Fait |
+
+**Dépendances (2.8)** — `backend/package.json` force `deepmerge-ts` ^8 et
+`mysql2` ^3.24 (`overrides`) : dépendances de la CLI Prisma 7.10, sans
+correctif dans la branche 7. À retirer lors du passage à une version de
+Prisma qui les embarque (vérifier avec `npm ls deepmerge-ts mysql2`).
 
 ## Phase 3 — Préparation de la montée en charge
 

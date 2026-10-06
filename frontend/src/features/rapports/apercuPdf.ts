@@ -11,8 +11,10 @@ export async function rendrePremierePage(pdf: Blob, canvas: HTMLCanvasElement, l
     import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'),
   ]);
   GlobalWorkerOptions.workerSrc = worker;
-  const pdfDocument = await getDocument({ data: new Uint8Array(await pdf.arrayBuffer()) }).promise;
+  // pdf.js 6 : la libération se fait par la tâche de chargement.
+  const chargement = getDocument({ data: new Uint8Array(await pdf.arrayBuffer()) });
   try {
+    const pdfDocument = await chargement.promise;
     const page = await pdfDocument.getPage(1);
     const echelle = largeur / page.getViewport({ scale: 1 }).width;
     const densite = window.devicePixelRatio || 1;
@@ -29,7 +31,7 @@ export async function rendrePremierePage(pdf: Blob, canvas: HTMLCanvasElement, l
     canvas.style.height = `${Math.floor(vue.height / densite)}px`;
     canvas.getContext('2d')?.drawImage(tampon, 0, 0);
   } finally {
-    await pdfDocument.destroy();
+    await chargement.destroy();
   }
 }
 
