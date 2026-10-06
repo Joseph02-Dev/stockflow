@@ -98,6 +98,20 @@ migration doit laisser fonctionner le code de la version précédente.
   ligne `-- retour-arriere: <raison>` **et** faire une sauvegarde manuelle de
   la base juste avant le déploiement.
 
+**Sauvegarde manuelle (offres gratuites, sans sauvegardes automatiques)** :
+avant toute migration annotée `-- retour-arriere:`, faire un export logique
+depuis un poste disposant de PostgreSQL (`pg_dump`), avec l'URL publique de
+connexion du service PostgreSQL (onglet **Variables** de ce service dans
+Railway ; ne jamais la copier dans le dépôt) :
+
+```bash
+pg_dump --format=custom --no-owner --file="stockflow-$(date +%Y%m%d-%H%M).dump" "<URL publique PostgreSQL>"
+```
+
+Le fichier contient les données de toutes les entreprises : le garder hors
+du dépôt, chiffré ou sur un support privé. Restauration :
+`pg_restore --clean --no-owner --dbname="<URL>" <fichier>.dump`.
+
 **Restauration de la base (dernier recours)**, seulement si des données ont
 été corrompues :
 
@@ -132,9 +146,13 @@ remettrait en ligne.
 
 ## 8. À préparer avant le premier incident
 
-- [ ] Railway, service PostgreSQL : **sauvegardes automatiques activées**
-      (planning quotidien conseillé) ; un essai de restauration fait une fois
-      dans un environnement de test.
+- [ ] **Avant l'ouverture aux utilisateurs** (offre payante Railway) :
+      sauvegardes automatiques du service PostgreSQL activées (planning
+      quotidien conseillé) ; un essai de restauration fait une fois.
+- [ ] D'ici là (offres gratuites) : la fenêtre de retour arrière est de
+      **24 h** sur Railway et limitée au **déploiement précédent** sur Vercel ;
+      sans sauvegarde automatique, faire un `pg_dump` manuel avant toute
+      migration risquée (section 5).
 - [ ] Noter l'offre Railway et l'offre Vercel en cours : elles fixent la
       fenêtre de retour arrière (sections 3 et 4).
 - [ ] Protection de la branche `main` : checks « Backend » et « Frontend »
