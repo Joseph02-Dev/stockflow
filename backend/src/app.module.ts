@@ -32,6 +32,8 @@ import { VentesModule } from './modules/ventes/ventes.module.js';
 import { ConsoleModule } from './modules/console/console.module.js';
 import { LimitesModule } from './common/limites/limites.module.js';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { LoggerModule } from 'nestjs-pino';
+import { optionsJournalisation } from './config/journalisation.js';
 import { LimitationDebitGuard } from './common/limitation/limitation-debit.guard.js';
 import { StockageLimitation } from './common/limitation/stockage-limitation.js';
 import {
@@ -43,6 +45,8 @@ import {
 
 @Module({
   imports: [
+    // Journaux JSON par requête (voir config/journalisation.ts).
+    LoggerModule.forRootAsync({ useFactory: () => optionsJournalisation() }),
     // Compteurs dans Redis si REDIS_URL est défini (partagés par toutes les
     // instances), sinon en mémoire locale — voir StockageLimitation.
     // Fabrique : un stockage neuf par application (tests isolés).

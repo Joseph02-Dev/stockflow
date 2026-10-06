@@ -3,12 +3,15 @@ import cluster from 'node:cluster';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import { Logger as JournalPino } from 'nestjs-pino';
 import { AppModule } from './app.module.js';
 import { configurerApplication } from './config/application.js';
 import { diagnostiquerEnvironnement } from './config/environnement.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Journaux du démarrage retenus puis émis en JSON, comme ceux des requêtes.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(JournalPino));
   configurerApplication(app);
   // Arrêt propre sur SIGTERM (redéploiement Railway) : connexions à la
   // base et à Redis fermées, requêtes en cours terminées.
