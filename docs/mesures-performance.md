@@ -154,6 +154,22 @@ Contenu de B :
 4. rendre la colonne obligatoire dans une livraison suivante, comme le
    prévoit le runbook de retour arrière.
 
+## Pool de connexions (2026-10-07)
+
+100 utilisateurs, même machine, taille du pool `DB_POOL_MAX` variée :
+
+| Connexions | Débit | Tableau de bord p50 / p95 | Vente p95 |
+|---|---|---|---|
+| 2 | 103 req/s | 35 / 109 ms | 155 ms |
+| 5 | 104 req/s | 29 / 112 ms | 197 ms |
+| 10 | 102 req/s | 32 / 158 ms | 200 ms |
+| 20 | 104 req/s | 31 / 100 ms | 200 ms |
+
+Aucune différence au-delà du bruit de mesure : les requêtes SQL durent 1 à
+2 ms, quelques connexions suffisent. **10 est conservé**, avec de la marge
+pour les opérations longues (import, rapports). Le gain de la brique 3.5
+est dans les garde-fous ajoutés, pas dans la taille du pool.
+
 ## Suites recommandées (par gain mesuré)
 
 | Priorité | Action | Gain attendu | Coût |
