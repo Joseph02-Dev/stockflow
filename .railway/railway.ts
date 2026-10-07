@@ -35,7 +35,8 @@ export default defineRailway(() => {
       startCommand: "npm run migrate:deploy && npm run start:prod",
       healthcheckPath: "/health",
       healthcheckTimeout: 300,
-      restartPolicyType: "ON_FAILURE",
+      // Politique ON_FAILURE : valeur par défaut de Railway, stockée « null »
+      // côté Railway ; la déclarer créerait une différence permanente au plan.
       restartPolicyMaxRetries: 3,
       ipv6EgressEnabled: true,
     },
