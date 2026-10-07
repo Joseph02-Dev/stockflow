@@ -2,6 +2,7 @@ import { Global, Module, OnModuleInit } from '@nestjs/common';
 import { EMAIL_SERVICE } from './email.service.js';
 import { DevEmailService } from './dev-email.service.js';
 import { ResendEmailService } from './resend-email.service.js';
+import { EnvoiEnArrierePlan } from './envoi-arriere-plan.js';
 
 /**
  * Sélectionne l'implémentation du service email selon EMAIL_PROVIDER
@@ -21,8 +22,9 @@ import { ResendEmailService } from './resend-email.service.js';
       provide: EMAIL_SERVICE,
       useFactory: (devEmailService: DevEmailService) => {
         const provider = process.env.EMAIL_PROVIDER ?? 'dev';
-        if (provider === 'resend') return new ResendEmailService();
-        if (provider === 'dev') return devEmailService;
+        // Toujours en arrière-plan : la requête n'attend jamais le fournisseur.
+        if (provider === 'resend') return new EnvoiEnArrierePlan(new ResendEmailService());
+        if (provider === 'dev') return new EnvoiEnArrierePlan(devEmailService);
         throw new Error(`EMAIL_PROVIDER="${provider}" n'a pas d'implémentation. Valeurs possibles : "dev", "resend".`);
       },
       inject: [DevEmailService],
