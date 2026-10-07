@@ -292,7 +292,7 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
                 'flex flex-1 items-center justify-center gap-2 rounded-md border px-3 py-2 text-corps font-medium transition-colors',
                 type === valeur
                   ? 'border-action bg-action-wash text-action'
-                  : 'border-rule text-steel-500 hover:bg-paper',
+                  : 'border-rule text-steel-500 hover:bg-survol',
               )}
             >
               <Icone className="size-4" aria-hidden="true" />
@@ -396,7 +396,7 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
                     key={libelle}
                     type="button"
                     onClick={() => setValue('datePeremption', dansMois(mois), { shouldValidate: true, shouldDirty: true })}
-                    className="h-9 flex-1 rounded-md border border-rule-strong bg-surface text-corps font-medium text-ink-900 hover:bg-paper"
+                    className="h-9 flex-1 rounded-md border border-rule-strong bg-surface text-corps font-medium text-ink-900 hover:bg-survol"
                   >
                     {libelle}
                   </button>

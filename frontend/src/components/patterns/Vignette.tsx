@@ -26,7 +26,7 @@ export function Vignette({
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-rule bg-paper text-meta font-semibold text-steel-500',
+        'inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-rule bg-survol text-meta font-semibold text-steel-500',
         className,
       )}
       style={{ width: taille, height: taille }}

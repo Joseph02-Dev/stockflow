@@ -204,7 +204,7 @@ export function CommandeDetailPage() {
                   etape.faite
                     ? data.statut === 'ANNULEE' && index > 0
                       ? 'border-steel-400 bg-steel-400 text-white'
-                      : 'border-action bg-action text-white'
+                      : 'border-action bg-action text-sur-couleur'
                     : 'border-rule-strong bg-surface',
                 )}
                 aria-hidden="true"
@@ -315,7 +315,7 @@ export function CommandeDetailPage() {
                       key={libelle}
                       type="button"
                       onClick={() => saisirLot(ligne.produitId, 'datePeremption', dansMois(mois))}
-                      className="h-9 flex-1 rounded-md border border-rule-strong bg-surface text-corps font-medium text-ink-900 hover:bg-paper"
+                      className="h-9 flex-1 rounded-md border border-rule-strong bg-surface text-corps font-medium text-ink-900 hover:bg-survol"
                     >
                       {libelle}
                     </button>

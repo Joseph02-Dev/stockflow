@@ -96,7 +96,7 @@ export function ConsoleJournalPage() {
               setParametres({});
               setPage(1);
             }}
-            className="ml-1 inline-flex h-8 items-center gap-1.5 rounded-full bg-ink-800 px-3 text-corps text-white"
+            className="ml-1 inline-flex h-8 items-center gap-1.5 rounded-full bg-inverse px-3 text-corps text-sur-inverse"
           >
             {nomFiltre ?? 'Une entreprise'}
             <X className="size-3.5" aria-hidden="true" />

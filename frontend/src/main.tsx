@@ -5,10 +5,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
 import { estTropDeRequetes } from './lib/api';
 import { gestionnaireErreursReact, initialiserSurveillance } from './lib/surveillance';
+import { initialiserTheme } from './lib/theme';
 import './index.css';
 
 // Avant le premier rendu : une erreur au démarrage doit aussi remonter.
 const surveillanceActive = initialiserSurveillance();
+initialiserTheme();
 
 const queryClient = new QueryClient({
   defaultOptions: {

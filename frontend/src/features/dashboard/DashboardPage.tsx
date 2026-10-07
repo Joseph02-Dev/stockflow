@@ -188,7 +188,7 @@ export function DashboardPage() {
 
         <Link
           to="/commandes/nouvelle"
-          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 self-start rounded-md bg-white px-4 text-corps font-semibold text-ink-900 transition-colors hover:bg-paper focus-visible:outline-white lg:self-end"
+          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 self-start rounded-md bg-white px-4 text-corps font-semibold text-voile transition-colors hover:bg-craie focus-visible:outline-white lg:self-end"
         >
           <ShoppingCart className="size-4" aria-hidden="true" />
           Préparer les commandes

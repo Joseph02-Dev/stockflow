@@ -54,7 +54,7 @@ export function ConsoleLayout() {
               className={({ isActive }) =>
                 cn(
                   'flex h-9 items-center justify-center gap-2.5 rounded-md px-2.5 text-corps font-medium transition-colors focus-visible:outline-white/70 xl:justify-start',
-                  isActive ? 'bg-console text-white' : 'text-white/70 hover:bg-white/5 hover:text-white',
+                  isActive ? 'bg-console text-sur-couleur' : 'text-white/70 hover:bg-white/5 hover:text-white',
                 )
               }
             >
@@ -67,7 +67,7 @@ export function ConsoleLayout() {
         <div className="p-2 xl:p-3">
           <div className="flex flex-col items-center gap-2 rounded-md bg-console-deep p-2 xl:flex-row xl:p-3">
             <span
-              className="flex size-8 shrink-0 items-center justify-center rounded-full bg-console text-meta font-semibold text-white"
+              className="flex size-8 shrink-0 items-center justify-center rounded-full bg-console text-meta font-semibold text-sur-couleur"
               aria-hidden="true"
             >
               {session.operateur.nom
@@ -97,7 +97,7 @@ export function ConsoleLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Bandeau permanent : on n'oublie jamais où l'on se trouve. */}
         <div
-          className="sticky top-0 z-30 flex items-center gap-2 bg-console px-4 py-2 text-meta text-white md:px-7"
+          className="sticky top-0 z-30 flex items-center gap-2 bg-console px-4 py-2 text-meta text-sur-couleur md:px-7"
           role="note"
         >
           <ShieldAlert className="size-3.5 shrink-0" aria-hidden="true" />

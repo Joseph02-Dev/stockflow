@@ -75,7 +75,7 @@ export function EtapeColonnes({
                 key={i}
                 className={cn(
                   'grid grid-cols-1 gap-2 px-5 py-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_112px] md:items-center md:gap-4',
-                  etat === 'choisir' && 'bg-[#FFFCF6]',
+                  etat === 'choisir' && 'bg-faible-voile',
                   etat === 'ignoree' && 'opacity-60',
                 )}
               >

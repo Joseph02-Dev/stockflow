@@ -375,7 +375,7 @@ export function ProduitFormPage() {
                     id="description"
                     rows={3}
                     {...register('description')}
-                    className="rounded-md border border-rule-strong bg-surface px-3 py-2 text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-action"
+                    className="rounded-md border border-rule-strong bg-surface-elevee px-3 py-2 text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-action"
                   />
                 </div>
                 <Input
@@ -547,7 +547,7 @@ export function ProduitFormPage() {
                   {fournisseurHabituel ? (
                     <Link
                       to={`/fournisseurs/${fournisseurHabituel.id}`}
-                      className="flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-paper"
+                      className="flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-survol"
                     >
                       <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-action-wash text-meta font-semibold text-action">
                         {fournisseurHabituel.nom.slice(0, 2).toUpperCase()}

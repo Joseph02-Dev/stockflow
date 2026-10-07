@@ -39,7 +39,7 @@ export function MenuActions({ libelle, actions }: { libelle: string; actions: Ac
         aria-haspopup="menu"
         aria-expanded={ouvert}
         onClick={() => setOuvert((o) => !o)}
-        className="flex size-8 items-center justify-center rounded-md text-steel-500 hover:bg-paper hover:text-ink-900"
+        className="flex size-8 items-center justify-center rounded-md text-steel-500 hover:bg-survol hover:text-ink-900"
       >
         <MoreHorizontal className="size-4" aria-hidden="true" />
       </button>
@@ -59,7 +59,7 @@ export function MenuActions({ libelle, actions }: { libelle: string; actions: Ac
               }}
               className={cn(
                 'flex w-full items-center gap-2.5 rounded-sm px-2.5 py-2 text-left text-corps',
-                danger ? 'text-rupture hover:bg-rupture-wash' : 'text-ink-900 hover:bg-paper',
+                danger ? 'text-rupture hover:bg-rupture-wash' : 'text-ink-900 hover:bg-survol',
               )}
             >
               <Icone className="size-4 shrink-0" aria-hidden="true" />

@@ -297,7 +297,7 @@ export function PertesPage() {
                 value={motifAnnulation}
                 onChange={(e) => setMotifAnnulation(e.target.value)}
                 placeholder="Ex. sacs retrouvés intacts, erreur de produit…"
-                className="rounded-[9px] border border-rule-strong bg-surface px-3 py-2 text-corps text-ink-900"
+                className="rounded-[9px] border border-rule-strong bg-surface-elevee px-3 py-2 text-corps text-ink-900"
               />
             </label>
             {erreur && <Alert variant="error">{erreur}</Alert>}

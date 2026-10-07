@@ -120,7 +120,7 @@ export function PeremptionsPage() {
                   aria-pressed={actif}
                   onClick={() => setFiltre(actif ? null : t.tranche)}
                   className={cn(
-                    'flex flex-col items-start gap-1 border-l-[3px] bg-surface px-4 py-4 text-left transition-colors hover:bg-paper sm:px-5',
+                    'flex flex-col items-start gap-1 border-l-[3px] bg-surface px-4 py-4 text-left transition-colors hover:bg-survol sm:px-5',
                     TRANCHES[t.tranche].filet,
                     actif && 'bg-action-wash hover:bg-action-wash',
                   )}
