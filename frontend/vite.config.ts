@@ -2,6 +2,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import path from 'node:path'
+import { createHash } from 'node:crypto'
 
 /**
  * Content-Security-Policy injectée dans index.html au build (pas en
@@ -13,14 +14,19 @@ import path from 'node:path'
  * domaine, ni envoyer les tokens de session ailleurs qu'à notre API.
  * Les directives interdites dans une balise meta (frame-ancestors) sont
  * envoyées en en-tête par Vercel (vercel.json).
+ *
+ * Seuls les scripts en ligne de index.html (apparence posée avant le
+ * premier rendu) sont autorisés, chacun par l'empreinte SHA-256 de son
+ * contenu exact, calculée ici au build : jamais 'unsafe-inline', et toute
+ * modification du script met l'autorisation à jour d'elle-même.
  */
 function politiqueSecuriteContenu(apiUrl: string | undefined, sentryDsn: string | undefined): Plugin {
   const origineApi = apiUrl && /^https?:\/\//.test(apiUrl) ? new URL(apiUrl).origin : null
   // Envoi des erreurs : seul le domaine de réception du DSN est autorisé.
   const origineSentry = sentryDsn && /^https:\/\//.test(sentryDsn) ? new URL(sentryDsn).origin : null
-  const directives = [
+  const directives = (empreintes: string[]) => [
     "default-src 'self'",
-    "script-src 'self'",
+    ["script-src 'self'", ...empreintes].join(' '),
     "style-src 'self' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https://res.cloudinary.com",
@@ -34,9 +40,21 @@ function politiqueSecuriteContenu(apiUrl: string | undefined, sentryDsn: string 
   return {
     name: 'politique-securite-contenu',
     apply: 'build',
-    transformIndexHtml: () => [
-      { tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: directives }, injectTo: 'head-prepend' },
-    ],
+    transformIndexHtml: {
+      order: 'post',
+      handler: (html) => {
+        const empreintes = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map(
+          ([, contenu]) => `'sha256-${createHash('sha256').update(contenu).digest('base64')}'`,
+        )
+        return [
+          {
+            tag: 'meta',
+            attrs: { 'http-equiv': 'Content-Security-Policy', content: directives(empreintes) },
+            injectTo: 'head-prepend',
+          },
+        ]
+      },
+    },
   }
 }
 

@@ -7,7 +7,7 @@ import type { ModePaiement } from './types';
  * MTN MoMo sont de simples étiquettes (aucune intégration).
  */
 export const MODES: Record<ModePaiement, { libelle: string; Icone: LucideIcon; actif: string; point: string }> = {
-  ESPECES: { libelle: 'Espèces', Icone: Banknote, actif: 'border-ok bg-ok text-white', point: 'bg-ok' },
+  ESPECES: { libelle: 'Espèces', Icone: Banknote, actif: 'border-ok bg-ok text-sur-couleur', point: 'bg-ok' },
   ORANGE_MONEY: {
     libelle: 'Orange Money',
     Icone: Smartphone,
@@ -15,6 +15,6 @@ export const MODES: Record<ModePaiement, { libelle: string; Icone: LucideIcon; a
     point: 'bg-orange-money',
   },
   MTN_MOMO: { libelle: 'MTN MoMo', Icone: Smartphone, actif: 'border-mtn bg-mtn text-ink-900', point: 'bg-mtn' },
-  CREDIT: { libelle: 'Crédit', Icone: Clock3, actif: 'border-faible bg-faible text-white', point: 'bg-faible' },
-  AVOIR: { libelle: 'Avoir (retour)', Icone: Undo2, actif: 'border-action bg-action text-white', point: 'bg-action' },
+  CREDIT: { libelle: 'Crédit', Icone: Clock3, actif: 'border-faible bg-faible text-sur-couleur', point: 'bg-faible' },
+  AVOIR: { libelle: 'Avoir (retour)', Icone: Undo2, actif: 'border-action bg-action text-sur-couleur', point: 'bg-action' },
 };

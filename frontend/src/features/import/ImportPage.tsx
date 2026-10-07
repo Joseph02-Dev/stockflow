@@ -61,7 +61,7 @@ function FilEtapes({ etape }: { etape: number }) {
             <span
               className={cn(
                 'flex size-7 shrink-0 items-center justify-center rounded-full text-meta font-semibold',
-                faite ? 'bg-ok text-white' : courante ? 'bg-action text-white' : 'border border-rule-strong bg-surface text-steel-500',
+                faite ? 'bg-ok text-sur-couleur' : courante ? 'bg-action text-sur-couleur' : 'border border-rule-strong bg-surface text-steel-500',
               )}
             >
               {faite ? <Check className="size-4" aria-label="Franchie" /> : numero}

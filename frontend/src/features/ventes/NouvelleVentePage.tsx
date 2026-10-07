@@ -260,7 +260,7 @@ export function NouvelleVentePage() {
                       value={rechercheClient}
                       onChange={(e) => setRechercheClient(e.target.value)}
                       placeholder="Nom, commerce ou téléphone du client…"
-                      className="h-11 w-full rounded-md border border-rule-strong bg-surface pr-3 pl-9 text-corps text-ink-900 placeholder:text-steel-400 focus:border-action"
+                      className="h-11 w-full rounded-md border border-rule-strong bg-surface-elevee pr-3 pl-9 text-corps text-ink-900 placeholder:text-steel-400 focus:border-action"
                     />
                   </label>
                   {rechercheClientRetardee && (
@@ -325,7 +325,7 @@ export function NouvelleVentePage() {
                   value={rechercheProduit}
                   onChange={(e) => setRechercheProduit(e.target.value)}
                   placeholder="Ajouter un produit en stock…"
-                  className="h-11 w-full rounded-md border border-rule-strong bg-surface pr-3 pl-9 text-corps text-ink-900 placeholder:text-steel-400 focus:border-action"
+                  className="h-11 w-full rounded-md border border-rule-strong bg-surface-elevee pr-3 pl-9 text-corps text-ink-900 placeholder:text-steel-400 focus:border-action"
                 />
               </label>
               {produitsProposes.length > 0 && (
@@ -378,7 +378,7 @@ export function NouvelleVentePage() {
                           type="button"
                           aria-label={`Retirer un ${l.produit.nom}`}
                           onClick={() => changerQuantite(l.produit.id, l.quantite - 1)}
-                          className="flex size-10 items-center justify-center text-steel-700 hover:bg-paper"
+                          className="flex size-10 items-center justify-center text-steel-700 hover:bg-survol"
                         >
                           <Minus className="size-4" aria-hidden="true" />
                         </button>
@@ -395,7 +395,7 @@ export function NouvelleVentePage() {
                           type="button"
                           aria-label={`Ajouter un ${l.produit.nom}`}
                           onClick={() => changerQuantite(l.produit.id, l.quantite + 1)}
-                          className="flex size-10 items-center justify-center text-steel-700 hover:bg-paper"
+                          className="flex size-10 items-center justify-center text-steel-700 hover:bg-survol"
                         >
                           <Plus className="size-4" aria-hidden="true" />
                         </button>
@@ -477,7 +477,7 @@ export function NouvelleVentePage() {
                     onChange={(e) => setAvance(e.target.value)}
                     placeholder="0"
                     className={cn(
-                      'h-10 rounded-md border bg-surface px-3 text-corps text-ink-900',
+                      'h-10 rounded-md border bg-surface-elevee px-3 text-corps text-ink-900',
                       avanceInvalide ? 'border-rupture' : 'border-rule-strong',
                     )}
                   />
@@ -498,7 +498,7 @@ export function NouvelleVentePage() {
                     type="date"
                     value={echeance}
                     onChange={(e) => setEcheance(e.target.value)}
-                    className="h-10 rounded-md border border-rule-strong bg-surface px-3 text-corps text-ink-900"
+                    className="h-10 rounded-md border border-rule-strong bg-surface-elevee px-3 text-corps text-ink-900"
                   />
                 </label>
                 <div className="flex items-baseline justify-between">

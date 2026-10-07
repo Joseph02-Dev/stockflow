@@ -196,9 +196,9 @@ export function InscriptionPage() {
               className={
                 'mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-meta font-semibold ' +
                 (e.numero < etapeNumero
-                  ? 'bg-ok text-white'
+                  ? 'bg-ok text-sur-couleur'
                   : e.numero === etapeNumero
-                    ? 'bg-action text-white'
+                    ? 'bg-action text-sur-couleur'
                     : 'bg-white/10 text-white/65')
               }
             >
@@ -269,7 +269,7 @@ export function InscriptionPage() {
                     'flex items-center gap-2 rounded-md border px-3 py-2 text-corps font-medium transition-colors',
                     secteurActivite === valeur
                       ? 'border-action bg-action-wash text-action'
-                      : 'border-rule text-steel-500 hover:bg-paper',
+                      : 'border-rule text-steel-500 hover:bg-survol',
                   )}
                 >
                   <Icone className="size-4 shrink-0" aria-hidden="true" />
@@ -343,7 +343,7 @@ export function InscriptionPage() {
                       'flex-1 rounded-md border px-3 py-2 text-corps font-medium transition-colors',
                       tauxTvaParDefaut === valeur
                         ? 'border-action bg-action-wash text-action'
-                        : 'border-rule text-steel-500 hover:bg-paper',
+                        : 'border-rule text-steel-500 hover:bg-survol',
                     )}
                   >
                     {valeur}%

@@ -56,7 +56,7 @@ function ChampComptage({
       value={valeur}
       onChange={(e) => setValeur(e.target.value)}
       onBlur={sauvegarderSiValide}
-      className="h-9 w-24 rounded-md border border-rule-strong bg-surface px-2.5 text-right text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-action"
+      className="h-9 w-24 rounded-md border border-rule-strong bg-surface-elevee px-2.5 text-right text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-action"
       placeholder="—"
       aria-label={`Quantité comptée pour ${ligne.produit.nom}${ligne.lot ? `, lot ${ligne.lot.numero}` : ''}`}
     />

@@ -261,10 +261,10 @@ export function RapportsPage() {
                   onClick={() => maj({ type: r.type })}
                   className={cn(
                     'flex items-start gap-3 rounded-[10px] border p-3.5 text-left transition-colors',
-                    p.type === r.type ? 'border-action bg-action-wash/40 shadow-[0_0_0_1px_var(--color-action)]' : 'border-rule-strong hover:bg-paper',
+                    p.type === r.type ? 'border-action bg-action-wash/40 shadow-[0_0_0_1px_var(--color-action)]' : 'border-rule-strong hover:bg-survol',
                   )}
                 >
-                  <span className={cn('grid size-9 shrink-0 place-items-center rounded-md', p.type === r.type ? 'bg-action text-white' : 'bg-paper text-steel-700')}>
+                  <span className={cn('grid size-9 shrink-0 place-items-center rounded-md', p.type === r.type ? 'bg-action text-sur-couleur' : 'bg-paper text-steel-700')}>
                     <r.Icone className="size-[18px]" aria-hidden="true" />
                   </span>
                   <span className="flex min-w-0 flex-col gap-0.5">
@@ -293,7 +293,7 @@ export function RapportsPage() {
                             value={p[borne]}
                             max={jourIso()}
                             onChange={(e) => maj({ [borne]: e.target.value })}
-                            className="h-10 rounded-[9px] border border-rule-strong bg-surface px-3 text-corps text-ink-900"
+                            className="h-10 rounded-[9px] border border-rule-strong bg-surface-elevee px-3 text-corps text-ink-900"
                           />
                         </label>
                       ))}

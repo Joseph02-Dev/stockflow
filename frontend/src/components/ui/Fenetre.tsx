@@ -159,7 +159,7 @@ export function Fenetre({
   // sinon le repère du position: fixed, et le fond ne couvrirait pas l'écran.
   return createPortal(
     <div className={cn('fixed inset-0 z-50 flex', mobile ? 'items-end' : tiroir ? 'justify-end' : 'items-center justify-center p-4')}>
-      <div className="absolute inset-0 bg-ink-900/50" onClick={demanderFermeture} aria-hidden="true" />
+      <div className="absolute inset-0 bg-voile/50" onClick={demanderFermeture} aria-hidden="true" />
 
       <div
         ref={dialogueRef}
@@ -193,7 +193,7 @@ export function Fenetre({
               type="button"
               onClick={demanderFermeture}
               aria-label="Fermer"
-              className="-m-1 flex size-9 shrink-0 items-center justify-center rounded-md text-steel-500 transition-colors hover:bg-paper hover:text-ink-900 max-md:size-11"
+              className="-m-1 flex size-9 shrink-0 items-center justify-center rounded-md text-steel-500 transition-colors hover:bg-survol hover:text-ink-900 max-md:size-11"
             >
               <X className="size-5" aria-hidden="true" />
             </button>
@@ -218,7 +218,7 @@ export function Fenetre({
         )}
 
         {confirmation && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] bg-ink-900/30 p-5" role="alertdialog" aria-labelledby={`${id}-confirmation`}>
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] bg-voile/30 p-5" role="alertdialog" aria-labelledby={`${id}-confirmation`}>
             <div className="flex w-full max-w-sm flex-col gap-4 rounded-xl bg-surface p-5 shadow-pop">
               <div>
                 <p id={`${id}-confirmation`} className="text-panneau text-ink-900">

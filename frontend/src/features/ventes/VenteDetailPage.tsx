@@ -90,7 +90,7 @@ export function VenteDetailPage() {
         action={
           <>
             {annulee ? <Badge variant="rupture">Annulée</Badge> : vente.resteDu > 0 ? <Badge variant="faible">À crédit</Badge> : <Badge variant="ok">Réglée</Badge>}
-            <Link to="/ventes/nouvelle" className="inline-flex h-9 items-center gap-2 rounded-md bg-action px-3.5 text-corps font-medium text-white hover:bg-action-dark">
+            <Link to="/ventes/nouvelle" className="inline-flex h-9 items-center gap-2 rounded-md bg-action px-3.5 text-corps font-medium text-sur-couleur hover:bg-action-dark">
               <Plus className="size-4" aria-hidden="true" />
               Nouvelle vente
             </Link>
@@ -179,7 +179,7 @@ export function VenteDetailPage() {
                       value={montant}
                       onChange={(e) => setMontant(e.target.value)}
                       placeholder={String(vente.resteDu)}
-                      className="h-10 min-w-0 flex-1 rounded-md border border-rule-strong bg-surface px-3 text-corps text-ink-900"
+                      className="h-10 min-w-0 flex-1 rounded-md border border-rule-strong bg-surface-elevee px-3 text-corps text-ink-900"
                     />
                     <Button variant="secondary" onClick={() => setMontant(String(vente.resteDu))}>
                       Tout
@@ -293,7 +293,7 @@ export function VenteDetailPage() {
               onChange={(e) => setMotif(e.target.value)}
               rows={3}
               placeholder="Ex. erreur de quantité, client revenu sur sa commande…"
-              className="rounded-md border border-rule-strong bg-surface px-3 py-2 text-corps text-ink-900"
+              className="rounded-md border border-rule-strong bg-surface-elevee px-3 py-2 text-corps text-ink-900"
             />
           </label>
           {erreur && annulationOuverte && <Alert variant="error">{erreur}</Alert>}

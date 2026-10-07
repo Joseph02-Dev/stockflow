@@ -6,11 +6,11 @@ const variantes: Record<VarianteBouton, string> = {
   // Filet blanc interne en haut : donne au bouton principal un relief
   // « pressable » sans recourir à une ombre portée supplémentaire.
   primary:
-    'bg-action text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] hover:bg-action-dark',
-  secondary: 'border border-rule-strong bg-surface text-ink-900 hover:bg-paper',
-  dark: 'bg-ink-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-ink-700',
-  ghost: 'bg-transparent text-steel-700 hover:bg-paper hover:text-ink-900',
-  danger: 'bg-rupture text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] hover:opacity-90',
+    'bg-action text-sur-couleur shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] hover:bg-action-dark',
+  secondary: 'border border-rule-strong bg-surface text-ink-900 hover:bg-survol',
+  dark: 'bg-inverse text-sur-inverse shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-inverse-survol',
+  ghost: 'bg-transparent text-steel-700 hover:bg-survol hover:text-ink-900',
+  danger: 'bg-rupture text-sur-couleur shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] hover:opacity-90',
 };
 
 /**

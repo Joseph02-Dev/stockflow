@@ -316,7 +316,7 @@ export function CreancesPage() {
                   value={montant}
                   onChange={(e) => setMontant(e.target.value)}
                   placeholder={String(aEncaisser.solde)}
-                  className="h-10 min-w-0 flex-1 rounded-md border border-rule-strong bg-surface px-3 text-corps text-ink-900"
+                  className="h-10 min-w-0 flex-1 rounded-md border border-rule-strong bg-surface-elevee px-3 text-corps text-ink-900"
                 />
                 <Button variant="secondary" onClick={() => setMontant(String(aEncaisser.solde))}>
                   Tout

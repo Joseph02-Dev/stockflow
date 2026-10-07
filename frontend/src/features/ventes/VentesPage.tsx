@@ -14,7 +14,7 @@ import { MODES } from './modes';
 import type { VenteResume } from './types';
 
 const LIEN_NOUVELLE =
-  'inline-flex h-9 items-center gap-2 rounded-md bg-action px-3.5 text-corps font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] hover:bg-action-dark';
+  'inline-flex h-9 items-center gap-2 rounded-md bg-action px-3.5 text-corps font-medium text-sur-couleur shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] hover:bg-action-dark';
 
 function Statut({ vente }: { vente: VenteResume }) {
   if (vente.statut === 'ANNULEE') return <Badge variant="rupture">Annulée</Badge>;

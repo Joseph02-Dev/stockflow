@@ -40,6 +40,22 @@
   --color-accent: #6d4fc4;
   --color-accent-wash: #f0ecfb;
 
+  /*
+   * Rôles ajoutés pour le thème sombre. En clair, chacun reprend exactement
+   * la valeur utilisée jusqu'ici : le rendu clair ne change pas.
+   */
+  --color-surface-elevee: #ffffff; /* champs de saisie */
+  --color-survol: #f2f4f7; /* survol des boutons et lignes (= paper en clair) */
+  --color-champ-survol: #fcfcfd; /* survol d'un champ */
+  --color-sur-couleur: #ffffff; /* texte posé sur un aplat de statut ou d'action */
+  --color-voile: #0b0f17; /* fond assombri derrière les fenêtres ; texte sur bouton blanc */
+  /* Aplat « inversé » (onglet actif, bouton sombre, avatar) : encre en clair, clair en sombre. */
+  --color-inverse: #11161f;
+  --color-inverse-survol: #1a212d;
+  --color-sur-inverse: #ffffff;
+  --color-craie: #f2f4f7; /* survol d'un bouton blanc posé sur l'encre (fixe) */
+  --color-faible-voile: #fffcf6; /* ligne « à traiter » d'un import */
+
   /* En-têtes de groupe et de tableau : à peine décollés du blanc. */
   --color-entete-groupe: #fbfcfd;
   --color-entete-tableau: #fafbfc;
@@ -138,6 +154,92 @@ html,
 body,
 #root {
   height: 100%;
+}
+
+/*
+ * Apparence — clair par défaut, sombre sous [data-theme="dark"] (attribut
+ * posé sur <html> par le script de index.html avant le premier rendu, puis
+ * par src/lib/theme.ts). Le bloc sombre est limité à l'écran : à
+ * l'impression, les tokens clairs s'appliquent toujours.
+ */
+:root {
+  color-scheme: light;
+}
+
+@media screen {
+  [data-theme='dark'] {
+    color-scheme: dark;
+
+    --color-paper: #0b0f17;
+    --color-surface: #141b28;
+    --color-surface-elevee: #1b2433;
+    --color-survol: #1b2433;
+    --color-champ-survol: #212b3b;
+    --color-rule: #232d3c;
+    --color-rule-strong: #2f3b4d;
+
+    /* Texte : jamais de blanc pur (halo, fatigue oculaire). */
+    --color-ink-900: #e8ecf2;
+    --color-steel-700: #b8c2d1;
+    --color-steel-500: #94a1b5;
+    --color-steel-400: #6e7a8c;
+
+    /* Barre latérale : plus sombre que les cartes, filet à droite. */
+    --color-ink-800: #070b12;
+
+    --color-action: #5b86ef;
+    --color-action-dark: #7397f2; /* survol : on éclaircit en sombre */
+    --color-action-wash: #1a2744;
+    --color-sur-couleur: #0b0f17;
+    --color-inverse: #e8ecf2;
+    --color-inverse-survol: #cfd6e0;
+    --color-sur-inverse: #0b0f17;
+
+    --color-rupture: #f0705f;
+    --color-rupture-wash: #2e1a1b;
+    --color-faible: #e0a33c;
+    --color-faible-wash: #2b2318;
+    --color-faible-voile: #241e16;
+    --color-ok: #3ebe94;
+    --color-ok-wash: #14271f;
+    --color-accent: #9b7bd4;
+    --color-accent-wash: #221d33;
+
+    --color-entete-groupe: #172030;
+    --color-entete-tableau: #192231;
+    --color-peremption-proche-texte: #e3b512;
+
+    /* Console : le violet reste la signalétique du contexte privilégié. */
+    --color-console: #9b7bd4;
+    --color-console-dark: #ae93de;
+    --color-console-wash: #221d33;
+
+    /* Une ombre portée ne se voit pas sur du noir : filet interne à la place. */
+    --shadow-card: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+    --shadow-pop: 0 12px 32px -8px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  [data-theme='dark'] .bandeau-action {
+    background: linear-gradient(118deg, #141b28 0%, #18243a 55%, #1c2b4d 100%);
+  }
+
+  [data-theme='dark'] .barre-laterale {
+    box-shadow: inset -1px 0 0 #1a2230;
+  }
+}
+
+/*
+ * Bascule d'apparence : couleurs adoucies pendant 150 ms. La classe n'est
+ * posée qu'au moment d'un changement (jamais au chargement), et les
+ * transitions propres aux composants restent prioritaires (couche base).
+ */
+@layer base {
+  .changement-theme *,
+  .changement-theme *::before,
+  .changement-theme *::after {
+    transition-property: background-color, color, border-color;
+    transition-duration: 150ms;
+  }
 }
 
 body {

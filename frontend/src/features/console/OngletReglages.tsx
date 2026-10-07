@@ -132,7 +132,7 @@ export function OngletReglages({ entrepriseId, reglages }: { entrepriseId: strin
                   placeholder="Illimité"
                   value={limites[cle]}
                   onChange={(e) => setLimites((l) => ({ ...l, [cle]: e.target.value }))}
-                  className="h-9 w-32 rounded-md border border-rule-strong bg-surface px-3 text-right text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-console"
+                  className="h-9 w-32 rounded-md border border-rule-strong bg-surface-elevee px-3 text-right text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-console"
                 />
               </li>
             );
@@ -183,7 +183,7 @@ export function OngletReglages({ entrepriseId, reglages }: { entrepriseId: strin
               onChange={(e) => setMotif(e.target.value)}
               maxLength={500}
               placeholder="Ex. passage à la formule Essentiel"
-              className="h-9 rounded-md border border-rule-strong bg-surface px-3 text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-console"
+              className="h-9 rounded-md border border-rule-strong bg-surface-elevee px-3 text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-console"
             />
           </div>
           <Button disabled={!modifie || erreurs.length > 0} loading={enregistrer.isPending} onClick={() => enregistrer.mutate()}>

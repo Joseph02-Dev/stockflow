@@ -65,7 +65,7 @@ export function ConsoleEntreprisesPage() {
             onChange={(e) => setRecherche(e.target.value)}
             placeholder="Rechercher une entreprise…"
             aria-label="Rechercher une entreprise"
-            className="h-9 w-full rounded-md border border-rule-strong bg-surface pr-3 pl-9 text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-console"
+            className="h-9 w-full rounded-md border border-rule-strong bg-surface-elevee pr-3 pl-9 text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-console"
           />
         </div>
         <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrer par état">

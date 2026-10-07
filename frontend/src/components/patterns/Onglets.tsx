@@ -48,7 +48,7 @@ export function Onglets<C extends string>({
           title={onglet.desactive ? onglet.raison : undefined}
           className={cn(
             'h-8 shrink-0 rounded-sm px-3 text-corps font-medium whitespace-nowrap transition-colors',
-            actif === onglet.cle ? 'bg-ink-800 text-white' : 'text-steel-500 hover:text-ink-900',
+            actif === onglet.cle ? 'bg-inverse text-sur-inverse' : 'text-steel-500 hover:text-ink-900',
             'disabled:cursor-not-allowed disabled:text-steel-400 disabled:hover:text-steel-400',
           )}
         >

@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Plus, Search, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useEcranMobile } from '@/lib/useEcranMobile';
 import { useBalayageFermeture } from '@/lib/useBalayageFermeture';
+import { usePanneauFlottant } from '@/lib/usePanneauFlottant';
 
 export interface OptionSelecteur {
   valeur: string;
@@ -59,22 +60,11 @@ export type SelecteurProps = Simple | Multiple;
 
 /** Au-delà de ce nombre d'entrées, un champ de filtrage s'affiche. */
 const SEUIL_RECHERCHE = 8;
-/** Écart entre le champ et le panneau, et marge minimale avec le bord de l'écran. */
-const ECART = 6;
-const MARGE = 8;
 const HAUTEUR_LISTE = 268;
 
 /** « Café moulu » → « cafe moulu » : filtrage insensible à la casse et aux accents. */
 function normaliser(texte: string): string {
   return texte.normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('fr');
-}
-
-interface Position {
-  gauche: number;
-  largeur: number;
-  haut?: number;
-  bas?: number;
-  hauteurMax: number;
 }
 
 /**
@@ -131,7 +121,6 @@ export function Selecteur(props: SelecteurProps) {
     };
     return frappe.current.texte;
   }
-  const [position, setPosition] = useState<Position | null>(null);
 
   const selection = useMemo(
     // Valeur simple '' : sélectionnée seulement si une option la porte (ex. « Aucun fournisseur »).
@@ -149,7 +138,6 @@ export function Selecteur(props: SelecteurProps) {
   const fermer = useCallback((rendreFocus = true) => {
     setOuvert(false);
     setTerme('');
-    setPosition(null);
     if (rendreFocus) champRef.current?.focus();
   }, []);
 
@@ -255,56 +243,27 @@ export function Selecteur(props: SelecteurProps) {
   }
 
   // Position du panneau (bureau) : sous le champ, ou au-dessus faute de place.
-  const placer = useCallback(() => {
-    const champ = champRef.current;
-    const panneau = panneauRef.current;
-    if (!champ || !panneau) return;
-    const r = champ.getBoundingClientRect();
-    if (r.bottom < 0 || r.top > window.innerHeight) {
-      fermer(false);
-      return;
-    }
+  const largeurPanneau = useCallback((r: DOMRect) => Math.max(r.width, 260), []);
+  const hauteurNaturelle = useCallback(() => {
     const liste = listeRef.current;
-    const horsListe = panneau.offsetHeight - (liste?.offsetHeight ?? 0);
-    const naturelle = horsListe + Math.min(liste?.scrollHeight ?? 0, HAUTEUR_LISTE);
-    const dessous = window.innerHeight - r.bottom - ECART - MARGE;
-    const dessus = r.top - ECART - MARGE;
-    const versLeHaut = dessous < naturelle && dessus > dessous;
-    const largeur = Math.max(r.width, 260);
-    setPosition({
-      gauche: Math.max(MARGE, Math.min(r.left, window.innerWidth - largeur - MARGE)),
-      largeur,
-      ...(versLeHaut ? { bas: window.innerHeight - r.top + ECART } : { haut: r.bottom + ECART }),
-      hauteurMax: Math.max(160, versLeHaut ? dessus : dessous),
-    });
-  }, [fermer]);
+    const horsListe = (panneauRef.current?.offsetHeight ?? 0) - (liste?.offsetHeight ?? 0);
+    return horsListe + Math.min(liste?.scrollHeight ?? 0, HAUTEUR_LISTE);
+  }, []);
+  const position = usePanneauFlottant({
+    ouvert,
+    ancreRef: champRef,
+    panneauRef,
+    fermer,
+    positionner: !mobile,
+    largeur: largeurPanneau,
+    hauteurNaturelle,
+    dependance: visibles.length,
+  });
 
-  useLayoutEffect(() => {
-    if (ouvert && !mobile) placer();
-  }, [ouvert, mobile, placer, visibles.length]);
-
+  // Sur mobile, pas de focus automatique : le clavier virtuel masquerait la liste.
   useEffect(() => {
-    if (!ouvert) return;
-    // Sur mobile, pas de focus automatique : le clavier virtuel masquerait la liste.
-    if (avecRecherche && !mobile) rechercheRef.current?.focus();
-    function surDefilement(e: Event) {
-      if (panneauRef.current?.contains(e.target as Node)) return;
-      if (!mobile) placer();
-    }
-    function surPointeur(e: PointerEvent) {
-      const cible = e.target as Node;
-      if (champRef.current?.contains(cible) || panneauRef.current?.contains(cible)) return;
-      fermer(false);
-    }
-    window.addEventListener('scroll', surDefilement, true);
-    window.addEventListener('resize', surDefilement);
-    document.addEventListener('pointerdown', surPointeur);
-    return () => {
-      window.removeEventListener('scroll', surDefilement, true);
-      window.removeEventListener('resize', surDefilement);
-      document.removeEventListener('pointerdown', surPointeur);
-    };
-  }, [ouvert, avecRecherche, mobile, placer, fermer]);
+    if (ouvert && avecRecherche && !mobile) rechercheRef.current?.focus();
+  }, [ouvert, avecRecherche, mobile]);
 
   // L'entrée active reste visible dans la liste.
   useEffect(() => {
@@ -396,7 +355,7 @@ export function Selecteur(props: SelecteurProps) {
             creation.onCreer(termeAffiche);
             fermer();
           }}
-          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-rule-strong bg-surface px-3 text-corps font-medium text-ink-900 hover:bg-paper"
+          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-rule-strong bg-surface px-3 text-corps font-medium text-ink-900 hover:bg-survol"
         >
           <Plus className="size-4" aria-hidden="true" />
           {termeAffiche && creation.libelleDepuisRecherche
@@ -409,7 +368,7 @@ export function Selecteur(props: SelecteurProps) {
 
   const panneau = ouvert && (
     <>
-      {mobile && <div className="fixed inset-0 z-[60] bg-ink-900/40" onClick={() => fermer()} aria-hidden="true" />}
+      {mobile && <div className="fixed inset-0 z-[60] bg-voile/40" onClick={() => fermer()} aria-hidden="true" />}
       <div
         ref={panneauRef}
         style={
@@ -472,7 +431,7 @@ export function Selecteur(props: SelecteurProps) {
         {etatVide}
         {/* Pied : raccourcis (bureau), création, « Terminé » (multiple, mobile) — absent s'il serait vide. */}
         {(!mobile || creation || props.multiple) && (
-          <div className="flex flex-none items-center gap-3 border-t border-rule bg-[#FAFBFC] px-3 py-2 text-meta text-steel-500">
+          <div className="flex flex-none items-center gap-3 border-t border-rule bg-entete-tableau px-3 py-2 text-meta text-steel-500">
             {!mobile && (
               <span className="flex flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
                 {[
@@ -543,11 +502,11 @@ export function Selecteur(props: SelecteurProps) {
         onKeyDown={surTouche}
         onBlur={props.onBlur}
         className={cn(
-          'flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-[9px] border bg-surface px-3 text-left text-corps text-ink-900 transition-[border-color,box-shadow,background-color] outline-none',
+          'flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-[9px] border bg-surface-elevee px-3 text-left text-corps text-ink-900 transition-[border-color,box-shadow,background-color] outline-none',
           taille === 'md' ? 'min-h-10' : 'min-h-8',
           mobile && 'min-h-11',
-          'hover:border-steel-400 hover:bg-[#FCFCFD] focus-visible:border-action focus-visible:shadow-[0_0_0_3px_rgba(34,66,199,.12)]',
-          ouvert && 'border-action shadow-[0_0_0_3px_rgba(34,66,199,.12)]',
+          'hover:border-steel-400 hover:bg-champ-survol focus-visible:border-action focus-visible:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-action)_12%,transparent)]',
+          ouvert && 'border-action shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-action)_12%,transparent)]',
           error ? 'border-rupture' : !ouvert && (attention ? 'border-faible' : 'border-rule-strong'),
           disabled && 'pointer-events-none cursor-not-allowed opacity-50',
         )}

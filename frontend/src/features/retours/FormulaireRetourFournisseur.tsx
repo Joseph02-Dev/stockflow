@@ -213,7 +213,7 @@ export function FormulaireRetourFournisseur({ onFermer, onCree }: { onFermer: ()
                       valueAsNumber: true,
                     })}
                     aria-invalid={erreurs?.quantite ? true : undefined}
-                    className="h-10 w-24 rounded-[9px] border border-rule-strong bg-surface px-3 text-right text-corps text-ink-900"
+                    className="h-10 w-24 rounded-[9px] border border-rule-strong bg-surface-elevee px-3 text-right text-corps text-ink-900"
                   />
                   {erreurs?.quantite && <span className="text-meta text-rupture">{erreurs.quantite.message}</span>}
                 </label>
@@ -253,7 +253,7 @@ export function FormulaireRetourFournisseur({ onFermer, onCree }: { onFermer: ()
             {...register('motif')}
             placeholder="Ex. barres tordues à la livraison, mauvaise référence…"
             aria-invalid={formState.errors.motif ? true : undefined}
-            className="rounded-[9px] border border-rule-strong bg-surface px-3 py-2 text-corps text-ink-900"
+            className="rounded-[9px] border border-rule-strong bg-surface-elevee px-3 py-2 text-corps text-ink-900"
           />
           {formState.errors.motif && <span className="text-meta text-rupture">{formState.errors.motif.message}</span>}
         </label>

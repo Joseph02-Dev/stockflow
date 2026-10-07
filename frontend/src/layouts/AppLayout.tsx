@@ -32,6 +32,7 @@ import { ProfilModal } from '@/features/profil/ProfilModal';
 import { useSynchronisation } from '@/lib/useSynchronisation';
 import { BarreProgression } from '@/components/patterns/BarreProgression';
 import { useModules } from '@/lib/useModules';
+import { ChoixApparence, SelecteurTheme } from '@/components/patterns/SelecteurTheme';
 
 const sectionPilotage = [
   { to: '/', libelle: 'Tableau de bord', Icone: LayoutDashboard, exact: true },
@@ -152,7 +153,7 @@ function LienNav({
     cn(
       'flex h-9 items-center gap-2.5 rounded-md px-2.5 text-corps font-medium transition-colors',
       'focus-visible:outline-white/70',
-      actif ? 'bg-action text-white' : 'text-white/70 hover:bg-white/5 hover:text-white',
+      actif ? 'bg-action text-sur-couleur' : 'text-white/70 hover:bg-white/5 hover:text-white',
     );
 
   const contenu = (
@@ -161,7 +162,7 @@ function LienNav({
       <span className="flex-1 truncate">{libelle}</span>
       {estAlertes && nombreAlertes > 0 && (
         <span
-          className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rupture px-1.5 text-meta font-semibold text-white"
+          className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rupture px-1.5 text-meta font-semibold text-sur-couleur"
           aria-label={`${nombreAlertes} alerte${nombreAlertes > 1 ? 's' : ''} active${nombreAlertes > 1 ? 's' : ''}`}
         >
           {nombreAlertes}
@@ -169,7 +170,7 @@ function LienNav({
       )}
       {to === '/peremptions' && nombrePeremptions > 0 && (
         <span
-          className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-faible px-1.5 text-meta font-semibold text-white"
+          className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-faible px-1.5 text-meta font-semibold text-sur-couleur"
           aria-label={`${nombrePeremptions} lot${nombrePeremptions > 1 ? 's' : ''} sous surveillance`}
         >
           {nombrePeremptions}
@@ -204,7 +205,7 @@ function SectionNav({ titre, children }: { titre: string; children: ReactNode })
 }
 
 const classesLienPlus =
-  'flex h-12 items-center gap-3 rounded-md px-3 text-corps font-medium text-ink-900 hover:bg-paper';
+  'flex h-12 items-center gap-3 rounded-md px-3 text-corps font-medium text-ink-900 hover:bg-survol';
 
 export function AppLayout() {
   const session = useSession();
@@ -269,7 +270,7 @@ export function AppLayout() {
     <div className="flex min-h-full">
       <BarreProgression />
       {/* Sidebar desktop — encre, collée à la hauteur de l'écran. */}
-      <aside className="sticky top-0 hidden h-dvh w-[232px] shrink-0 flex-col bg-ink-800 md:flex">
+      <aside className="barre-laterale sticky top-0 hidden h-dvh w-[232px] shrink-0 flex-col bg-ink-800 md:flex">
         <div className="flex h-[60px] items-center gap-2.5 border-b border-white/[0.06] px-4">
           <Logo taille={30} />
           <div className="min-w-0 leading-tight">
@@ -369,12 +370,14 @@ export function AppLayout() {
           </nav>
 
           <div className="flex shrink-0 items-center gap-1">
+            <SelecteurTheme className="hidden md:inline-flex" />
+            <span className="mx-1 hidden h-6 w-px bg-rule md:block" aria-hidden="true" />
             <button
               type="button"
               onClick={() => setProfilOuvert(true)}
-              className="hidden items-center gap-2.5 rounded-md py-1 pr-2 pl-1 hover:bg-paper sm:flex"
+              className="hidden items-center gap-2.5 rounded-md py-1 pr-2 pl-1 hover:bg-survol sm:flex"
             >
-              <span className="flex size-8 items-center justify-center overflow-hidden rounded-full bg-ink-800 text-meta font-semibold text-white">
+              <span className="flex size-8 items-center justify-center overflow-hidden rounded-full bg-inverse text-meta font-semibold text-sur-inverse">
                 {session?.utilisateur.photoUrl ? (
                   <img src={session.utilisateur.photoUrl} alt="" className="size-full object-cover" />
                 ) : (
@@ -394,7 +397,7 @@ export function AppLayout() {
             <button
               type="button"
               onClick={seDeconnecter}
-              className="flex h-9 items-center gap-2 rounded-md px-2.5 text-corps text-steel-500 transition-colors hover:bg-paper hover:text-ink-900"
+              className="flex h-9 items-center gap-2 rounded-md px-2.5 text-corps text-steel-500 transition-colors hover:bg-survol hover:text-ink-900"
             >
               <LogOut className="size-4" aria-hidden="true" />
               <span className="hidden lg:inline">Déconnexion</span>
@@ -432,7 +435,7 @@ export function AppLayout() {
             {libelle}
             {to === '/alertes' && nombreAlertes > 0 && (
               <span
-                className="absolute top-1 right-[calc(50%-20px)] inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rupture px-1 text-[10px] leading-none font-semibold text-white"
+                className="absolute top-1 right-[calc(50%-20px)] inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rupture px-1 text-[10px] leading-none font-semibold text-sur-couleur"
                 aria-label={`${nombreAlertes} alerte${nombreAlertes > 1 ? 's' : ''} active${nombreAlertes > 1 ? 's' : ''}`}
               >
                 {nombreAlertes}
@@ -452,7 +455,7 @@ export function AppLayout() {
 
       {plusOuvert && (
         <div className="fixed inset-0 z-50 md:hidden">
-          <div className="absolute inset-0 bg-ink-900/50" onClick={() => setPlusOuvert(false)} aria-hidden="true" />
+          <div className="absolute inset-0 bg-voile/50" onClick={() => setPlusOuvert(false)} aria-hidden="true" />
           <div className="absolute inset-x-0 bottom-0 rounded-t-xl bg-surface p-3 pb-6 shadow-pop">
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-rule-strong" />
             <NavLink to="/creances" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
@@ -463,7 +466,7 @@ export function AppLayout() {
               <CalendarClock className="size-5 text-steel-500" aria-hidden="true" />
               <span className="flex-1">Péremptions</span>
               {nombrePeremptions > 0 && (
-                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-faible px-1.5 text-meta font-semibold text-white">
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-faible px-1.5 text-meta font-semibold text-sur-couleur">
                   {nombrePeremptions}
                 </span>
               )}
@@ -525,7 +528,8 @@ export function AppLayout() {
               <UserRound className="size-5 text-steel-500" aria-hidden="true" />
               Mon profil
             </button>
-            <div className="mt-2 flex items-center gap-2 border-t border-rule px-3 pt-3 text-meta text-steel-500">
+            <ChoixApparence className="mt-2 border-t border-rule px-3 pt-3" />
+            <div className="mt-3 flex items-center gap-2 border-t border-rule px-3 pt-3 text-meta text-steel-500">
               <span
                 className={cn(
                   'inline-flex size-2 rounded-full',

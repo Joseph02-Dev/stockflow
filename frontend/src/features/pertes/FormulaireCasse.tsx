@@ -276,7 +276,7 @@ export function FormulaireCasse({
             min={1}
             {...register('quantite', { valueAsNumber: true })}
             className={cn(
-              'min-w-0 flex-1 rounded-[9px] border border-rule-strong bg-surface text-center font-semibold text-ink-900 outline-none focus:border-action focus:shadow-[0_0_0_3px_rgba(34,66,199,.12)]',
+              'min-w-0 flex-1 rounded-[9px] border border-rule-strong bg-surface-elevee text-center font-semibold text-ink-900 outline-none focus:border-action focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-action)_12%,transparent)]',
               page ? 'h-14 text-[28px]' : 'h-10 text-panneau',
             )}
           />
@@ -327,7 +327,7 @@ export function FormulaireCasse({
           maxLength={500}
           placeholder="Ex. sacs éventrés au déchargement du camion"
           {...register('commentaire')}
-          className="rounded-[9px] border border-rule-strong bg-surface px-3 py-2 text-corps text-ink-900 placeholder:text-steel-400 focus:border-action focus:outline-none"
+          className="rounded-[9px] border border-rule-strong bg-surface-elevee px-3 py-2 text-corps text-ink-900 placeholder:text-steel-400 focus:border-action focus:outline-none"
         />
       </div>
 
@@ -413,7 +413,7 @@ export function BoutonMotif({
       className={cn(
         'flex items-center justify-center gap-2 rounded-[9px] border px-3 text-corps font-medium transition-colors',
         page ? 'h-12' : 'h-10',
-        actif ? 'border-action bg-action-wash text-action' : 'border-rule-strong text-ink-900 hover:bg-paper',
+        actif ? 'border-action bg-action-wash text-action' : 'border-rule-strong text-ink-900 hover:bg-survol',
       )}
     >
       <span className={cn('size-2 shrink-0 rounded-full', MOTIFS[motif].fond)} aria-hidden="true" />

@@ -2,6 +2,27 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
+    <meta name="theme-color" content="#ffffff" />
+    <!--
+      Apparence posée avant tout rendu : sans ce script bloquant, l'écran
+      s'afficherait en clair une fraction de seconde avant de basculer.
+      Clé et valeurs partagées avec src/lib/theme.ts. try/catch : en
+      navigation privée stricte, localStorage peut lever une exception.
+    -->
+    <script>
+      (function () {
+        try {
+          var p = localStorage.getItem('stockflow.theme') || 'auto';
+          var sombre = p === 'dark' || (p === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+          if (sombre) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            // Fond du navigateur sombre avant même l'arrivée de la feuille de style.
+            document.documentElement.style.colorScheme = 'dark';
+            document.querySelector('meta[name="theme-color"]').setAttribute('content', '#141b28');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
