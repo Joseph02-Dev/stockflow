@@ -92,6 +92,15 @@ describe('Rapports PDF — intégration réelle, base PostgreSQL', () => {
     expect(pages[0]).not.toMatch(/RCCM|NIF|null|undefined/);
   });
 
+  it('rapport de pertes sans aucune perte sur la période : PDF valide, jamais d’erreur 500', async () => {
+    const c = await contexte('Boutique Sans Perte');
+    const r = await c.pdf('/rapports/pertes');
+    expect(r.status).toBe(200);
+    expect((r.body as Buffer).subarray(0, 5).toString()).toBe('%PDF-');
+    const { pages } = await lirePdf(r.body as Buffer);
+    expect(pages[0]).toContain('Boutique Sans Perte');
+  });
+
   it('coordonnées renseignées : en-tête complet', async () => {
     const c = await contexte();
     await prisma.entreprise.update({
