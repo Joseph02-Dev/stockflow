@@ -1,12 +1,5 @@
-import type {
-  Alignment,
-  Content,
-  ContentText,
-  ContentTable,
-  CustomTableLayout,
-  TableCell,
-  TDocumentDefinitions,
-} from 'pdfmake/interfaces.js';
+import type { Alignment, Content, ContentText, ContentTable, TableCell } from 'pdfmake/interfaces.js';
+import type { DefinitionRapport } from './rendu-pdf.js';
 import { ESPACE_FINE_PDF, formaterDateHeure, formaterMontant, formaterPourcentage } from '../format.js';
 
 /**
@@ -124,20 +117,6 @@ export function filet(epaisseur: number, couleur: string, marge: [number, number
   };
 }
 
-function piedDePage(intitule: string) {
-  return (page: number, pages: number): Content => ({
-    columns: [
-      { text: intitule, style: 'pied' },
-      {
-        text: `Document généré par StockFlow · page ${page} sur ${pages}`,
-        style: 'pied',
-        alignment: 'right',
-        width: 'auto',
-      },
-    ],
-    margin: [MARGE, 14, MARGE, 0],
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Bandeau de synthèse
@@ -164,13 +143,7 @@ export function bandeauSynthese(indicateurs: Indicateur[]): Content {
   );
   return {
     table: { widths: cellules.map(() => '*'), body: [cellules], dontBreakRows: true },
-    layout: {
-      fillColor: () => COULEURS.fondSynthese,
-      hLineColor: () => COULEURS.filet,
-      vLineColor: () => COULEURS.filet,
-      hLineWidth: () => 0.75,
-      vLineWidth: () => 0.75,
-    },
+    layout: 'gabarit-synthese',
     margin: [0, 0, 0, 16],
   };
 }
@@ -276,25 +249,19 @@ export function tableau(options: {
     fonds.push(null);
   }
 
-  const layout: CustomTableLayout = {
-    fillColor: (i) => fonds[i] ?? null,
-    hLineWidth: (i) => (i === indexTotaux ? 2 : i === 0 || i === corps.length ? 0 : 0.5),
-    hLineColor: (i) => (i === indexTotaux ? COULEURS.noir : COULEURS.filet),
-    vLineWidth: () => 0,
-    paddingLeft: () => 5,
-    paddingRight: () => 5,
-    paddingTop: () => 2.5,
-    paddingBottom: () => 2.5,
+  // Mise en forme « gabarit-tableau » (rendu.worker.mjs) : fonds par ligne
+  // et filet noir de 2 pt au-dessus des totaux, lus sur la table.
+  const table = {
+    headerRows: 1,
+    dontBreakRows: true,
+    widths: colonnes.map((c) => c.largeur),
+    body: corps,
+    fonds,
+    indexTotaux,
   };
-
   return {
-    table: {
-      headerRows: 1,
-      dontBreakRows: true,
-      widths: colonnes.map((c) => c.largeur),
-      body: corps,
-    },
-    layout,
+    table,
+    layout: 'gabarit-tableau',
     fontSize: options.taillePolice ?? 8,
     margin: [0, 0, 0, 14],
   };
@@ -338,11 +305,9 @@ export function barreRepartition(segments: Segment[]): Content {
   return {
     stack: [
       { canvas: rectangles, margin: [0, 0, 0, 8] },
-      {
-        table: { widths: [10, '*', 'auto', 44], body: legende },
-        layout: 'noBorders',
-        fontSize: 8,
-      },
+      // Aucun segment (par exemple, aucune perte sur la période) : pas de
+      // légende, car pdfmake échoue sur un tableau sans ligne.
+      ...(legende.length > 0 ? [{ table: { widths: [10, '*', 'auto', 44], body: legende }, layout: 'noBorders', fontSize: 8 }] : []),
     ],
     margin: [0, 0, 0, 16],
     unbreakable: true,
@@ -380,7 +345,7 @@ export function documentRapport(
   entreprise: IdentiteEntreprise,
   meta: MetaRapport,
   contenu: Content[],
-): TDocumentDefinitions {
+): DefinitionRapport {
   return {
     pageSize: 'A4',
     pageOrientation: 'portrait',
@@ -392,7 +357,8 @@ export function documentRapport(
       creator: 'StockFlow',
       producer: 'StockFlow',
     },
-    footer: piedDePage(`${meta.titre} — ${entreprise.nom}`),
+    // Construit dans le fil de rendu (pagination) : rendu.worker.mjs.
+    piedDePage: `${meta.titre} — ${entreprise.nom}`,
     content: [entete(entreprise, meta), ...contenu],
     defaultStyle: { font: 'Roboto', fontSize: 9, color: COULEURS.texte, lineHeight: 1.15 },
     styles: {

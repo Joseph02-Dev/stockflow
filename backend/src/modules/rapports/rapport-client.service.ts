@@ -195,12 +195,7 @@ export class RapportClientService {
             ],
           ],
         },
-        layout: {
-          hLineWidth: () => 1.5,
-          vLineWidth: () => 1.5,
-          hLineColor: () => COULEURS.encre,
-          vLineColor: () => COULEURS.encre,
-        },
+        layout: 'gabarit-cadre',
         margin: [0, 0, 0, 14],
       },
       { text: 'En cas de désaccord sur ce relevé, merci de nous contacter sous huit jours.', bold: true, fontSize: 9, color: COULEURS.encre, margin: [0, 0, 0, 6] },

@@ -83,11 +83,41 @@ le **PDF d'état du stock** (2 000 références, environ 0,6 s).
    cache ajouterait de la complexité et des risques de chiffres périmés,
    sans gain mesurable.
 
+## Après la brique 3.2 : PDF dans un fil dédié (2026-10-07)
+
+pdfmake tourne désormais dans un fil séparé (`worker_threads`,
+`rapports/pdf/rendu.worker.mjs`). Le fil principal ne fait plus que
+transmettre la définition du document et recevoir le PDF. Les PDF produits
+sont **identiques au pixel près** : 8 pages comparées sur trois rapports,
+0 pixel de différence.
+
+La machine de mesure a changé entre les deux journées : les chiffres
+absolus de ce jour ne sont pas comparables à ceux de la veille. La
+comparaison est donc faite **le même jour, sur la même machine**, en
+alternant l'ancienne (`main`) et la nouvelle version, sur deux tours.
+
+| Scénario | Mesure | Avant | Après |
+|---|---|---|---|
+| 100 utilisateurs | Tableau de bord p95 | 270–338 ms | **99–114 ms** |
+| 100 utilisateurs | Vente enregistrée p95 | 498–833 ms | **224–247 ms** |
+| 100 utilisateurs | Liste des produits p95 | 204–271 ms | **73–79 ms** |
+| 300 utilisateurs (saturation) | Débit | 147–149 req/s | **174–177 req/s** |
+| 300 utilisateurs (saturation) | Tableau de bord p50 | 1 969–1 994 ms | **1 309–1 363 ms** |
+
+Un rapport ne ralentit plus les autres utilisateurs. À saturation, le
+fil de rendu se partage les mêmes cœurs que le reste : le passage à
+plusieurs processus (Partie B) reste le levier suivant.
+
+En vérifiant les rapports, un bug existant a été trouvé et corrigé : le
+**rapport de pertes d'une entreprise sans aucune perte** sur la période
+renvoyait une erreur 500. La légende de la répartition était un tableau
+vide, que pdfmake refuse. Un test couvre désormais ce cas.
+
 ## Suites recommandées (par gain mesuré)
 
 | Priorité | Action | Gain attendu | Coût |
 |---|---|---|---|
-| 1 | Générer les PDF **hors du fil principal** (`worker_threads`) | Les rapports ne ralentissent plus les autres utilisateurs (constat 2) | Gratuit, code local |
+| 1 | ~~Générer les PDF hors du fil principal~~ **Fait** (brique 3.2) | p95 divisé par environ 3 à 100 utilisateurs | — |
 | 2 | Créances : borner la lecture des règlements à l'entreprise. Soit un index et une requête qui part des ventes impayées, soit `entreprise_id` sur `reglement` (migration additive) | Le temps ne dépend plus de la taille de la plateforme (constat 4) | Gratuit ; décision à prendre sur le schéma |
 | 3 | `WEB_CONCURRENCY` avec Redis, à l'ouverture | Débit environ ×2 avec 3 processus (constat 3) | Offre payante |
 | — | Cache des synthèses (brique 3.3) | Aucun gain mesuré | **Reportée** : à rouvrir seulement si une mesure le justifie |

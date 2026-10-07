@@ -1,43 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
-import pdfmake from 'pdfmake';
-import type { TDocumentDefinitions } from 'pdfmake/interfaces.js';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../../../config/prisma.service.js';
 import type { IdentiteEntreprise } from './gabarit.js';
-
-const require = createRequire(import.meta.url);
-const DOSSIER_POLICES = join(dirname(require.resolve('pdfmake/package.json')), 'fonts', 'Roboto');
-
-// Roboto (livrée avec pdfmake) couvre le français : é, è, ê, à, ç, œ, «, ».
-// Courier est une police standard PDF, sans fichier : références produit.
-pdfmake.setFonts({
-  Roboto: {
-    normal: join(DOSSIER_POLICES, 'Roboto-Regular.ttf'),
-    bold: join(DOSSIER_POLICES, 'Roboto-Medium.ttf'),
-    italics: join(DOSSIER_POLICES, 'Roboto-Italic.ttf'),
-    bolditalics: join(DOSSIER_POLICES, 'Roboto-MediumItalic.ttf'),
-  },
-  Courier: {
-    normal: 'Courier',
-    bold: 'Courier-Bold',
-    italics: 'Courier-Oblique',
-    bolditalics: 'Courier-BoldOblique',
-  },
-});
-// pdfmake ne télécharge rien lui-même (le logo est récupéré ici, sous
-// contrôle) et ne lit sur le disque que les fichiers de police.
-pdfmake.setUrlAccessPolicy(() => false);
-const POLICES_STANDARD = new Set(['Courier', 'Courier-Bold', 'Courier-Oblique', 'Courier-BoldOblique']);
-pdfmake.setLocalAccessPolicy((chemin) => POLICES_STANDARD.has(chemin) || chemin.startsWith(DOSSIER_POLICES));
+import { RenduPdf, type DefinitionRapport } from './rendu-pdf.js';
 
 /** Seuls les logos de notre CDN sont récupérés (pas de requête arbitraire). */
 const HOTE_LOGO = 'res.cloudinary.com';
 const TAILLE_MAX_LOGO = 1024 * 1024;
 
 @Injectable()
-export class PdfService {
+export class PdfService implements OnModuleDestroy {
   private readonly logger = new Logger(PdfService.name);
+  // Rendu hors du fil principal : un rapport ne ralentit plus les autres requêtes.
+  private readonly rendu = new RenduPdf();
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -55,8 +29,12 @@ export class PdfService {
     return u?.nom ?? '—';
   }
 
-  async rendre(document: TDocumentDefinitions): Promise<Buffer> {
-    return pdfmake.createPdf(document).getBuffer();
+  rendre(document: DefinitionRapport): Promise<Buffer> {
+    return this.rendu.rendre(document);
+  }
+
+  onModuleDestroy() {
+    return this.rendu.arreter();
   }
 
   /**
