@@ -113,11 +113,52 @@ En vérifiant les rapports, un bug existant a été trouvé et corrigé : le
 renvoyait une erreur 500. La légende de la répartition était un tableau
 vide, que pdfmake refuse. Un test couvre désormais ce cas.
 
+## Créances : options mesurées, décision de reporter (2026-10-07)
+
+Les trois requêtes de l'écran Créances (ventes impayées, dernier règlement
+par client, total encaissé de la semaine) ont été mesurées sur la grosse
+entreprise, cas extrême de 20 000 ventes à crédit, toutes impayées. Les
+essais ont été faits dans des transactions annulées : la base n'est pas
+modifiée.
+
+| Requête « ventes impayées », grosse entreprise | 227 000 règlements (aujourd'hui) | 1 million de règlements (plateforme ×4,5) |
+|---|---|---|
+| Requête actuelle | 146 ms | 207 ms : se dégrade avec la plateforme |
+| A. Réécriture partant des ventes (LATERAL, index existant) | 130 à 155 ms ; total de la semaine 2× plus lent | environ 130 ms, stable |
+| A + index couvrant | aucun gain mesurable | — |
+| B. `entreprise_id` sur `reglement` + index | 130 ms | **67 à 78 ms**, stable |
+
+Pour une entreprise normale (300 ventes), toutes les variantes restent
+entre 1 et 2 ms.
+
+PostgreSQL ne change pas de stratégie de lui-même quand la table grossit :
+le coût augmente bien avec la taille de la plateforme, mais il reste
+acceptable au volume actuel.
+
+**Décision : ne rien changer maintenant.** L'option A n'apporte rien et
+ralentit une requête ; l'option B est efficace mais demande une migration
+en plusieurs étapes, sans gain visible aujourd'hui.
+
+**Déclencheur pour réaliser l'option B**, dès que l'un des seuils est atteint :
+- la table `reglement` dépasse **500 000 lignes**
+  (`SELECT count(*) FROM reglement`) ;
+- `GET /creances` dépasse **300 ms au p95** dans les journaux
+  (`responseTime`) ou dans Sentry.
+
+Contenu de B :
+1. migration additive : colonne `entreprise_id` facultative, remplissage
+   depuis `vente`, puis index `(entreprise_id, vente_id)` ;
+2. renseigner la colonne aux quatre endroits qui créent un règlement :
+   vente, encaissement, avoir, retour ;
+3. filtrer les trois requêtes sur `r.entreprise_id` ;
+4. rendre la colonne obligatoire dans une livraison suivante, comme le
+   prévoit le runbook de retour arrière.
+
 ## Suites recommandées (par gain mesuré)
 
 | Priorité | Action | Gain attendu | Coût |
 |---|---|---|---|
 | 1 | ~~Générer les PDF hors du fil principal~~ **Fait** (brique 3.2) | p95 divisé par environ 3 à 100 utilisateurs | — |
-| 2 | Créances : borner la lecture des règlements à l'entreprise. Soit un index et une requête qui part des ventes impayées, soit `entreprise_id` sur `reglement` (migration additive) | Le temps ne dépend plus de la taille de la plateforme (constat 4) | Gratuit ; décision à prendre sur le schéma |
+| 2 | Créances : option B (`entreprise_id` sur `reglement`) **reportée**, à réaliser au déclencheur ci-dessus | Environ 3× plus rapide à 1 million de règlements | Migration en plusieurs étapes |
 | 3 | `WEB_CONCURRENCY` avec Redis, à l'ouverture | Débit environ ×2 avec 3 processus (constat 3) | Offre payante |
 | — | Cache des synthèses (brique 3.3) | Aucun gain mesuré | **Reportée** : à rouvrir seulement si une mesure le justifie |

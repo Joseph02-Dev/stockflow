@@ -57,7 +57,7 @@ est le processeur de Node (génération PDF sur le fil principal), pas la base.
 |---|---|---|
 | 3.1 Mesurer : jeu de données et injecteur de charge reproductibles (`backend/scripts/charge/`) | P1 | Fait |
 | 3.2 PDF hors du fil principal (`worker_threads`) : p95 divisé par environ 3 à 100 utilisateurs, PDF identiques au pixel près | P1 | Fait |
-| 3.3 Créances : lecture des règlements bornée à l'entreprise | P1 | À faire (décision schéma) |
+| 3.3 Créances : options mesurées ([rapport](mesures-performance.md)) ; option B à réaliser quand `reglement` dépasse 500 000 lignes ou `/creances` dépasse 300 ms au p95 | P2 | Reportée (déclencheur défini) |
 | 3.4 Robustesse des envois d'emails (délai, nouvelle tentative) | P2 | À faire |
 | 3.5 Réglage du pool de connexions (`DB_POOL_MAX`) | P2 | À faire |
 | 3.6 Cache des synthèses | — | Reporté : aucun gain mesuré |
