@@ -11,25 +11,35 @@ CLI officielle `@railway/cli` (v5.63.4, aide de `railway config`).
 
 ## Ce qui est déjà fait (dans le dépôt)
 
-`.railway/railway.ts` a été généré par l'outil officiel :
+`.railway/railway.ts` a d'abord été généré par l'outil officiel
+(`railway config migrate --service stockflow --apply`), puis **complété à la
+main** : le fichier généré ne décrivait ni la source GitHub ni les variables,
+et le premier `railway config plan` (2026-10-07) proposait de **supprimer les
+13 variables du service** et de le déconnecter de GitHub.
 
-```bash
-railway config migrate --service stockflow --apply
-```
+Le fichier décrit maintenant tout le service `stockflow`, à l'identique de
+la configuration en place :
 
-- Le projet s'appelle **`stockflowgn`** et le service **`stockflow`** (noms
-  réels sur Railway : le projet confirmé par l'exploitant, le service vu dans
-  les journaux de démarrage). Sans `--service`, l'outil l'aurait nommé
-  `backend`, d'après le dossier, et un `apply` aurait pu créer un second
-  service.
-- Il reprend à l'identique `backend/railway.json` : build `npm run build`,
-  démarrage `npm run migrate:deploy && npm run start:prod`, healthcheck
-  `/health` avec un délai de 300 s, builder RAILPACK.
-- `export const partial = "stockflow"` : ce dépôt ne gère **que** ce service.
-  La base PostgreSQL et les variables ne sont pas décrites, donc pas gérées
-  par ce fichier.
-- Le fichier est sans effet tant que la bascule (étape 3) n'est pas faite :
-  Railway continue de lire `backend/railway.json`.
+- source : dépôt `Joseph02-Dev/stockflow`, branche `main`, dossier
+  `backend`, attente de la CI (`checkSuites`) ;
+- build RAILPACK `npm run build` ; démarrage
+  `npm run migrate:deploy && npm run start:prod` ; healthcheck `/health`
+  (300 s) ; redémarrage `ON_FAILURE` (3 essais), repris de
+  `backend/railway.json` ; sortie IPv6 activée ;
+- variables : déclarées avec `preserve()`, qui **garde la valeur déjà
+  saisie sur Railway**. Aucune valeur n'est écrite dans le dépôt.
+
+`export const partial = "stockflow"` : ce dépôt ne gère **que** ce service.
+La base PostgreSQL n'est pas décrite, donc pas gérée par ce fichier.
+
+**Règle à retenir** : une variable absente de la liste `VARIABLES` de
+`.railway/railway.ts` est supprimée au prochain `railway config apply`.
+Pour ajouter une variable : l'ajouter d'abord à la liste (PR), puis la créer
+sur Railway.
+
+`WT_REFRESH_SECRET` existe sur Railway mais n'est lue nulle part dans le
+code (faute de frappe probable de `JWT_REFRESH_SECRET`). Elle est conservée ;
+à supprimer par l'exploitant s'il le souhaite, puis à retirer de la liste.
 
 ## Ce qu'il vous reste à faire (sur votre poste, environ 10 minutes)
 
@@ -46,8 +56,10 @@ jeton Railway dans le dépôt ni dans une conversation.
    ```bash
    railway link        # projet stockflowgn, environnement production, service stockflow
    railway config migrate status
+   npm install --no-save railway@3.13.0   # SDK lu par `plan`, rien n'est ajouté au dépôt
    ```
-   `status` doit indiquer que `stockflow` lit encore Config as Code.
+   Si `status` indique « No services in production read Config as Code »,
+   sautez l'étape 3 (constaté le 2026-10-07).
 3. **Basculer** le service vers l'IaC. Cette étape est réversible avec
    `railway config migrate undo` :
    ```bash
@@ -57,17 +69,18 @@ jeton Railway dans le dépôt ni dans une conversation.
    ```bash
    railway config plan
    ```
-   Résultat attendu : **au plus** le réglage de la commande de build, de
-   démarrage et du healthcheck du service `stockflow`. **Arrêtez-vous** si le
-   plan propose :
+   Résultat attendu : **0 to destroy**, et au plus le réglage du build, du
+   démarrage, du healthcheck et du redémarrage du service `stockflow`.
+   **Arrêtez-vous** si le plan propose :
    - la création d'un service, ou la suppression d'un service ou d'une base ;
-   - la suppression de variables ;
+   - la suppression de variables (« Delete variable ») ;
+   - la modification de la source (`source.repo`, `source.rootDirectory`) ;
    - le renommage du projet : le fichier indique `project("stockflowgn", …)`,
      le nom réel du projet sur Railway.
 
-   Dans ce cas : `railway config migrate undo`, puis envoyez-moi la sortie du
-   plan. Les valeurs y sont masquées par défaut, n'utilisez pas
-   `--show-values`.
+   Dans ce cas : ne lancez pas `apply` (et `railway config migrate undo` si
+   l'étape 3 a été faite), puis envoyez-moi la sortie du plan. Les valeurs y sont
+   masquées par défaut, n'utilisez pas `--show-values`.
 5. **Appliquer** :
    ```bash
    railway config apply
