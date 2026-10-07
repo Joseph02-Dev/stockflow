@@ -120,7 +120,7 @@ Les emails d'alerte ne sont pas réellement envoyés en développement (`EMAIL_P
    CLOUDINARY_API_SECRET=...
    ```
 
-5. Railway détecte `backend/railway.json` : build avec `npm run build`, puis au démarrage `npm run migrate:deploy` (applique les migrations, jamais `migrate dev` en production) suivi de `npm run start:prod`.
+5. La configuration du service est décrite dans `.railway/railway.ts` (Infrastructure as Code, voir [`docs/migration-railway-iac.md`](docs/migration-railway-iac.md)) : dossier `backend`, build avec `npm run build`, puis au démarrage `npm run migrate:deploy` (applique les migrations, jamais `migrate dev` en production) suivi de `npm run start:prod`, healthcheck `/health`.
 6. Notez l'URL publique attribuée par Railway — elle sera nécessaire pour `VITE_API_URL` côté frontend.
 
 ### Frontend — Netlify

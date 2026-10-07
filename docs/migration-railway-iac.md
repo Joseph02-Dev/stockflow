@@ -1,15 +1,17 @@
 # Migration Railway : Config as Code → Infrastructure as Code
 
-**Échéance : 1er décembre 2026.** Passé cette date, `backend/railway.json`
-ne sera plus lu : le service perdrait sa commande de démarrage (migrations
-puis API) et son healthcheck `/health`.
+**Statut : terminée le 2026-10-07.** `railway config apply` a été fait par
+l'exploitant, `railway config plan` indique « already up to date » et
+`/health` répond `200`. `backend/railway.json` a ensuite été supprimé : la
+configuration du service vit désormais uniquement dans `.railway/railway.ts`
+(échéance Railway du 1er décembre 2026 respectée).
 
 Sources : [Railway — Config as Code (dépréciation)](https://docs.railway.com/config-as-code),
 [Railway — Infrastructure as Code](https://docs.railway.com/infrastructure-as-code),
 SDK officiel [`railway`](https://github.com/railwayapp/railway-ts-sdk) (npm, v3.13.0) et
 CLI officielle `@railway/cli` (v5.63.4, aide de `railway config`).
 
-## Ce qui est déjà fait (dans le dépôt)
+## Contenu de `.railway/railway.ts`
 
 `.railway/railway.ts` a d'abord été généré par l'outil officiel
 (`railway config migrate --service stockflow --apply`), puis **complété à la
@@ -42,7 +44,7 @@ sur Railway.
 code (faute de frappe probable de `JWT_REFRESH_SECRET`). Elle est conservée ;
 à supprimer par l'exploitant s'il le souhaite, puis à retirer de la liste.
 
-## Ce qu'il vous reste à faire (sur votre poste, environ 10 minutes)
+## Procédure suivie (pour mémoire)
 
 À faire à un moment calme, sans déploiement en cours. Ne jamais copier de
 jeton Railway dans le dépôt ni dans une conversation.
@@ -89,12 +91,18 @@ jeton Railway dans le dépôt ni dans une conversation.
 6. **Vérifier** : au prochain déploiement, les journaux montrent
    `prisma migrate deploy` puis le démarrage de l'API, et `/health` répond
    `200`.
-7. **Prévenez-moi** : je retirerai alors `backend/railway.json` dans une PR.
-   Ce fichier ne doit être supprimé qu'**après** la bascule.
+7. **Supprimer `backend/railway.json`**, seulement **après** un `plan`
+   sans changement (fait le 2026-10-07).
 
 ## Ensuite
 
 Toute modification de configuration du service passe par
-`.railway/railway.ts`, puis `railway config plan` et `railway config apply`.
+`.railway/railway.ts` (PR), puis, depuis la racine du dépôt à jour :
+
+```bash
+npm install --no-save railway@3.13.0   # une fois par poste
+railway config plan                    # relire : jamais de « Delete » inattendu
+railway config apply
+```
 Un `plan` qui ne propose aucun changement confirme que Railway et le dépôt
 sont alignés.
