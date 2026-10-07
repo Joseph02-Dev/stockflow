@@ -24,8 +24,9 @@ la configuration en place :
   `backend`, attente de la CI (`checkSuites`) ;
 - build RAILPACK `npm run build` ; démarrage
   `npm run migrate:deploy && npm run start:prod` ; healthcheck `/health`
-  (300 s) ; redémarrage `ON_FAILURE` (3 essais), repris de
-  `backend/railway.json` ; sortie IPv6 activée ;
+  (300 s) ; redémarrage sur erreur limité à 3 essais, repris de
+  `backend/railway.json` (`ON_FAILURE` est la valeur par défaut de Railway,
+  non déclarée) ; sortie IPv6 activée ;
 - variables : déclarées avec `preserve()`, qui **garde la valeur déjà
   saisie sur Railway**. Aucune valeur n'est écrite dans le dépôt.
 
