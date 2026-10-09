@@ -74,6 +74,14 @@ démarrage de l'API.
 `NODE_VERSION`, `NODE_ENV`, `FRONTEND_URL` et `DB_DELAI_CONNEXION_MS` sont
 déjà fixées dans `render.yaml`.
 
+### En cas d'erreur `P1001 Can't reach database server`
+
+Le démarrage passe par `backend/scripts/migrer.mjs`, qui journalise d'abord
+(lignes `[migrations]`) l'hôte, les paramètres de la chaîne (noms seulement)
+et, pour chaque adresse IPv4/IPv6 de la base, le résultat d'une connexion
+TCP. Les migrations sont ensuite tentées 5 fois, à 10 s d'intervalle
+(réveil de la base Neon). Ajouter `&connect_timeout=15` à `DATABASE_URL`.
+
 ## 3. Domaine stockflowgn.com (Cloudflare)
 
 ### Frontend → Vercel

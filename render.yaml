@@ -18,8 +18,9 @@ services:
     # démarrage) sont des dépendances de développement ; NODE_ENV=production
     # les exclurait sinon de l'installation.
     buildCommand: npm ci --include=dev && npm run build
-    # Mêmes commandes que sur Railway : migrations, puis API.
-    startCommand: npm run migrate:deploy && npm run start:prod
+    # Migrations (diagnostic réseau + nouvelles tentatives, voir
+    # backend/scripts/migrer.mjs), puis API.
+    startCommand: node scripts/migrer.mjs && npm run start:prod
     healthCheckPath: /health
     autoDeploy: true
     envVars:
