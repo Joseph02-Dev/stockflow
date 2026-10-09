@@ -87,6 +87,9 @@ Render n'a pas de route IPv6 sortante : les adresses IPv6 de Neon échouent
 l'IPv4. Le script le détecte et connecte alors les migrations à une
 adresse IPv4 de Neon, l'endpoint étant désigné par
 `options=endpoint=<id>` ([méthode Neon](https://neon.com/docs/connect/connection-errors)).
+Pour cette connexion par IP, `channel_binding` est désactivé : Neon y
+refuse l'authentification avec lui (vérifié avec `psql`), l'accepte sans ;
+TLS et SCRAM restent actifs.
 Rien à configurer. L'API (Node.js) se rabat d'elle-même sur l'IPv4.
 
 ## 3. Domaine stockflowgn.com (Cloudflare)
