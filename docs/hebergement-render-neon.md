@@ -82,6 +82,13 @@ et, pour chaque adresse IPv4/IPv6 de la base, le résultat d'une connexion
 TCP. Les migrations sont ensuite tentées 5 fois, à 10 s d'intervalle
 (réveil de la base Neon). Ajouter `&connect_timeout=15` à `DATABASE_URL`.
 
+Render n'a pas de route IPv6 sortante : les adresses IPv6 de Neon échouent
+(`ENETUNREACH`) et le moteur de migration de Prisma ne se rabat pas sur
+l'IPv4. Le script le détecte et connecte alors les migrations à une
+adresse IPv4 de Neon, l'endpoint étant désigné par
+`options=endpoint=<id>` ([méthode Neon](https://neon.com/docs/connect/connection-errors)).
+Rien à configurer. L'API (Node.js) se rabat d'elle-même sur l'IPv4.
+
 ## 3. Domaine stockflowgn.com (Cloudflare)
 
 ### Frontend → Vercel
