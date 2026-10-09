@@ -1,36 +1,36 @@
-// Migrations au démarrage, avec diagnostic réseau et nouvelles tentatives.
+// Migrations au démarrage, appliquées par Node.js (pilote pg), avec
+// diagnostic réseau et nouvelles tentatives.
 //
-// Pourquoi : une base Neon en veille peut mettre plusieurs secondes à se
-// réveiller, et une erreur « P1001 Can't reach database server » ne dit pas
-// si le serveur est lent, injoignable, ou joignable seulement en IPv4/IPv6.
-// Ce script journalise ce qu'il voit (hôte, adresses, durée de connexion
-// TCP), jamais l'identifiant ni le mot de passe, puis lance
-// `prisma migrate deploy` jusqu'à TENTATIVES fois.
+// Pourquoi pas `prisma migrate deploy` ici : sur Render (2026-10-09), les
+// adresses IPv6 de la base Neon sont sans route (ENETUNREACH) et le moteur
+// de migration de Prisma (binaire Rust) ne se rabat pas sur l'IPv4 (P1001) ;
+// forcé en IPv4, il n'arrive plus à s'authentifier sans le nom d'hôte
+// (P1000). Node.js, lui, se rabat sur l'IPv4 et garde le nom d'hôte (SNI) :
+// c'est lui qui fait déjà tourner l'API.
 //
-// IPv6 sans route (constaté sur Render, 2026-10-09) : les adresses IPv6 de
-// Neon échouent en ENETUNREACH, les IPv4 répondent, et le moteur de
-// migration de Prisma ne se rabat pas sur l'IPv4 (P1001). Dans ce cas, et
-// pour les migrations seulement, la connexion vise directement une adresse
-// IPv4 joignable ; l'endpoint Neon est alors désigné par le paramètre
-// `options=endpoint=<id>`, méthode documentée par Neon pour les clients
-// sans SNI (https://neon.com/docs/connect/connection-errors). Le
-// chiffrement TLS (sslmode) est conservé ; la liaison de canal SCRAM
-// (channel_binding) est désactivée pour cette connexion : par adresse IP,
-// Neon refuse l'authentification avec elle (P1000, vérifié avec psql le
-// 2026-10-09) et l'accepte sans. Le mot de passe ne circule toujours pas
-// en clair (SCRAM). L'API elle-même (Node.js) se rabat d'elle-même sur
-// l'IPv4 et garde l'URL d'origine.
-// MIGRATION_FORCER_IPV4=1 impose ce mode pour tout hôte.
+// Compatibilité Prisma : même table `_prisma_migrations`, même somme de
+// contrôle (SHA-256 du fichier migration.sql), même verrou consultatif,
+// une migration = un script exécuté d'un bloc. `prisma migrate deploy` et
+// `prisma migrate status` reconnaissent donc les migrations appliquées ici
+// (vérifié en local), et Railway peut continuer d'utiliser Prisma.
+//
+// Le journal n'affiche jamais l'identifiant ni le mot de passe.
 //
 // Usage : node scripts/migrer.mjs && npm run start:prod
-import { spawnSync } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import net from 'node:net';
+import { join } from 'node:path';
 import { setTimeout as pause } from 'node:timers/promises';
+import pg from 'pg';
 
 const TENTATIVES = Number(process.env.MIGRATION_TENTATIVES ?? 5);
 const PAUSE_MS = Number(process.env.MIGRATION_PAUSE_MS ?? 10_000);
 const DELAI_TCP_MS = 8_000;
+const DOSSIER = join(import.meta.dirname, '..', 'prisma', 'migrations');
+/** Verrou consultatif de Prisma Migrate : jamais deux migrations en même temps. */
+const VERROU = 72707369;
 
 function journal(message) {
   console.log(`[migrations] ${message}`);
@@ -51,67 +51,117 @@ function sonderTcp(adresse, famille, port) {
   });
 }
 
-/**
- * Diagnostic réseau ; renvoie l'URL à utiliser pour les migrations
- * (l'originale, ou sa variante IPv4 quand l'IPv6 est sans route).
- */
 async function diagnostiquer() {
-  const origine = process.env.DATABASE_URL ?? '';
   let url;
   try {
-    url = new URL(origine);
+    url = new URL(process.env.DATABASE_URL ?? '');
   } catch {
     journal('DATABASE_URL absente ou illisible.');
-    return origine;
+    return;
   }
   const port = Number(url.port || 5432);
   const parametres = [...url.searchParams.keys()].join(', ') || 'aucun';
   journal(`hôte ${url.hostname}, port ${port}, paramètres : ${parametres}`);
-  let ipv4Joignable = null;
-  let ipv6SansRoute = false;
   try {
     const adresses = await lookup(url.hostname, { all: true });
     for (const { address, family } of adresses) {
-      const resultat = await sonderTcp(address, family, port);
-      journal(`IPv${family} ${address} : connexion TCP ${resultat}`);
-      if (family === 4 && resultat.startsWith('ouverte')) ipv4Joignable ??= address;
-      if (family === 6 && !resultat.startsWith('ouverte')) ipv6SansRoute = true;
+      journal(`IPv${family} ${address} : connexion TCP ${await sonderTcp(address, family, port)}`);
     }
   } catch (e) {
     journal(`résolution DNS impossible : ${e.code ?? e.message}`);
   }
-
-  const neon = url.hostname.endsWith('.neon.tech');
-  const forcer = process.env.MIGRATION_FORCER_IPV4 === '1';
-  if (!ipv4Joignable || !(forcer || (neon && ipv6SansRoute))) return origine;
-
-  const variante = new URL(origine);
-  variante.hostname = ipv4Joignable;
-  if (neon && !variante.searchParams.has('options')) {
-    // Identifiant de l'endpoint : premier segment du nom, sans « -pooler ».
-    const endpoint = url.hostname.split('.')[0].replace(/-pooler$/, '');
-    variante.searchParams.set('options', `endpoint=${endpoint}`);
-    // Prisma lit ce paramètre (défaut : prefer) ; disable est nécessaire ici.
-    variante.searchParams.set('channel_binding', 'disable');
-    journal(`migrations en IPv4 (${ipv4Joignable}), endpoint Neon ${endpoint}`);
-  } else {
-    journal(`migrations en IPv4 (${ipv4Joignable})`);
-  }
-  return variante.toString();
 }
 
-const urlMigrations = await diagnostiquer();
+/** Migrations du dépôt, dans l'ordre de leur nom (horodaté). */
+async function migrationsDuDepot() {
+  const entrees = await readdir(DOSSIER, { withFileTypes: true });
+  const noms = entrees.filter((e) => e.isDirectory()).map((e) => e.name).sort();
+  return Promise.all(
+    noms.map(async (nom) => {
+      const sql = await readFile(join(DOSSIER, nom, 'migration.sql'), 'utf8');
+      return { nom, sql, somme: createHash('sha256').update(sql).digest('hex') };
+    }),
+  );
+}
+
+/** Échec qu'une nouvelle tentative ne corrigera pas (SQL, migration en échec). */
+class EchecDefinitif extends Error {}
+
+async function appliquer(migrations) {
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+  await client.connect();
+  try {
+    await client.query('SELECT pg_advisory_lock($1)', [VERROU]);
+    await client.query(`CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
+      "id" VARCHAR(36) PRIMARY KEY NOT NULL,
+      "checksum" VARCHAR(64) NOT NULL,
+      "finished_at" TIMESTAMPTZ,
+      "migration_name" VARCHAR(255) NOT NULL,
+      "logs" TEXT,
+      "rolled_back_at" TIMESTAMPTZ,
+      "started_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+      "applied_steps_count" INTEGER NOT NULL DEFAULT 0
+    )`);
+    const { rows } = await client.query(
+      'SELECT migration_name, checksum, finished_at, rolled_back_at FROM "_prisma_migrations"',
+    );
+    const enEchec = rows.filter((r) => !r.finished_at && !r.rolled_back_at);
+    if (enEchec.length > 0) {
+      throw new EchecDefinitif(
+        `migration en échec à résoudre d'abord (prisma migrate resolve) : ${enEchec.map((r) => r.migration_name).join(', ')}`,
+      );
+    }
+    const appliquees = new Map(
+      rows.filter((r) => r.finished_at && !r.rolled_back_at).map((r) => [r.migration_name, r.checksum]),
+    );
+    for (const { nom, somme } of migrations) {
+      if (appliquees.has(nom) && appliquees.get(nom) !== somme) journal(`attention : ${nom} modifiée après application`);
+    }
+    const aFaire = migrations.filter((m) => !appliquees.has(m.nom));
+    journal(`${migrations.length} migrations dans le dépôt, ${aFaire.length} à appliquer`);
+    for (const { nom, sql, somme } of aFaire) {
+      const id = randomUUID();
+      await client.query(
+        'INSERT INTO "_prisma_migrations" (id, checksum, migration_name, started_at, applied_steps_count) VALUES ($1, $2, $3, now(), 0)',
+        [id, somme, nom],
+      );
+      try {
+        await client.query(sql);
+      } catch (e) {
+        await client.query('UPDATE "_prisma_migrations" SET logs = $2 WHERE id = $1', [id, String(e.message)]);
+        throw new EchecDefinitif(`${nom} : ${e.message}`);
+      }
+      await client.query(
+        'UPDATE "_prisma_migrations" SET finished_at = now(), applied_steps_count = 1 WHERE id = $1',
+        [id],
+      );
+      journal(`appliquée : ${nom}`);
+    }
+    journal('base à jour.');
+  } finally {
+    await client.query('SELECT pg_advisory_unlock($1)', [VERROU]).catch(() => {});
+    await client.end().catch(() => {});
+  }
+}
+
+await diagnostiquer();
+const migrations = await migrationsDuDepot();
 
 for (let tentative = 1; tentative <= TENTATIVES; tentative++) {
-  journal(`prisma migrate deploy, tentative ${tentative}/${TENTATIVES}`);
-  const { status } = spawnSync('npx', ['prisma', 'migrate', 'deploy'], {
-    stdio: 'inherit',
-    env: { ...process.env, DATABASE_URL: urlMigrations },
-  });
-  if (status === 0) process.exit(0);
-  if (tentative < TENTATIVES) {
-    journal(`échec, nouvelle tentative dans ${PAUSE_MS / 1000} s`);
-    await pause(PAUSE_MS);
+  journal(`tentative ${tentative}/${TENTATIVES}`);
+  try {
+    await appliquer(migrations);
+    process.exit(0);
+  } catch (e) {
+    if (e instanceof EchecDefinitif) {
+      journal(`échec : ${e.message}`);
+      process.exit(1);
+    }
+    journal(`connexion impossible : ${e.code ?? ''} ${e.message}`);
+    if (tentative < TENTATIVES) {
+      journal(`nouvelle tentative dans ${PAUSE_MS / 1000} s`);
+      await pause(PAUSE_MS);
+    }
   }
 }
 journal('migrations impossibles après toutes les tentatives : arrêt.');
