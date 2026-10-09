@@ -74,23 +74,24 @@ démarrage de l'API.
 `NODE_VERSION`, `NODE_ENV`, `FRONTEND_URL` et `DB_DELAI_CONNEXION_MS` sont
 déjà fixées dans `render.yaml`.
 
-### En cas d'erreur `P1001 Can't reach database server`
+### Migrations au démarrage
 
-Le démarrage passe par `backend/scripts/migrer.mjs`, qui journalise d'abord
-(lignes `[migrations]`) l'hôte, les paramètres de la chaîne (noms seulement)
-et, pour chaque adresse IPv4/IPv6 de la base, le résultat d'une connexion
-TCP. Les migrations sont ensuite tentées 5 fois, à 10 s d'intervalle
-(réveil de la base Neon). Ajouter `&connect_timeout=15` à `DATABASE_URL`.
+Sur Render, les migrations ne passent **pas** par `prisma migrate deploy`
+mais par `backend/scripts/migrer.mjs` (Node.js, pilote `pg`) :
 
-Render n'a pas de route IPv6 sortante : les adresses IPv6 de Neon échouent
-(`ENETUNREACH`) et le moteur de migration de Prisma ne se rabat pas sur
-l'IPv4. Le script le détecte et connecte alors les migrations à une
-adresse IPv4 de Neon, l'endpoint étant désigné par
-`options=endpoint=<id>` ([méthode Neon](https://neon.com/docs/connect/connection-errors)).
-Pour cette connexion par IP, `channel_binding` est désactivé : Neon y
-refuse l'authentification avec lui (vérifié avec `psql`), l'accepte sans ;
-TLS et SCRAM restent actifs.
-Rien à configurer. L'API (Node.js) se rabat d'elle-même sur l'IPv4.
+- Render n'a pas de route IPv6 sortante ; les adresses IPv6 de Neon
+  échouent (`ENETUNREACH`) et le moteur de migration de Prisma (binaire
+  Rust) ne se rabat pas sur l'IPv4 (`P1001`). Node.js, lui, se rabat sur
+  l'IPv4 et garde le nom d'hôte (constaté le 2026-10-09).
+- Le script est compatible avec Prisma : même table `_prisma_migrations`,
+  même somme de contrôle, même verrou. `prisma migrate status` reconnaît
+  les migrations qu'il applique (vérifié en local, schéma identique).
+- Il journalise d'abord (lignes `[migrations]`) l'hôte, les noms des
+  paramètres de la chaîne et le résultat d'une connexion TCP vers chaque
+  adresse IPv4/IPv6, puis réessaie jusqu'à 5 fois si la base ne répond pas.
+  Il n'affiche jamais l'identifiant ni le mot de passe.
+- Une migration en échec arrête le démarrage, comme avec Prisma :
+  la corriger, puis `npx prisma migrate resolve` depuis un poste.
 
 ## 3. Domaine stockflowgn.com (Cloudflare)
 
