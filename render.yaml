@@ -1,0 +1,57 @@
+# Hébergement de l'API sur Render (offre gratuite), base PostgreSQL sur Neon.
+# Solution d'attente tant que Railway n'est pas réglé : voir
+# docs/hebergement-render-neon.md. Référence du format :
+# https://render.com/docs/blueprint-spec
+#
+# Aucune valeur secrète ici : les variables « sync: false » sont demandées
+# par Render à la création du Blueprint et saisies dans son tableau de bord.
+services:
+  - type: web
+    name: stockflow-api
+    runtime: node
+    plan: free
+    # Le plus proche de la Guinée parmi les régions Render ; ne peut plus
+    # changer après la création. La base Neon doit être en Europe (Francfort).
+    region: frankfurt
+    rootDir: backend
+    # --include=dev : Nest CLI (build) et Prisma CLI (migrations au
+    # démarrage) sont des dépendances de développement ; NODE_ENV=production
+    # les exclurait sinon de l'installation.
+    buildCommand: npm ci --include=dev && npm run build
+    # Mêmes commandes que sur Railway : migrations, puis API.
+    startCommand: npm run migrate:deploy && npm run start:prod
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: https://stockflowgn.com
+      # Neon suspend la base après 5 min d'inactivité : la première
+      # connexion peut prendre un peu plus que les 5 s par défaut.
+      - key: DB_DELAI_CONNEXION_MS
+        value: "10000"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_CONSOLE_SECRET
+        sync: false
+      - key: EMAIL_PROVIDER
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
