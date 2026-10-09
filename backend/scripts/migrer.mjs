@@ -14,8 +14,12 @@
 // IPv4 joignable ; l'endpoint Neon est alors désigné par le paramètre
 // `options=endpoint=<id>`, méthode documentée par Neon pour les clients
 // sans SNI (https://neon.com/docs/connect/connection-errors). Le
-// chiffrement TLS (sslmode) est conservé. L'API elle-même (Node.js) se
-// rabat d'elle-même sur l'IPv4 et garde l'URL d'origine.
+// chiffrement TLS (sslmode) est conservé ; la liaison de canal SCRAM
+// (channel_binding) est désactivée pour cette connexion : par adresse IP,
+// Neon refuse l'authentification avec elle (P1000, vérifié avec psql le
+// 2026-10-09) et l'accepte sans. Le mot de passe ne circule toujours pas
+// en clair (SCRAM). L'API elle-même (Node.js) se rabat d'elle-même sur
+// l'IPv4 et garde l'URL d'origine.
 // MIGRATION_FORCER_IPV4=1 impose ce mode pour tout hôte.
 //
 // Usage : node scripts/migrer.mjs && npm run start:prod
@@ -87,6 +91,8 @@ async function diagnostiquer() {
     // Identifiant de l'endpoint : premier segment du nom, sans « -pooler ».
     const endpoint = url.hostname.split('.')[0].replace(/-pooler$/, '');
     variante.searchParams.set('options', `endpoint=${endpoint}`);
+    // Prisma lit ce paramètre (défaut : prefer) ; disable est nécessaire ici.
+    variante.searchParams.set('channel_binding', 'disable');
     journal(`migrations en IPv4 (${ipv4Joignable}), endpoint Neon ${endpoint}`);
   } else {
     journal(`migrations en IPv4 (${ipv4Joignable})`);
