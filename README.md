@@ -104,6 +104,8 @@ Les emails d'alerte ne sont pas réellement envoyés en développement (`EMAIL_P
 
 ### Backend — Railway
 
+> **Hébergement actuel (temporaire)** : API sur Render et base sur Neon, domaine `stockflowgn.com`, le temps de régler l'abonnement Railway. Procédure : [`docs/hebergement-render-neon.md`](docs/hebergement-render-neon.md).
+
 1. Sur [railway.app](https://railway.app), créez un projet depuis le dépôt GitHub.
 2. Dans les réglages du service, définissez le **Root Directory** sur `backend`.
 3. Ajoutez un plugin **PostgreSQL** au projet — Railway injecte automatiquement `DATABASE_URL`.
