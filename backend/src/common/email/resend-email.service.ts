@@ -64,7 +64,13 @@ export class ResendEmailService implements EmailService {
   private async tenter(message: EmailMessage, idempotencyKey: string): Promise<ErreurResend | undefined> {
     try {
       const resultat = await this.client.emails.send(
-        { from: this.expediteur, to: message.to, subject: message.subject, text: message.body },
+        {
+          from: this.expediteur,
+          to: message.to,
+          subject: message.subject,
+          text: message.body,
+          ...(message.html ? { html: message.html } : {}),
+        },
         // `signal` est transmis tel quel à fetch par le SDK : la requête est réellement coupée.
         { idempotencyKey, signal: AbortSignal.timeout(DELAI_TENTATIVE_MS) } as { idempotencyKey: string },
       );

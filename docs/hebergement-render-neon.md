@@ -134,7 +134,28 @@ Puis **Deployments → Redeploy** : la variable est lue au build, et la
 politique de sécurité (CSP) du frontend autorise automatiquement cette
 origine.
 
-## 5. Vérifications
+## 5. Emails depuis @stockflowgn.com (Resend)
+
+Sans domaine vérifié, Resend n'envoie qu'à l'adresse du compte Resend
+(adresse de test `onboarding@resend.dev`) : les autres inscriptions ne
+reçoivent rien ([doc Resend](https://resend.com/docs/dashboard/domains/introduction)).
+
+1. Resend → **Domains → Add Domain** → `stockflowgn.com`, région
+   **Ireland (eu-west-1)**.
+2. Cloudflare → **DNS → Records** : créer **exactement** les
+   enregistrements affichés par Resend (MX et TXT sur `send`, TXT
+   `resend._domainkey`), en **DNS only**. Facultatif mais conseillé :
+   TXT `_dmarc` = `v=DMARC1; p=none;`.
+3. Resend → **Verify DNS Records** → statut « Verified ».
+4. Render → `EMAIL_FROM` = `StockFlow <noreply@stockflowgn.com>` → Save
+   (redéploiement automatique).
+
+L'email de confirmation d'inscription est envoyé en HTML (charte
+StockFlow) avec une version texte ; son bouton mène à
+`FRONTEND_URL/verifier-email`, qui active le compte puis ouvre la suite de
+l'inscription.
+
+## 6. Vérifications
 
 - `https://api.stockflowgn.com/health` → `200` ;
 - `https://stockflowgn.com` s'ouvre en HTTPS, `www` redirige vers lui ;
