@@ -15,3 +15,10 @@ export class AcceptInviteDto {
   @MaxLength(72)
   password!: string;
 }
+
+export class DetailsInvitationDto {
+  @IsString()
+  @MinLength(1, { message: "Le jeton d'invitation est requis." })
+  @MaxLength(200)
+  token!: string;
+}

@@ -39,8 +39,21 @@ export function echapperHtml(texte: string): string {
     .replace(/'/g, '&#39;');
 }
 
+const JOUR_MS = 86_400_000;
+const HEURE_MS = 3_600_000;
+
+/** Durée lisible dans un email : 604800000 → « 7 jours », 86400000 → « 24 heures ». */
+export function dureeEnClair(dureeMs: number): string {
+  if (dureeMs > JOUR_MS && dureeMs % JOUR_MS === 0) return `${dureeMs / JOUR_MS} jours`;
+  const heures = Math.max(1, Math.round(dureeMs / HEURE_MS));
+  return heures === 1 ? '1 heure' : `${heures} heures`;
+}
+
+/** Libellé d'un rôle dans les emails. */
+export const LIBELLE_ROLE = { ADMIN: 'Administrateur', GESTIONNAIRE: 'Gestionnaire de stock' } as const;
+
 /** Adresse publique du frontend (FRONTEND_URL), sans barre finale. */
-function adresseSite(): string {
+export function adresseSite(): string {
   return (process.env.FRONTEND_URL ?? '').replace(/\/+$/, '');
 }
 

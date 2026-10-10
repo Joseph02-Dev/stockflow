@@ -71,7 +71,7 @@ describe('Marques — intégration réelle, base PostgreSQL', () => {
       .set('Authorization', `Bearer ${accessTokenAdmin}`)
       .send({ email, role: 'GESTIONNAIRE' });
     const [emailEnvoye] = devEmail.getSentEmails();
-    const token = emailEnvoye.body.match(/Jeton d'invitation : ([a-f0-9]+)/)?.[1];
+    const token = emailEnvoye.body.match(/invitation\?token=([a-f0-9]+)/)?.[1];
     const acceptation = await request(app.getHttpServer())
       .post('/auth/accept-invite')
       .send({ token, nom: 'Gestionnaire Test', password: 'motdepasse-solide-123' });

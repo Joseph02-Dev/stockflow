@@ -7,7 +7,7 @@ import type { StringValue } from 'ms';
 import { PrismaService } from '../../config/prisma.service.js';
 import { EMAIL_SERVICE, type EmailService } from '../../common/email/email.service.js';
 import { domaineEmailExiste } from '../../common/email/domaine-email.util.js';
-import { composerEmail } from '../../common/email/gabarit-email.js';
+import { adresseSite, composerEmail, dureeEnClair, LIBELLE_ROLE } from '../../common/email/gabarit-email.js';
 import { hashToken } from './token-hash.util.js';
 import { erreurCompteDesactive } from '../../common/compte-desactive.js';
 import { erreurEntrepriseSuspendue } from '../../common/entreprise-suspendue.js';
@@ -20,6 +20,13 @@ import type { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import type { ResetPasswordDto } from './dto/reset-password.dto.js';
 import type { VerifyEmailDto } from './dto/verify-email.dto.js';
 import type { ResendVerificationDto } from './dto/resend-verification.dto.js';
+
+export interface DetailsInvitation {
+  email: string;
+  role: 'ADMIN' | 'GESTIONNAIRE';
+  entreprise: string;
+  invitePar: string;
+}
 
 export interface AuthResult {
   accessToken: string;
@@ -272,12 +279,7 @@ export class AuthService {
    * rôle ou une entreprise différente de celle prévue par l'Admin.
    */
   async acceptInvite(dto: AcceptInviteDto): Promise<AuthResult> {
-    const tokenHash = hashToken(dto.token);
-    const invitation = await this.prisma.invitation.findUnique({ where: { tokenHash } });
-
-    if (!invitation || invitation.acceptedAt || invitation.expiresAt < new Date()) {
-      throw new NotFoundException("Invitation invalide, déjà utilisée, ou expirée.");
-    }
+    const invitation = await this.invitationValide(dto.token);
 
     const emailDejaUtilise = await this.prisma.utilisateur.findUnique({ where: { email: invitation.email } });
     if (emailDejaUtilise) {
@@ -305,7 +307,66 @@ export class AuthService {
       return { entreprise, utilisateur };
     });
 
+    await this.notifierInvitationAcceptee(invitation.invitedById, entreprise.id, utilisateur);
     return this.construireReponseAuth(utilisateur, entreprise);
+  }
+
+  /**
+   * Ce que la page d'invitation affiche avant l'inscription : l'adresse
+   * invitée (non modifiable), l'entreprise, le rôle et l'auteur de
+   * l'invitation. Seul le détenteur du lien reçu par email y a accès.
+   */
+  async detailsInvitation(token: string): Promise<DetailsInvitation> {
+    const invitation = await this.invitationValide(token);
+    const [entreprise, invitant] = await Promise.all([
+      this.prisma.entreprise.findUniqueOrThrow({ where: { id: invitation.entrepriseId }, select: { nom: true } }),
+      this.prisma.utilisateur.findUniqueOrThrow({ where: { id: invitation.invitedById }, select: { nom: true } }),
+    ]);
+    return { email: invitation.email, role: invitation.role, entreprise: entreprise.nom, invitePar: invitant.nom };
+  }
+
+  private async invitationValide(token: string) {
+    const invitation = await this.prisma.invitation.findUnique({ where: { tokenHash: hashToken(token) } });
+    if (!invitation || invitation.acceptedAt || invitation.expiresAt < new Date()) {
+      throw new NotFoundException('Invitation invalide, déjà utilisée, ou expirée.');
+    }
+    return invitation;
+  }
+
+  /**
+   * Prévient l'Admin auteur de l'invitation que la personne a rejoint
+   * l'entreprise ; s'il a été désactivé entre-temps, les Admins actifs.
+   * L'envoi part en arrière-plan : il ne retarde ni ne fait échouer
+   * l'inscription.
+   */
+  private async notifierInvitationAcceptee(
+    invitantId: string,
+    entrepriseId: string,
+    membre: { nom: string; email: string; role: 'ADMIN' | 'GESTIONNAIRE' },
+  ): Promise<void> {
+    const admins = await this.prisma.utilisateur.findMany({
+      where: { entrepriseId, role: 'ADMIN', desactiveAt: null },
+      select: { id: true, email: true },
+    });
+    const invitant = admins.find((a) => a.id === invitantId);
+    const destinataires = invitant ? [invitant] : admins;
+
+    const role = LIBELLE_ROLE[membre.role].toLowerCase();
+    const contenu = composerEmail({
+      apercu: `${membre.nom} a rejoint votre entreprise sur StockFlow.`,
+      titre: `${membre.nom} a rejoint votre équipe`,
+      paragraphes: [
+        `${membre.nom} (${membre.email}) a accepté votre invitation et rejoint votre entreprise en tant que ${role}.`,
+        'Vous pouvez gérer son accès à tout moment depuis Paramètres → Utilisateurs.',
+      ],
+      bouton: { libelle: "Voir l'équipe", url: `${adresseSite()}/parametres?onglet=utilisateurs` },
+      mentions: ['Vous recevez cet email car vous avez invité cette personne.'],
+    });
+    await Promise.all(
+      destinataires.map((admin) =>
+        this.emailService.send({ to: admin.email, subject: `${membre.nom} a rejoint votre entreprise sur StockFlow`, ...contenu }),
+      ),
+    );
   }
 
   /**
@@ -452,7 +513,7 @@ export class AuthService {
         ],
         bouton: { libelle: 'Confirmer mon adresse email', url: `${lienBase}/verifier-email?token=${token}` },
         mentions: [
-          `Ce lien est personnel et expire dans ${expiration === '24h' ? '24 heures' : expiration}.`,
+          `Ce lien est personnel et expire dans ${dureeEnClair(ms(expiration))}.`,
           "Si vous n'êtes pas à l'origine de cette inscription, ignorez cet email : aucun compte ne sera activé.",
         ],
       }),
