@@ -30,6 +30,8 @@ import { RetoursFournisseurPage } from '@/features/retours/RetoursFournisseurPag
 import { RapportsPage } from '@/features/rapports/RapportsPage';
 import { StatistiquesPage } from '@/features/statistiques/StatistiquesPage';
 import { ParametresPage } from '@/features/parametres/ParametresPage';
+import { EmplacementsPage } from '@/features/parametres/EmplacementsPage';
+import { CategoriesMarquesPage } from '@/features/parametres/CategoriesMarquesPage';
 import { useSession } from '@/lib/useSession';
 import { LoadingState } from '@/components/patterns/States';
 
@@ -119,6 +121,8 @@ export function App() {
           <Route path="/statistiques" element={<StatistiquesPage />} />
           <Route element={<RouteAdmin />}>
             <Route path="/parametres" element={<ParametresPage />} />
+            <Route path="/emplacements" element={<EmplacementsPage />} />
+            <Route path="/categories" element={<CategoriesMarquesPage />} />
           </Route>
         </Route>
       </Route>

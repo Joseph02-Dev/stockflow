@@ -129,6 +129,12 @@ describe('Ventes', () => {
         [b.fer.id, 3],
       ].sort(),
     );
+    // Le journal des mouvements rattache chaque sortie à sa vente (« Vente V-… »).
+    const journal = await b.http.get('/mouvements');
+    expect(journal.body.filter((m: { type: string }) => m.type === 'SORTIE').map((m: { vente: unknown }) => m.vente)).toEqual([
+      { id: reponse.body.id, numero: reponse.body.numero },
+      { id: reponse.body.id, numero: reponse.body.numero },
+    ]);
     // Vente au comptant : réglée intégralement, rien n'est dû.
     expect(reponse.body).toMatchObject({
       paye: reponse.body.total,

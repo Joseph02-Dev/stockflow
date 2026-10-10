@@ -4,7 +4,6 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
-  CalendarClock,
   ChartLine,
   CircleHelp,
   MapPin,
@@ -13,7 +12,6 @@ import {
   ChevronRight,
   ClipboardList,
   FileText,
-  HandCoins,
   LayoutDashboard,
   LogOut,
   MoreHorizontal,
@@ -22,7 +20,6 @@ import {
   Settings,
   Tag,
   Truck,
-  Undo2,
   UserRound,
   Users,
   Warehouse,
@@ -37,6 +34,7 @@ import { useSynchronisation } from '@/lib/useSynchronisation';
 import { BarreProgression } from '@/components/patterns/BarreProgression';
 import { useModules } from '@/lib/useModules';
 import { ChoixApparence, SelecteurTheme } from '@/components/patterns/SelecteurTheme';
+import { OngletsSection, type OngletSection } from '@/components/patterns/OngletsSection';
 
 // Navigation en quatre sections : piloter, gérer le stock, s'approvisionner,
 // organiser. Les liens réservés à l'Admin (Paramètres et ses onglets) et
@@ -48,8 +46,8 @@ type Lien = {
   exact?: boolean;
   admin?: boolean;
   module?: 'rapports';
-  /** Onglet de /parametres : plusieurs liens partagent ce chemin. */
-  onglet?: 'emplacements' | 'categories' | 'general';
+  /** Pages réunies sous ce lien (onglets de la section) : le lien reste actif sur chacune. */
+  aussi?: string[];
 };
 
 const sectionsNav: { titre: string; liens: Lien[] }[] = [
@@ -58,9 +56,8 @@ const sectionsNav: { titre: string; liens: Lien[] }[] = [
     liens: [
       { to: '/', libelle: 'Tableau de bord', Icone: LayoutDashboard, exact: true },
       { to: '/statistiques', libelle: 'Statistiques', Icone: ChartLine },
-      { to: '/alertes', libelle: 'Alertes', Icone: Bell },
+      { to: '/alertes', libelle: 'Alertes', Icone: Bell, aussi: ['/peremptions'] },
       { to: '/ventes', libelle: 'Ventes', Icone: Receipt },
-      { to: '/creances', libelle: 'Créances', Icone: HandCoins },
     ],
   },
   {
@@ -68,26 +65,24 @@ const sectionsNav: { titre: string; liens: Lien[] }[] = [
     liens: [
       { to: '/produits', libelle: 'Produits', Icone: Package },
       { to: '/stock', libelle: 'Stock & mouvements', Icone: Warehouse },
-      { to: '/peremptions', libelle: 'Péremptions', Icone: CalendarClock },
       { to: '/pertes', libelle: 'Pertes', Icone: PackageX },
     ],
   },
   {
     titre: 'Approvisionnement',
     liens: [
-      { to: '/commandes', libelle: 'Commandes fournisseurs', Icone: ClipboardList },
+      { to: '/commandes', libelle: 'Commandes & retours', Icone: ClipboardList, aussi: ['/retours-fournisseur'] },
       { to: '/fournisseurs', libelle: 'Fournisseurs', Icone: Truck },
-      { to: '/retours-fournisseur', libelle: 'Retours fournisseur', Icone: Undo2 },
     ],
   },
   {
     titre: 'Organisation',
     liens: [
-      { to: '/parametres?onglet=emplacements', libelle: 'Emplacements', Icone: MapPin, admin: true, onglet: 'emplacements' },
-      { to: '/parametres', libelle: 'Paramètres', Icone: Settings, admin: true, onglet: 'general' },
+      { to: '/emplacements', libelle: 'Emplacements', Icone: MapPin, admin: true },
+      { to: '/parametres', libelle: 'Paramètres', Icone: Settings, admin: true },
       { to: '/rapports', libelle: 'Rapports', Icone: FileText, module: 'rapports' },
-      { to: '/clients', libelle: 'Clients', Icone: Users },
-      { to: '/parametres?onglet=categories', libelle: 'Catégories & marques', Icone: Tag, admin: true, onglet: 'categories' },
+      { to: '/clients', libelle: 'Clients & créances', Icone: Users, aussi: ['/creances'] },
+      { to: '/categories', libelle: 'Catégories & marques', Icone: Tag, admin: true },
     ],
   },
 ];
@@ -111,15 +106,15 @@ const navMobile = [
  * éventuel (création, fiche). Dérivé du chemin pour ne pas obliger
  * chaque page à le déclarer.
  */
-function filAriane(chemin: string, recherche: string): { libelle: string; to?: string }[] {
+function filAriane(chemin: string): { libelle: string; to?: string }[] {
   const sections: Record<string, string> = {
     produits: 'Produits',
     stock: 'Stock & mouvements',
     inventaires: 'Stock & mouvements',
     alertes: 'Alertes',
-    commandes: 'Commandes fournisseur',
+    commandes: 'Commandes & retours',
     fournisseurs: 'Fournisseurs',
-    clients: 'Clients',
+    clients: 'Clients & créances',
     ventes: 'Ventes',
     creances: 'Créances',
     peremptions: 'Péremptions',
@@ -128,12 +123,18 @@ function filAriane(chemin: string, recherche: string): { libelle: string; to?: s
     rapports: 'Rapports',
     statistiques: 'Statistiques',
     parametres: 'Paramètres',
+    emplacements: 'Emplacements',
+    categories: 'Catégories & marques',
   };
   const [racine, detail] = chemin.split('/').filter(Boolean);
   if (!racine) return [{ libelle: 'Tableau de bord' }];
-  const onglet = racine === 'parametres' ? new URLSearchParams(recherche).get('onglet') : null;
-  if (onglet === 'categories') return [{ libelle: 'Catégories & marques' }];
-  if (onglet === 'emplacements') return [{ libelle: 'Emplacements' }];
+  // Pages réunies en onglets : la section parente, puis l'onglet.
+  const parents: Record<string, { libelle: string; to: string }> = {
+    peremptions: { libelle: 'Alertes', to: '/alertes' },
+    creances: { libelle: 'Clients & créances', to: '/clients' },
+    'retours-fournisseur': { libelle: 'Commandes & retours', to: '/commandes' },
+  };
+  if (parents[racine] && !detail) return [parents[racine], { libelle: sections[racine] }];
   const section = sections[racine] ?? 'StockFlow';
   if (!detail) return [{ libelle: section }];
 
@@ -206,7 +207,7 @@ function LienNav({
           {nombreAlertes}
         </span>
       )}
-      {to === '/peremptions' && nombrePeremptions > 0 && (
+      {estAlertes && nombrePeremptions > 0 && (
         <span
           className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-faible px-1.5 text-meta font-semibold text-sur-couleur"
           aria-label={`${nombrePeremptions} lot${nombrePeremptions > 1 ? 's' : ''} sous surveillance`}
@@ -256,18 +257,8 @@ export function AppLayout() {
 
   const [recherche, setRecherche] = useState('');
 
-  // Paramètres, Emplacements et Catégories & marques partagent /parametres :
-  // l'onglet dit lequel est actif.
-  const ongletParametres = new URLSearchParams(location.search).get('onglet');
-  const ongletActif =
-    location.pathname !== '/parametres'
-      ? null
-      : ongletParametres === 'emplacements'
-        ? 'emplacements'
-        : ongletParametres === 'categories' || ongletParametres === 'marques'
-          ? 'categories'
-          : 'general';
-  const ariane = filAriane(location.pathname, location.search);
+  const ariane = filAriane(location.pathname);
+  const sousChemin = (chemin: string) => location.pathname === chemin || location.pathname.startsWith(`${chemin}/`);
 
   // Compteur d'alertes actives — partage la clé de cache avec la page
   // Alertes, donc tout mouvement de stock qui l'invalide met aussi la
@@ -284,6 +275,32 @@ export function AppLayout() {
     staleTime: 5 * 60_000,
   });
   const nombrePeremptions = peremptions.data?.sousSurveillance ?? 0;
+
+  // Sections réunies : une entrée de menu, des onglets en haut de chaque page.
+  const groupes: { libelle: string; onglets: OngletSection[] }[] = [
+    {
+      libelle: 'Alertes',
+      onglets: [
+        { to: '/alertes', libelle: 'Stock', compteur: nombreAlertes },
+        { to: '/peremptions', libelle: 'Péremptions', compteur: nombrePeremptions },
+      ],
+    },
+    {
+      libelle: 'Clients et créances',
+      onglets: [
+        { to: '/clients', libelle: 'Clients' },
+        { to: '/creances', libelle: 'Créances' },
+      ],
+    },
+    {
+      libelle: 'Commandes et retours',
+      onglets: [
+        { to: '/commandes', libelle: 'Commandes' },
+        { to: '/retours-fournisseur', libelle: 'Retours fournisseur' },
+      ],
+    },
+  ];
+  const ongletsSection = groupes.find((g) => g.onglets.some((o) => o.to === location.pathname));
 
   async function seDeconnecter() {
     const courante = getSession();
@@ -377,7 +394,7 @@ export function AppLayout() {
                     exact={lien.exact}
                     nombreAlertes={nombreAlertes}
                     nombrePeremptions={nombrePeremptions}
-                    actifForce={lien.onglet ? ongletActif === lien.onglet : undefined}
+                    actifForce={lien.aussi ? [lien.to, ...lien.aussi].some(sousChemin) : undefined}
                   />
                 ))}
               </SectionNav>
@@ -514,6 +531,7 @@ export function AppLayout() {
         <main className="flex-1 px-4 pt-5 pb-24 md:px-7 md:pt-7 md:pb-10">
           {/* Clé = route : chaque changement d'écran rejoue l'entrée échelonnée des blocs. */}
           <div key={location.pathname} className="entree-page mx-auto w-full max-w-[1280px]">
+            {ongletsSection && <OngletsSection onglets={ongletsSection.onglets} libelle={ongletsSection.libelle} />}
             <Outlet />
           </div>
         </main>
@@ -567,19 +585,6 @@ export function AppLayout() {
               <ChartLine className="size-5 text-steel-500" aria-hidden="true" />
               Statistiques
             </NavLink>
-            <NavLink to="/creances" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
-              <HandCoins className="size-5 text-steel-500" aria-hidden="true" />
-              Créances
-            </NavLink>
-            <NavLink to="/peremptions" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
-              <CalendarClock className="size-5 text-steel-500" aria-hidden="true" />
-              <span className="flex-1">Péremptions</span>
-              {nombrePeremptions > 0 && (
-                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-faible px-1.5 text-meta font-semibold text-sur-couleur">
-                  {nombrePeremptions}
-                </span>
-              )}
-            </NavLink>
             <NavLink to="/pertes" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
               <PackageX className="size-5 text-steel-500" aria-hidden="true" />
               Pertes
@@ -590,11 +595,7 @@ export function AppLayout() {
             </NavLink>
             <NavLink to="/commandes" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
               <ClipboardList className="size-5 text-steel-500" aria-hidden="true" />
-              Commandes fournisseurs
-            </NavLink>
-            <NavLink to="/retours-fournisseur" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
-              <Undo2 className="size-5 text-steel-500" aria-hidden="true" />
-              Retours fournisseur
+              Commandes & retours
             </NavLink>
             {modules.rapports && (
               <NavLink to="/rapports" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
@@ -608,12 +609,12 @@ export function AppLayout() {
             </NavLink>
             <NavLink to="/clients" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
               <Users className="size-5 text-steel-500" aria-hidden="true" />
-              Clients
+              Clients & créances
             </NavLink>
             {session?.utilisateur.role === 'ADMIN' && (
               <>
                 <NavLink
-                  to="/parametres?onglet=emplacements"
+                  to="/emplacements"
                   onClick={() => setPlusOuvert(false)}
                   className={classesLienPlus}
                 >
@@ -621,7 +622,7 @@ export function AppLayout() {
                   Emplacements
                 </NavLink>
                 <NavLink
-                  to="/parametres?onglet=categories"
+                  to="/categories"
                   onClick={() => setPlusOuvert(false)}
                   className={classesLienPlus}
                 >

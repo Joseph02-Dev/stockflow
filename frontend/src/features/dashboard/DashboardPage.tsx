@@ -19,7 +19,7 @@ import { ErrorState, LoadingState, Squelette } from '@/components/patterns/State
 import { NiveauStock } from '@/components/patterns/NiveauStock';
 import { Vignette } from '@/components/patterns/Vignette';
 import { libelleStatut, statutStock, varianteStatut } from '@/components/patterns/statutStock';
-import { presentationMouvement, quantiteSignee, type TypeMouvement } from '@/components/patterns/typeMouvement';
+import { libelleMouvement, presentationMouvement, quantiteSignee, type TypeMouvement } from '@/components/patterns/typeMouvement';
 
 interface Overview {
   kpi: {
@@ -66,6 +66,7 @@ interface Mouvement {
   produit: { nom: string };
   emplacement: { nom: string };
   emplacementDestination: { nom: string } | null;
+  vente: { numero: string } | null;
 }
 
 const NB_BARRES = 9;
@@ -379,7 +380,7 @@ export function DashboardPage() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-corps font-medium text-ink-900">{m.produit.nom}</p>
                       <p className="truncate text-meta text-steel-500">
-                        {p.libelle}, {lieu}
+                        {libelleMouvement(m)}, {lieu}
                       </p>
                     </div>
                     <div className="shrink-0 text-right">
