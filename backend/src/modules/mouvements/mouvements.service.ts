@@ -521,6 +521,8 @@ export class MouvementsService {
         emplacementDestination: { select: { id: true, nom: true } },
         utilisateur: { select: { id: true, nom: true } },
         fournisseur: { select: { id: true, nom: true } },
+        // Une sortie issue d'une vente affiche son numéro (« Vente V-2026-0012 »).
+        vente: { select: { id: true, numero: true } },
       },
       orderBy: ORDRE_RECENT_DABORD,
       ...pagination,

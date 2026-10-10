@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowDownToLine, ArrowUpFromLine, ArrowRightLeft, WifiOff } from 'lucide-react';
+import { ArrowDownToLine, ArrowRightLeft, Receipt, WifiOff } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { ajouterMouvementEnAttente } from '@/lib/mouvementsHorsLigne';
 import { useEnLigne } from '@/lib/useEnLigne';
@@ -57,7 +57,9 @@ const schema = z.object({
 });
 
 type Formulaire = z.infer<typeof schema>;
-type TypeMouvement = 'ENTREE' | 'SORTIE' | 'TRANSFERT';
+// Pas de sortie manuelle : une sortie est une vente (écran Ventes) ou une
+// perte déclarée (écran Pertes, motif obligatoire).
+type TypeMouvement = 'ENTREE' | 'TRANSFERT';
 
 /**
  * Le parent monte ce composant uniquement lorsque la modale doit être
@@ -136,9 +138,8 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
     // s'exécuter.
     networkMode: 'always',
     mutationFn: async (valeurs: Formulaire): Promise<{ horsLigne: boolean }> => {
-      const route =
-        type === 'ENTREE' ? '/mouvements/entree' : type === 'SORTIE' ? '/mouvements/sortie' : '/mouvements/transfert';
-      const typeFile = type === 'ENTREE' ? 'entree' : type === 'SORTIE' ? 'sortie' : 'transfert';
+      const route = type === 'ENTREE' ? '/mouvements/entree' : '/mouvements/transfert';
+      const typeFile = type === 'ENTREE' ? 'entree' : 'transfert';
       const corps =
         type === 'ENTREE'
           ? {
@@ -148,15 +149,13 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
               ...(valeurs.fournisseurId ? { fournisseurId: valeurs.fournisseurId } : {}),
               ...(suiviParLot ? { numeroLot: valeurs.numeroLot?.trim(), datePeremption: valeurs.datePeremption } : {}),
             }
-          : type === 'SORTIE'
-            ? { produitId: valeurs.produitId, emplacementId: valeurs.emplacementId, quantite: valeurs.quantite }
-            : {
-                produitId: valeurs.produitId,
-                emplacementSourceId: valeurs.emplacementId,
-                emplacementDestinationId: valeurs.emplacementDestinationId,
-                quantite: valeurs.quantite,
-                ...(suiviParLot && valeurs.lotId ? { lotId: valeurs.lotId } : {}),
-              };
+          : {
+              produitId: valeurs.produitId,
+              emplacementSourceId: valeurs.emplacementId,
+              emplacementDestinationId: valeurs.emplacementDestinationId,
+              quantite: valeurs.quantite,
+              ...(suiviParLot && valeurs.lotId ? { lotId: valeurs.lotId } : {}),
+            };
       const nomProduit = produits.data?.find((p) => p.id === valeurs.produitId)?.nom ?? 'Produit';
 
       // Hors-ligne détecté avant même d'essayer : inutile d'attendre un
@@ -276,7 +275,7 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
           {(
             [
               { valeur: 'ENTREE', libelle: 'Entrée', Icone: ArrowDownToLine },
-              { valeur: 'SORTIE', libelle: 'Sortie', Icone: ArrowUpFromLine },
+              { valeur: 'VENTE', libelle: 'Vente', Icone: Receipt },
               { valeur: 'TRANSFERT', libelle: 'Transfert', Icone: ArrowRightLeft },
             ] as const
           )
@@ -287,7 +286,13 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
               key={valeur}
               type="button"
               aria-pressed={type === valeur}
-              onClick={() => setType(valeur)}
+              onClick={() => {
+                // Une sortie de marchandise passe par une vente : on ouvre l'écran de vente.
+                if (valeur === 'VENTE') {
+                  onFermer();
+                  navigate('/ventes/nouvelle');
+                } else setType(valeur);
+              }}
               className={cn(
                 'flex flex-1 items-center justify-center gap-2 rounded-md border px-3 py-2 text-corps font-medium transition-colors',
                 type === valeur
@@ -436,13 +441,6 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
               })),
             ]}
           />
-        )}
-
-        {type === 'SORTIE' && suiviParLot && lots.data && lots.data.length > 0 && (
-          <p className="text-meta text-steel-500">
-            Sortie dans l’ordre des péremptions : le lot <span className="font-mono text-ink-900">{lots.data[0].numero}</span>{' '}
-            part en premier.
-          </p>
         )}
 
         {type === 'ENTREE' && (

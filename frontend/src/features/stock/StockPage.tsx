@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Download, Plus } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
@@ -17,7 +18,7 @@ import { Onglets } from '@/components/patterns/Onglets';
 import { Vignette } from '@/components/patterns/Vignette';
 import { tableau } from '@/components/patterns/tableau';
 import { libelleStatut, statutStock, varianteStatut } from '@/components/patterns/statutStock';
-import { presentationMouvement, quantiteSignee } from '@/components/patterns/typeMouvement';
+import { libelleMouvement, presentationMouvement, quantiteSignee } from '@/components/patterns/typeMouvement';
 import type { TypeMouvement } from '@/components/patterns/typeMouvement';
 
 interface LigneStock {
@@ -38,6 +39,7 @@ interface Mouvement {
   emplacementDestination: { nom: string } | null;
   utilisateur: { nom: string };
   fournisseur: { nom: string } | null;
+  vente: { id: string; numero: string } | null;
 }
 
 interface Emplacement {
@@ -293,7 +295,13 @@ export function StockPage() {
                               <span className="min-w-0">
                                 <span className="block truncate font-medium text-ink-900">{mouvement.produit.nom}</span>
                                 <span className="block text-meta text-steel-500">
-                                  {p.libelle}
+                                  {mouvement.vente ? (
+                                    <Link to={`/ventes/${mouvement.vente.id}`} className="text-action hover:underline">
+                                      {libelleMouvement(mouvement)}
+                                    </Link>
+                                  ) : (
+                                    p.libelle
+                                  )}
                                   {mouvement.fournisseur && ` de ${mouvement.fournisseur.nom}`}
                                 </span>
                               </span>
@@ -326,7 +334,7 @@ export function StockPage() {
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-corps font-medium text-ink-900">{mouvement.produit.nom}</p>
                           <p className="truncate text-meta text-steel-500">
-                            {p.libelle}, {lieu(mouvement)}
+                            {libelleMouvement(mouvement)}, {lieu(mouvement)}
                           </p>
                         </div>
                         <div className="shrink-0 text-right">

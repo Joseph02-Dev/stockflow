@@ -53,3 +53,9 @@ export function quantiteSignee(type: TypeMouvement, quantite: number): string {
   if (type === 'AJUSTEMENT') return quantite > 0 ? `+${quantite}` : `−${Math.abs(quantite)}`;
   return String(quantite);
 }
+
+/** Libellé d'un mouvement : une sortie issue d'une vente porte le numéro de la vente. */
+export function libelleMouvement(m: { type: TypeMouvement; vente?: { numero: string } | null }): string {
+  if (m.type === 'SORTIE' && m.vente) return `Vente ${m.vente.numero}`;
+  return presentationMouvement[m.type].libelle;
+}
