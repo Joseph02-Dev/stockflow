@@ -41,7 +41,8 @@ function Vignette({ mode }: { mode: PreferenceTheme }) {
  * extérieur et à Échap ; ↑ ↓ Début Fin pour naviguer, Entrée ou Espace
  * pour choisir. Même mécanique de panneau que la liste déroulante.
  */
-export function SelecteurTheme({ className }: { className?: string }) {
+/** `compact` : icône seule (barre supérieure mobile), le nom du mode reste dans l'étiquette accessible. */
+export function SelecteurTheme({ className, compact = false }: { className?: string; compact?: boolean }) {
   const preference = usePreferenceTheme();
   const [ouvert, setOuvert] = useState(false);
   const [actif, setActif] = useState(0);
@@ -177,17 +178,22 @@ export function SelecteurTheme({ className }: { className?: string }) {
         onClick={() => (ouvert ? fermer() : ouvrir())}
         onKeyDown={surToucheBouton}
         className={cn(
-          'h-[34px] items-center gap-2 rounded-md px-2.5 text-corps text-steel-500 transition-colors hover:bg-survol hover:text-ink-900',
+          'items-center gap-2 rounded-md text-corps text-steel-500 transition-colors hover:bg-survol hover:text-ink-900',
+          compact ? 'size-10 justify-center' : 'h-[34px] px-2.5',
           ouvert && 'bg-survol text-ink-900',
           className,
         )}
       >
-        <courant.Icone className="size-4 shrink-0" aria-hidden="true" />
-        <span>{courant.libelle}</span>
-        <ChevronDown
-          className={cn('size-3.5 shrink-0 text-steel-400 transition-transform', ouvert && 'rotate-180')}
-          aria-hidden="true"
-        />
+        <courant.Icone className={cn('shrink-0', compact ? 'size-[18px]' : 'size-4')} aria-hidden="true" />
+        {!compact && (
+          <>
+            <span>{courant.libelle}</span>
+            <ChevronDown
+              className={cn('size-3.5 shrink-0 text-steel-400 transition-transform', ouvert && 'rotate-180')}
+              aria-hidden="true"
+            />
+          </>
+        )}
       </button>
       {menu && createPortal(menu, document.body)}
     </>
