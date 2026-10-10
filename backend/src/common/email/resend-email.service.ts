@@ -32,6 +32,8 @@ export class ResendEmailService implements EmailService {
   private readonly logger = new Logger(ResendEmailService.name);
   private readonly client: ClientResend;
   private readonly expediteur: string;
+  /** Adresse de réponse facultative (ex. contact@stockflowgn.com) : l'expéditeur reste noreply. */
+  private readonly adresseReponse: string | undefined;
 
   constructor(client?: ClientResend, private readonly pauses: number[] = PAUSES_MS) {
     const apiKey = process.env.RESEND_API_KEY;
@@ -40,6 +42,7 @@ export class ResendEmailService implements EmailService {
     }
     this.client = client ?? new Resend(apiKey);
     this.expediteur = process.env.EMAIL_FROM ?? 'StockFlow <onboarding@resend.dev>';
+    this.adresseReponse = process.env.EMAIL_REPLY_TO || undefined;
   }
 
   async send(message: EmailMessage): Promise<void> {
@@ -64,7 +67,14 @@ export class ResendEmailService implements EmailService {
   private async tenter(message: EmailMessage, idempotencyKey: string): Promise<ErreurResend | undefined> {
     try {
       const resultat = await this.client.emails.send(
-        { from: this.expediteur, to: message.to, subject: message.subject, text: message.body },
+        {
+          from: this.expediteur,
+          to: message.to,
+          subject: message.subject,
+          text: message.body,
+          ...(message.html ? { html: message.html } : {}),
+          ...(this.adresseReponse ? { replyTo: this.adresseReponse } : {}),
+        },
         // `signal` est transmis tel quel à fetch par le SDK : la requête est réellement coupée.
         { idempotencyKey, signal: AbortSignal.timeout(DELAI_TENTATIVE_MS) } as { idempotencyKey: string },
       );

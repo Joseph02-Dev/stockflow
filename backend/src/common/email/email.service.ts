@@ -1,7 +1,10 @@
 export interface EmailMessage {
   to: string;
   subject: string;
+  /** Version texte, toujours présente. */
   body: string;
+  /** Version HTML facultative, envoyée avec la version texte (voir gabarit-email.ts). */
+  html?: string;
 }
 
 export const EMAIL_SERVICE = Symbol('EMAIL_SERVICE');

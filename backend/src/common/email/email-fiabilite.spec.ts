@@ -38,6 +38,27 @@ describe('Envoi par Resend : délai, nouvelles tentatives, signalement', () => {
     const [, options] = send.mock.calls[0] as unknown as [unknown, { idempotencyKey: string; signal: AbortSignal }];
     expect(options.idempotencyKey).toMatch(/^[0-9a-f-]{36}$/);
     expect(options.signal).toBeInstanceOf(AbortSignal);
+    expect(send.mock.calls[0]).toEqual([expect.not.objectContaining({ html: expect.anything() }), expect.anything()]);
+  });
+
+  it('transmet la version HTML avec la version texte', async () => {
+    const { send, transport } = client(ok);
+    await transport.send({ ...MESSAGE, html: '<p>Bonjour</p>' });
+    expect(send.mock.calls[0]).toEqual([
+      expect.objectContaining({ text: MESSAGE.body, html: '<p>Bonjour</p>' }),
+      expect.anything(),
+    ]);
+  });
+
+  it('adresse de réponse : EMAIL_REPLY_TO transmise à Resend', async () => {
+    process.env.EMAIL_REPLY_TO = 'contact@stockflowgn.com';
+    try {
+      const { send, transport } = client(ok);
+      await transport.send(MESSAGE);
+      expect(send.mock.calls[0]).toEqual([expect.objectContaining({ replyTo: 'contact@stockflowgn.com' }), expect.anything()]);
+    } finally {
+      delete process.env.EMAIL_REPLY_TO;
+    }
   });
 
   it('panne passagère du fournisseur puis succès : nouvelle tentative avec la MÊME clé (jamais de doublon)', async () => {

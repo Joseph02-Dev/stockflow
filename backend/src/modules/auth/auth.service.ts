@@ -7,6 +7,7 @@ import type { StringValue } from 'ms';
 import { PrismaService } from '../../config/prisma.service.js';
 import { EMAIL_SERVICE, type EmailService } from '../../common/email/email.service.js';
 import { domaineEmailExiste } from '../../common/email/domaine-email.util.js';
+import { composerEmail } from '../../common/email/gabarit-email.js';
 import { hashToken } from './token-hash.util.js';
 import { erreurCompteDesactive } from '../../common/compte-desactive.js';
 import { erreurEntrepriseSuspendue } from '../../common/entreprise-suspendue.js';
@@ -442,7 +443,19 @@ export class AuthService {
     await this.emailService.send({
       to: email,
       subject: 'Confirmez votre adresse email StockFlow',
-      body: `Bienvenue sur StockFlow ! Confirmez votre adresse email pour activer votre compte.\n\nLien : ${lienBase}/verifier-email?token=${token}\n\nCe lien expire dans 24 heures.`,
+      ...composerEmail({
+        apercu: 'Un clic pour activer votre compte et terminer la création de votre espace.',
+        titre: 'Bienvenue sur StockFlow',
+        paragraphes: [
+          'Merci pour votre inscription. Confirmez votre adresse email pour activer votre compte.',
+          'Vous serez ensuite redirigé vers StockFlow pour terminer la configuration de votre entreprise.',
+        ],
+        bouton: { libelle: 'Confirmer mon adresse email', url: `${lienBase}/verifier-email?token=${token}` },
+        mentions: [
+          `Ce lien est personnel et expire dans ${expiration === '24h' ? '24 heures' : expiration}.`,
+          "Si vous n'êtes pas à l'origine de cette inscription, ignorez cet email : aucun compte ne sera activé.",
+        ],
+      }),
     });
   }
 
