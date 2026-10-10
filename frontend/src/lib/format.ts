@@ -20,3 +20,10 @@ export function tempsRelatif(date: string | Date, maintenant: number): string {
 export function pluriel(mot: string, n: number, formePlurielle = `${mot}s`): string {
   return Math.abs(n) > 1 ? formePlurielle : mot;
 }
+
+const compact = new Intl.NumberFormat('fr-FR', { notation: 'compact', maximumFractionDigits: 1 });
+
+/** Nombre abrégé pour les axes et totaux de graphiques : « 1,4 M », « 250 k ». */
+export function formatCompact(valeur: number): string {
+  return compact.format(valeur);
+}
