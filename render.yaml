@@ -34,6 +34,9 @@ services:
       # connexion peut prendre un peu plus que les 5 s par défaut.
       - key: DB_DELAI_CONNEXION_MS
         value: "10000"
+      # Adresse de réponse des emails (l'expéditeur reste EMAIL_FROM, noreply).
+      - key: EMAIL_REPLY_TO
+        value: contact@stockflowgn.com
       - key: DATABASE_URL
         sync: false
       - key: JWT_ACCESS_SECRET

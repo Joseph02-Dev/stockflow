@@ -102,7 +102,7 @@ function html(contenu: ContenuEmail, site: string): string {
       </td></tr>
       <tr><td align="center" style="padding:24px 16px 0;font-family:${POLICE};font-size:12px;line-height:18px;color:${COULEURS.secondaire};">
         StockFlow — gestion de stock${domaine ? ` · <a href="${echapperHtml(site)}" target="_blank" style="color:${COULEURS.secondaire};">${echapperHtml(domaine)}</a>` : ''}<br>
-        Email automatique, merci de ne pas y répondre.
+        ${pied(process.env.EMAIL_REPLY_TO)}
       </td></tr>
     </table>
   </td></tr>
@@ -111,8 +111,24 @@ function html(contenu: ContenuEmail, site: string): string {
 </html>`;
 }
 
+/** Ligne de contact : l'adresse de réponse (EMAIL_REPLY_TO) quand elle existe. */
+function pied(contact: string | undefined): string {
+  if (!contact) return 'Email automatique, merci de ne pas y répondre.';
+  const adresse = echapperHtml(contact);
+  return `Une question ? Répondez à cet email ou écrivez à <a href="mailto:${adresse}" style="color:${COULEURS.secondaire};">${adresse}</a>.`;
+}
+
 function texte(contenu: ContenuEmail): string {
-  return [contenu.titre, '', ...contenu.paragraphes.flatMap((p) => [p, '']), `${contenu.bouton.libelle} : ${contenu.bouton.url}`, '', ...contenu.mentions].join('\n');
+  const contact = process.env.EMAIL_REPLY_TO;
+  return [
+    contenu.titre,
+    '',
+    ...contenu.paragraphes.flatMap((p) => [p, '']),
+    `${contenu.bouton.libelle} : ${contenu.bouton.url}`,
+    '',
+    ...contenu.mentions,
+    ...(contact ? ['', `Une question ? Écrivez à ${contact}.`] : []),
+  ].join('\n');
 }
 
 /** Versions texte (`body`) et HTML (`html`) d'un même email. */

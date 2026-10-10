@@ -147,8 +147,14 @@ reçoivent rien ([doc Resend](https://resend.com/docs/dashboard/domains/introduc
    `resend._domainkey`), en **DNS only**. Facultatif mais conseillé :
    TXT `_dmarc` = `v=DMARC1; p=none;`.
 3. Resend → **Verify DNS Records** → statut « Verified ».
-4. Render → `EMAIL_FROM` = `StockFlow <noreply@stockflowgn.com>` → Save
-   (redéploiement automatique).
+4. Render → `EMAIL_FROM` = `StockFlow <noreply@stockflowgn.com>` et
+   `EMAIL_REPLY_TO` = `contact@stockflowgn.com` → Save (redéploiement
+   automatique). Les réponses des utilisateurs partent vers `contact@`,
+   dont l'adresse figure aussi en pied d'email.
+5. Recevoir `contact@stockflowgn.com` : Cloudflare → **Email → Email
+   Routing** → activer, puis règle `contact` → votre boîte personnelle
+   (Cloudflare ajoute ses MX sur le domaine principal ; ceux de Resend
+   sont sur `send`, sans conflit).
 
 L'email de confirmation d'inscription est envoyé en HTML (charte
 StockFlow) avec une version texte ; son bouton mène à

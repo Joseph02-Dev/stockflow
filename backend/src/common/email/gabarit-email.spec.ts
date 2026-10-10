@@ -13,6 +13,7 @@ describe('Gabarit des emails', () => {
   const frontendUrl = process.env.FRONTEND_URL;
   afterEach(() => {
     process.env.FRONTEND_URL = frontendUrl;
+    delete process.env.EMAIL_REPLY_TO;
   });
 
   it('produit une version texte et une version HTML portant le même lien', () => {
@@ -36,5 +37,14 @@ describe('Gabarit des emails', () => {
   it('sans adresse HTTPS du site, pas de logo (images non sécurisées bloquées)', () => {
     process.env.FRONTEND_URL = 'http://localhost:5173';
     expect(composerEmail(CONTENU).html).not.toContain('<img');
+  });
+
+  it('affiche l’adresse de contact quand EMAIL_REPLY_TO est définie, sinon « ne pas répondre »', () => {
+    expect(composerEmail(CONTENU).html).toContain('merci de ne pas y répondre');
+    process.env.EMAIL_REPLY_TO = 'contact@stockflowgn.com';
+    const { body, html } = composerEmail(CONTENU);
+    expect(html).toContain('<a href="mailto:contact@stockflowgn.com"');
+    expect(html).not.toContain('ne pas y répondre');
+    expect(body).toContain('Une question ? Écrivez à contact@stockflowgn.com.');
   });
 });

@@ -50,6 +50,17 @@ describe('Envoi par Resend : délai, nouvelles tentatives, signalement', () => {
     ]);
   });
 
+  it('adresse de réponse : EMAIL_REPLY_TO transmise à Resend', async () => {
+    process.env.EMAIL_REPLY_TO = 'contact@stockflowgn.com';
+    try {
+      const { send, transport } = client(ok);
+      await transport.send(MESSAGE);
+      expect(send.mock.calls[0]).toEqual([expect.objectContaining({ replyTo: 'contact@stockflowgn.com' }), expect.anything()]);
+    } finally {
+      delete process.env.EMAIL_REPLY_TO;
+    }
+  });
+
   it('panne passagère du fournisseur puis succès : nouvelle tentative avec la MÊME clé (jamais de doublon)', async () => {
     const { send, transport } = client(erreur(503), erreur(429), ok);
     await transport.send(MESSAGE);
