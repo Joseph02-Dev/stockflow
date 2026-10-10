@@ -14,7 +14,7 @@ import {
   FileText,
   LayoutDashboard,
   LogOut,
-  MoreHorizontal,
+  Menu,
   Package,
   Receipt,
   Settings,
@@ -23,6 +23,7 @@ import {
   UserRound,
   Users,
   Warehouse,
+  X,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { clearSession, getSession } from '@/lib/session';
@@ -33,7 +34,7 @@ import { ProfilModal } from '@/features/profil/ProfilModal';
 import { useSynchronisation } from '@/lib/useSynchronisation';
 import { BarreProgression } from '@/components/patterns/BarreProgression';
 import { useModules } from '@/lib/useModules';
-import { ChoixApparence, SelecteurTheme } from '@/components/patterns/SelecteurTheme';
+import { SelecteurTheme } from '@/components/patterns/SelecteurTheme';
 import { OngletsSection, type OngletSection } from '@/components/patterns/OngletsSection';
 
 // Navigation en quatre sections : piloter, gérer le stock, s'approvisionner,
@@ -95,10 +96,10 @@ const ADRESSE_AIDE = 'contact@stockflowgn.com';
 // est le premier usage mobile : elle prend la place de Produits, qui
 // rejoint Fournisseurs, Clients, Catégories/Marques et Paramètres dans « Plus ».
 const navMobile = [
-  { to: '/', libelle: 'Accueil', Icone: LayoutDashboard, exact: true },
+  { to: '/', libelle: 'Vue d’ensemble', Icone: LayoutDashboard, exact: true },
   { to: '/ventes', libelle: 'Ventes', Icone: Receipt },
-  { to: '/stock', libelle: 'Mouvements', Icone: Warehouse },
-  { to: '/alertes', libelle: 'Alertes', Icone: Bell },
+  { to: '/stock', libelle: 'Stock', Icone: Warehouse },
+  { to: '/commandes', libelle: 'Commandes', Icone: ClipboardList },
 ];
 
 /**
@@ -435,11 +436,12 @@ export function AppLayout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-[60px] shrink-0 items-center justify-between gap-3 border-b border-rule bg-surface px-4 md:px-7">
-          <div className="flex min-w-0 items-center gap-2.5 md:hidden">
-            <Logo taille={26} />
-            <span className="truncate text-panneau text-ink-900">{ariane[ariane.length - 1].libelle}</span>
-          </div>
+        {/* Verre dépoli : le contenu défile sous la barre, légèrement visible. */}
+        <header className="sticky top-0 z-30 flex h-[60px] shrink-0 items-center justify-between gap-3 border-b border-rule/70 bg-surface/80 px-4 backdrop-blur-xl backdrop-saturate-150 md:px-7">
+          <Link to="/" className="flex min-w-0 items-center gap-2.5 md:hidden">
+            <Logo taille={28} />
+            <span className="truncate text-panneau text-ink-900">{session?.entreprise.nom}</span>
+          </Link>
 
           <nav aria-label="Fil d’Ariane" className="hidden min-w-0 md:block">
             <ol className="flex items-center gap-1.5 text-corps">
@@ -485,6 +487,7 @@ export function AppLayout() {
               />
             </form>
             <SelecteurTheme className="hidden md:inline-flex" />
+            <SelecteurTheme compact className="inline-flex md:hidden" />
             <span className="hidden items-center gap-1.5 px-1.5 text-meta text-steel-500 md:inline-flex" role="status">
               <span
                 className={cn(
@@ -525,6 +528,15 @@ export function AppLayout() {
                 />
               )}
             </Link>
+            <button
+              type="button"
+              onClick={() => setPlusOuvert(true)}
+              aria-label="Menu"
+              aria-expanded={plusOuvert}
+              className="inline-flex size-10 items-center justify-center rounded-md border border-rule bg-surface/60 text-ink-900 transition-colors hover:bg-survol md:hidden"
+            >
+              <Menu className="size-5" aria-hidden="true" />
+            </button>
           </div>
         </header>
 
@@ -537,9 +549,9 @@ export function AppLayout() {
         </main>
       </div>
 
-      {/* Barre de navigation mobile — remplace l'ancien menu plein écran */}
+      {/* Barre de navigation mobile : verre dépoli, onglet actif en pastille. */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-rule bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-rule/70 bg-surface/80 px-2 pt-1.5 pb-[calc(env(safe-area-inset-bottom)+6px)] shadow-[0_-10px_30px_-18px_rgba(16,24,40,0.35)] backdrop-blur-xl backdrop-saturate-150 md:hidden"
         aria-label="Navigation principale"
       >
         {navMobile.map(({ to, libelle, Icone, exact }) => (
@@ -549,38 +561,44 @@ export function AppLayout() {
             end={exact}
             className={({ isActive }) =>
               cn(
-                'relative flex flex-1 flex-col items-center gap-0.5 py-2 text-meta font-medium',
+                'group flex flex-1 flex-col items-center gap-1 py-1 text-meta font-medium transition-colors',
                 isActive ? 'text-action' : 'text-steel-500',
               )
             }
           >
-            <Icone className="size-5" aria-hidden="true" />
-            {libelle}
-            {to === '/alertes' && nombreAlertes > 0 && (
-              <span
-                className="absolute top-1 right-[calc(50%-20px)] inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rupture px-1 text-[10px] leading-none font-semibold text-sur-couleur"
-                aria-label={`${nombreAlertes} alerte${nombreAlertes > 1 ? 's' : ''} active${nombreAlertes > 1 ? 's' : ''}`}
-              >
-                {nombreAlertes}
-              </span>
+            {({ isActive }) => (
+              <>
+                <span
+                  className={cn(
+                    'flex h-8 w-14 items-center justify-center rounded-full transition-colors',
+                    isActive ? 'bg-action-wash' : 'group-hover:bg-survol',
+                  )}
+                >
+                  <Icone className="size-5" aria-hidden="true" />
+                </span>
+                {libelle}
+              </>
             )}
           </NavLink>
         ))}
-        <button
-          type="button"
-          onClick={() => setPlusOuvert(true)}
-          className="flex flex-1 flex-col items-center gap-0.5 py-2 text-meta font-medium text-steel-500"
-        >
-          <MoreHorizontal className="size-5" aria-hidden="true" />
-          Plus
-        </button>
       </nav>
 
       {plusOuvert && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <div className="absolute inset-0 bg-voile/50" onClick={() => setPlusOuvert(false)} aria-hidden="true" />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-xl bg-surface p-3 pb-6 shadow-pop">
-            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-rule-strong" />
+        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Menu">
+          <div className="absolute inset-0 bg-voile/50 backdrop-blur-[2px]" onClick={() => setPlusOuvert(false)} aria-hidden="true" />
+          {/* Le menu descend du bouton qui l'ouvre, en haut à droite. */}
+          <div className="absolute inset-x-0 top-0 max-h-[85dvh] overflow-y-auto rounded-b-xl border-b border-rule/70 bg-surface/95 p-3 pt-[calc(env(safe-area-inset-top)+8px)] pb-4 shadow-pop backdrop-blur-xl">
+            <div className="mb-1 flex items-center justify-between px-3">
+              <span className="text-panneau text-ink-900">Menu</span>
+              <button
+                type="button"
+                onClick={() => setPlusOuvert(false)}
+                aria-label="Fermer le menu"
+                className="inline-flex size-10 items-center justify-center rounded-md text-steel-700 hover:bg-survol"
+              >
+                <X className="size-5" aria-hidden="true" />
+              </button>
+            </div>
             <NavLink to="/statistiques" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
               <ChartLine className="size-5 text-steel-500" aria-hidden="true" />
               Statistiques
@@ -592,10 +610,6 @@ export function AppLayout() {
             <NavLink to="/produits" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
               <Package className="size-5 text-steel-500" aria-hidden="true" />
               Produits
-            </NavLink>
-            <NavLink to="/commandes" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
-              <ClipboardList className="size-5 text-steel-500" aria-hidden="true" />
-              Commandes & retours
             </NavLink>
             {modules.rapports && (
               <NavLink to="/rapports" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
@@ -650,7 +664,6 @@ export function AppLayout() {
               <LogOut className="size-5 text-steel-500" aria-hidden="true" />
               Déconnexion
             </button>
-            <ChoixApparence className="mt-2 border-t border-rule px-3 pt-3" />
             <div className="mt-3 flex items-center gap-2 border-t border-rule px-3 pt-3 text-meta text-steel-500">
               <span
                 className={cn(
