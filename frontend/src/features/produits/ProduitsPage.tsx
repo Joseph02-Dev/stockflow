@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Archive, Download, MapPin, Pencil, Plus, Search, Upload } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { exporterCsv } from '@/lib/exporterCsv';
@@ -63,7 +63,15 @@ export function ProduitsPage() {
   const navigate = useNavigate();
   const modules = useModules();
   const queryClient = useQueryClient();
-  const [recherche, setRecherche] = useState('');
+  // ?q= : recherche lancée depuis la barre supérieure.
+  const [parametresUrl] = useSearchParams();
+  const rechercheUrl = parametresUrl.get('q') ?? '';
+  const [recherche, setRecherche] = useState(rechercheUrl);
+  const [rechercheUrlVue, setRechercheUrlVue] = useState(rechercheUrl);
+  if (rechercheUrl !== rechercheUrlVue) {
+    setRechercheUrlVue(rechercheUrl);
+    setRecherche(rechercheUrl);
+  }
   const [afficherArchives, setAfficherArchives] = useState(false);
   const [aArchiver, setAArchiver] = useState<Produit | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
