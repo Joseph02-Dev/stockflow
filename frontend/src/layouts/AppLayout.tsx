@@ -1,5 +1,4 @@
-import { Fragment, useState } from 'react';
-import type { ReactNode } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -11,11 +10,15 @@ import {
   PackageX,
   ChevronRight,
   ClipboardList,
+  EllipsisVertical,
   FileText,
   LayoutDashboard,
   LogOut,
   Menu,
   Package,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
   Receipt,
   Settings,
   Tag,
@@ -162,6 +165,44 @@ function filAriane(chemin: string): { libelle: string; to?: string }[] {
   return [{ libelle: section, to: parent }, { libelle: libelleDetail }];
 }
 
+/** Bulle affichée à droite d'un élément de la barre réduite. */
+type Bulle = { texte: string; haut: number; gauche: number };
+
+/** Préférence de la barre latérale (réduite ou déployée), mémorisée par navigateur. */
+const CLE_BARRE_REPLIEE = 'stockflow.barreRepliee';
+
+function lireBarreRepliee(): boolean {
+  try {
+    return localStorage.getItem(CLE_BARRE_REPLIEE) === '1';
+  } catch {
+    // Stockage indisponible (navigation privée stricte) : barre déployée.
+    return false;
+  }
+}
+
+function enregistrerBarreRepliee(replie: boolean) {
+  try {
+    localStorage.setItem(CLE_BARRE_REPLIEE, replie ? '1' : '0');
+  } catch {
+    // Préférence de confort : ne rien bloquer si elle ne peut être gardée.
+  }
+}
+
+/**
+ * Props à poser sur un élément de la barre réduite : la bulle portant son
+ * libellé s'affiche au survol comme au focus clavier. Position fixe, car la
+ * liste défile et rognerait une bulle positionnée en absolu.
+ */
+function propsBulle(texte: string, replie: boolean, onBulle: (bulle: Bulle | null) => void) {
+  if (!replie) return {};
+  const montrer = (event: React.SyntheticEvent<HTMLElement>) => {
+    const zone = event.currentTarget.getBoundingClientRect();
+    onBulle({ texte, haut: zone.top + zone.height / 2, gauche: zone.right + 12 });
+  };
+  const cacher = () => onBulle(null);
+  return { onMouseEnter: montrer, onMouseLeave: cacher, onFocus: montrer, onBlur: cacher };
+}
+
 function LienNav({
   to,
   libelle,
@@ -169,8 +210,9 @@ function LienNav({
   exact,
   nombreAlertes,
   nombrePeremptions = 0,
-  onNaviguer,
   actifForce,
+  replie,
+  onBulle,
 }: {
   to: string;
   libelle: string;
@@ -179,68 +221,94 @@ function LienNav({
   nombreAlertes: number;
   /** Lots sous surveillance (péremption dans le seuil, périmés compris). */
   nombrePeremptions?: number;
-  onNaviguer?: () => void;
   /**
-   * Remplace la détection automatique de React Router. Nécessaire quand
-   * deux liens pointent vers le même chemin avec des paramètres de
-   * requête différents (Catégories & marques / Paramètres pointent tous
-   * deux vers /parametres) — sans ça, les deux s'allument en même temps.
+   * Remplace la détection automatique de React Router, pour un lien qui
+   * reste actif sur les pages réunies sous lui (onglets de section).
    */
   actifForce?: boolean;
+  /** Barre réduite : icône seule, libellé dans une bulle. */
+  replie: boolean;
+  onBulle: (bulle: Bulle | null) => void;
 }) {
   const estAlertes = to === '/alertes';
+  const signalements = estAlertes ? nombreAlertes + nombrePeremptions : 0;
+  const description = [
+    estAlertes &&
+      nombreAlertes > 0 &&
+      `${nombreAlertes} alerte${nombreAlertes > 1 ? 's' : ''} active${nombreAlertes > 1 ? 's' : ''}`,
+    estAlertes &&
+      nombrePeremptions > 0 &&
+      `${nombrePeremptions} lot${nombrePeremptions > 1 ? 's' : ''} sous surveillance`,
+  ]
+    .filter(Boolean)
+    .join(', ');
+
   const classes = (actif: boolean) =>
     cn(
-      'flex h-8 items-center gap-2.5 rounded-md px-2.5 text-corps font-medium transition-colors',
+      'relative flex h-9 shrink-0 items-center rounded-lg text-corps font-medium transition-colors',
       'focus-visible:outline-white/70',
-      actif ? 'bg-action text-sur-couleur' : 'text-white/70 hover:bg-white/5 hover:text-white',
+      replie ? 'justify-center' : 'gap-2.5 px-2.5',
+      actif ? 'bg-white/10 text-white' : 'text-white/65 hover:bg-white/5 hover:text-white',
     );
 
-  const contenu = (
+  const contenu = (actif: boolean) => (
     <>
-      <Icone className="size-[17px] shrink-0" aria-hidden="true" />
-      <span className="flex-1 truncate">{libelle}</span>
-      {estAlertes && nombreAlertes > 0 && (
-        <span
-          className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rupture px-1.5 text-meta font-semibold text-sur-couleur"
-          aria-label={`${nombreAlertes} alerte${nombreAlertes > 1 ? 's' : ''} active${nombreAlertes > 1 ? 's' : ''}`}
-        >
-          {nombreAlertes}
-        </span>
-      )}
-      {estAlertes && nombrePeremptions > 0 && (
-        <span
-          className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-faible px-1.5 text-meta font-semibold text-sur-couleur"
-          aria-label={`${nombrePeremptions} lot${nombrePeremptions > 1 ? 's' : ''} sous surveillance`}
-        >
-          {nombrePeremptions}
-        </span>
+      <Icone className={cn('size-[18px] shrink-0', actif && 'text-action-clair')} aria-hidden="true" />
+      {replie ? (
+        signalements > 0 && (
+          <span
+            className={cn(
+              'absolute top-1.5 right-2.5 size-2 rounded-full ring-2 ring-ink-800',
+              nombreAlertes > 0 ? 'bg-rupture' : 'bg-faible',
+            )}
+            aria-hidden="true"
+          />
+        )
+      ) : (
+        <>
+          <span className="flex-1 truncate">{libelle}</span>
+          {estAlertes && nombreAlertes > 0 && (
+            <span
+              className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rupture px-1.5 text-meta font-semibold text-sur-couleur"
+              aria-hidden="true"
+            >
+              {nombreAlertes}
+            </span>
+          )}
+          {estAlertes && nombrePeremptions > 0 && (
+            <span
+              className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-faible px-1.5 text-meta font-semibold text-sur-couleur"
+              aria-hidden="true"
+            >
+              {nombrePeremptions}
+            </span>
+          )}
+        </>
       )}
     </>
   );
 
+  const nomAccessible = description ? `${libelle} : ${description}` : replie ? libelle : undefined;
+  const bulle = propsBulle(description ? `${libelle} · ${signalements}` : libelle, replie, onBulle);
+
   if (actifForce !== undefined) {
     return (
-      <NavLink to={to} onClick={onNaviguer} className={classes(actifForce)} aria-current={actifForce ? 'page' : undefined}>
-        {contenu}
+      <NavLink
+        to={to}
+        className={classes(actifForce)}
+        aria-current={actifForce ? 'page' : undefined}
+        aria-label={nomAccessible}
+        {...bulle}
+      >
+        {contenu(actifForce)}
       </NavLink>
     );
   }
 
   return (
-    <NavLink to={to} end={exact} onClick={onNaviguer} className={({ isActive }) => classes(isActive)}>
-      {contenu}
+    <NavLink to={to} end={exact} className={({ isActive }) => classes(isActive)} aria-label={nomAccessible} {...bulle}>
+      {({ isActive }) => contenu(isActive)}
     </NavLink>
-  );
-}
-
-function SectionNav({ titre, children }: { titre: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      {/* Intitulé de section en casse normale : un repère discret, pas un cri. */}
-      <span className="px-2.5 pb-1.5 text-meta font-medium text-steel-400">{titre}</span>
-      {children}
-    </div>
   );
 }
 
@@ -257,6 +325,35 @@ export function AppLayout() {
   const [plusOuvert, setPlusOuvert] = useState(false);
 
   const [recherche, setRecherche] = useState('');
+  const [replie, setReplie] = useState(lireBarreRepliee);
+  const [bulle, setBulle] = useState<Bulle | null>(null);
+  const [menuProfilOuvert, setMenuProfilOuvert] = useState(false);
+  const menuProfilRef = useRef<HTMLDivElement>(null);
+
+  function basculerBarre() {
+    setBulle(null);
+    setReplie((actuel) => {
+      enregistrerBarreRepliee(!actuel);
+      return !actuel;
+    });
+  }
+
+  // Menu du compte : se ferme au clic à l'extérieur et avec Échap.
+  useEffect(() => {
+    if (!menuProfilOuvert) return;
+    const clicExterieur = (event: MouseEvent) => {
+      if (!menuProfilRef.current?.contains(event.target as Node)) setMenuProfilOuvert(false);
+    };
+    const touche = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuProfilOuvert(false);
+    };
+    document.addEventListener('mousedown', clicExterieur);
+    document.addEventListener('keydown', touche);
+    return () => {
+      document.removeEventListener('mousedown', clicExterieur);
+      document.removeEventListener('keydown', touche);
+    };
+  }, [menuProfilOuvert]);
 
   const ariane = filAriane(location.pathname);
   const sousChemin = (chemin: string) => location.pathname === chemin || location.pathname.startsWith(`${chemin}/`);
@@ -353,87 +450,200 @@ export function AppLayout() {
   return (
     <div className="flex min-h-full">
       <BarreProgression />
-      {/* Sidebar desktop — encre, collée à la hauteur de l'écran. */}
-      <aside className="barre-laterale sticky top-0 hidden h-dvh w-[248px] shrink-0 flex-col bg-ink-800 md:flex">
-        <div className="flex flex-col gap-4 px-3.5 pt-4 pb-4">
-          <Link to="/" className="flex items-center gap-2.5 rounded-md px-1.5 text-white focus-visible:outline-white/70">
-            <Logo taille={30} />
-            <span className="text-panneau">StockFlow</span>
-          </Link>
-          <div className="flex items-center gap-2.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2">
-            <span
-              className="flex size-8 shrink-0 items-center justify-center rounded-md bg-white/10 text-meta font-bold text-white"
-              aria-hidden="true"
+      {/* Barre latérale desktop : panneau flottant, réductible à ses icônes. */}
+      <aside className="sticky top-0 hidden h-dvh shrink-0 py-3 pl-3 md:flex">
+        <div
+          className={cn(
+            'barre-laterale flex flex-col rounded-xl bg-ink-800 shadow-[0_18px_40px_-24px_rgba(16,24,40,0.55)]',
+            replie ? 'w-[68px]' : 'w-[248px]',
+          )}
+        >
+          <div className={cn('flex gap-2 pt-4 pb-3', replie ? 'flex-col items-center px-2' : 'items-center px-3.5')}>
+            <Link
+              to="/"
+              className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-1 text-white focus-visible:outline-white/70"
+              aria-label={replie ? 'StockFlow : tableau de bord' : undefined}
             >
-              {initialesEntreprise}
-            </span>
-            <span className="min-w-0 leading-tight">
-              <span className="block truncate text-corps font-semibold text-white">{session?.entreprise.nom}</span>
-              <span className="block truncate text-meta text-white/60">Espace de gestion</span>
-            </span>
+              <Logo taille={30} />
+              {!replie && <span className="truncate text-panneau">StockFlow</span>}
+            </Link>
+            <button
+              type="button"
+              onClick={basculerBarre}
+              aria-label={replie ? 'Déployer le menu' : 'Réduire le menu'}
+              aria-expanded={!replie}
+              className="flex size-8 shrink-0 items-center justify-center rounded-md text-white/60 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-white/70"
+              {...propsBulle('Déployer le menu', replie, setBulle)}
+            >
+              {replie ? (
+                <PanelLeftOpen className="size-[18px]" aria-hidden="true" />
+              ) : (
+                <PanelLeftClose className="size-[18px]" aria-hidden="true" />
+              )}
+            </button>
+          </div>
+
+          <div className={cn('flex flex-col gap-2 pb-3', replie ? 'items-center px-2' : 'px-3')}>
+            <div
+              className={cn(
+                'flex items-center gap-2.5 rounded-lg border border-white/10 bg-white/[0.04]',
+                replie ? 'p-1' : 'px-2.5 py-2',
+              )}
+              tabIndex={replie ? 0 : undefined}
+              aria-label={replie ? `Entreprise : ${session?.entreprise.nom ?? ''}` : undefined}
+              {...propsBulle(session?.entreprise.nom ?? '', replie, setBulle)}
+            >
+              <span
+                className="flex size-8 shrink-0 items-center justify-center rounded-md bg-white/10 text-meta font-bold text-white"
+                aria-hidden="true"
+              >
+                {initialesEntreprise}
+              </span>
+              {!replie && (
+                <span className="min-w-0 leading-tight">
+                  <span className="block truncate text-corps font-semibold text-white">{session?.entreprise.nom}</span>
+                  <span className="block truncate text-meta text-white/60">Espace de gestion</span>
+                </span>
+              )}
+            </div>
+            {/* Action principale : la vente au comptoir, à un clic de partout. */}
+            <Link
+              to="/ventes/nouvelle"
+              aria-label={replie ? 'Nouvelle vente' : undefined}
+              className={cn(
+                'flex h-9 items-center justify-center gap-2 rounded-lg bg-action text-corps font-semibold text-sur-couleur transition-colors hover:bg-action-dark focus-visible:outline-white/70',
+                replie ? 'w-9' : 'w-full',
+              )}
+              {...propsBulle('Nouvelle vente', replie, setBulle)}
+            >
+              <Plus className="size-[18px]" aria-hidden="true" />
+              {!replie && 'Nouvelle vente'}
+            </Link>
+          </div>
+
+          {/* Groupes séparés par un filet : les icônes suffisent à les distinguer, sans intitulés. */}
+          <nav
+            className={cn(
+              'flex flex-1 flex-col overflow-x-hidden overflow-y-auto pb-3 [scrollbar-color:rgb(255_255_255/0.2)_transparent] [scrollbar-width:thin]',
+              replie ? 'px-2' : 'px-3',
+            )}
+            aria-label="Navigation principale"
+            onScroll={() => setBulle(null)}
+          >
+            {sectionsNav.map((section) => {
+              const liens = section.liens.filter(
+                (lien) =>
+                  (!lien.admin || session?.utilisateur.role === 'ADMIN') &&
+                  (lien.module !== 'rapports' || modules.rapports),
+              );
+              if (liens.length === 0) return null;
+              return (
+                <div
+                  key={section.titre}
+                  role="group"
+                  aria-label={section.titre}
+                  className="flex flex-col gap-0.5 border-t border-white/[0.07] py-2.5 first:border-t-0 first:pt-0"
+                >
+                  {liens.map((lien) => (
+                    <LienNav
+                      key={lien.to}
+                      to={lien.to}
+                      libelle={lien.libelle}
+                      Icone={lien.Icone}
+                      exact={lien.exact}
+                      nombreAlertes={nombreAlertes}
+                      nombrePeremptions={nombrePeremptions}
+                      actifForce={lien.aussi ? [lien.to, ...lien.aussi].some(sousChemin) : undefined}
+                      replie={replie}
+                      onBulle={setBulle}
+                    />
+                  ))}
+                </div>
+              );
+            })}
+          </nav>
+
+          <div ref={menuProfilRef} className="relative border-t border-white/[0.08] p-2">
+            <button
+              type="button"
+              onClick={() => {
+                setBulle(null);
+                setMenuProfilOuvert((ouvert) => !ouvert);
+              }}
+              aria-expanded={menuProfilOuvert}
+              aria-label={replie ? `Compte de ${session?.utilisateur.nom ?? ''}` : undefined}
+              className={cn(
+                'flex w-full items-center gap-2.5 rounded-lg p-1.5 text-left transition-colors hover:bg-white/5 focus-visible:outline-white/70',
+                replie && 'justify-center',
+                menuProfilOuvert && 'bg-white/5',
+              )}
+              {...propsBulle(session?.utilisateur.nom ?? '', replie && !menuProfilOuvert, setBulle)}
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-action text-meta font-semibold text-sur-couleur">
+                {session?.utilisateur.photoUrl ? (
+                  <img src={session.utilisateur.photoUrl} alt="" className="size-full object-cover" />
+                ) : (
+                  initiales
+                )}
+              </span>
+              {!replie && (
+                <>
+                  <span className="min-w-0 flex-1 leading-tight">
+                    <span className="block truncate text-corps font-semibold text-white">
+                      {session?.utilisateur.nom}
+                    </span>
+                    <span className="block truncate text-meta text-white/60">
+                      {session?.utilisateur.role === 'ADMIN' ? 'Administrateur' : 'Gestionnaire'}
+                    </span>
+                  </span>
+                  <EllipsisVertical className="size-[18px] shrink-0 text-white/60" aria-hidden="true" />
+                </>
+              )}
+            </button>
+            {menuProfilOuvert && (
+              <div
+                role="group"
+                aria-label="Compte"
+                className={cn(
+                  'absolute z-50 w-52 rounded-lg border border-rule bg-surface p-1 shadow-pop',
+                  replie ? 'bottom-2 left-full ml-3' : 'right-2 bottom-full left-2 mb-2 w-auto',
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuProfilOuvert(false);
+                    setProfilOuvert(true);
+                  }}
+                  className="flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-corps font-medium text-ink-900 hover:bg-survol"
+                >
+                  <UserRound className="size-4 text-steel-500" aria-hidden="true" />
+                  Mon profil
+                </button>
+                <button
+                  type="button"
+                  onClick={seDeconnecter}
+                  className="flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-corps font-medium text-rupture hover:bg-survol"
+                >
+                  <LogOut className="size-4" aria-hidden="true" />
+                  Déconnexion
+                </button>
+              </div>
+            )}
           </div>
         </div>
-
-        <nav
-          className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 pb-3 [scrollbar-color:rgb(255_255_255/0.2)_transparent] [scrollbar-width:thin]"
-          aria-label="Navigation principale"
-        >
-          {sectionsNav.map((section) => {
-            const liens = section.liens.filter(
-              (lien) =>
-                (!lien.admin || session?.utilisateur.role === 'ADMIN') && (lien.module !== 'rapports' || modules.rapports),
-            );
-            if (liens.length === 0) return null;
-            return (
-              <SectionNav key={section.titre} titre={section.titre}>
-                {liens.map((lien) => (
-                  <LienNav
-                    key={lien.to}
-                    to={lien.to}
-                    libelle={lien.libelle}
-                    Icone={lien.Icone}
-                    exact={lien.exact}
-                    nombreAlertes={nombreAlertes}
-                    nombrePeremptions={nombrePeremptions}
-                    actifForce={lien.aussi ? [lien.to, ...lien.aussi].some(sousChemin) : undefined}
-                  />
-                ))}
-              </SectionNav>
-            );
-          })}
-        </nav>
-
-        <div className="flex items-center gap-1 border-t border-white/[0.08] p-2.5">
-          <button
-            type="button"
-            onClick={() => setProfilOuvert(true)}
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md p-1.5 text-left hover:bg-white/5 focus-visible:outline-white/70"
-          >
-            <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-action text-meta font-semibold text-sur-couleur">
-              {session?.utilisateur.photoUrl ? (
-                <img src={session.utilisateur.photoUrl} alt="" className="size-full object-cover" />
-              ) : (
-                initiales
-              )}
-            </span>
-            <span className="min-w-0 leading-tight">
-              <span className="block truncate text-corps font-semibold text-white">{session?.utilisateur.nom}</span>
-              <span className="block truncate text-meta text-white/60">
-                {session?.utilisateur.role === 'ADMIN' ? 'Administrateur' : 'Gestionnaire'}
-              </span>
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={seDeconnecter}
-            aria-label="Déconnexion"
-            title="Déconnexion"
-            className="flex size-11 shrink-0 items-center justify-center rounded-md text-white/70 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-white/70"
-          >
-            <LogOut className="size-[18px]" aria-hidden="true" />
-          </button>
-        </div>
       </aside>
+
+      {replie && bulle && (
+        <div
+          role="tooltip"
+          className="pointer-events-none fixed z-50 -translate-y-1/2 rounded-md bg-action px-2.5 py-1.5 text-meta font-semibold whitespace-nowrap text-sur-couleur shadow-pop"
+          style={{ top: bulle.haut, left: bulle.gauche }}
+        >
+          <span className="absolute top-1/2 -left-1 size-2 -translate-y-1/2 rotate-45 bg-action" aria-hidden="true" />
+          {bulle.texte}
+        </div>
+      )}
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Verre dépoli : le contenu défile sous la barre, légèrement visible. */}
@@ -585,7 +795,11 @@ export function AppLayout() {
 
       {plusOuvert && (
         <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Menu">
-          <div className="absolute inset-0 bg-voile/50 backdrop-blur-[2px]" onClick={() => setPlusOuvert(false)} aria-hidden="true" />
+          <div
+            className="absolute inset-0 bg-voile/50 backdrop-blur-[2px]"
+            onClick={() => setPlusOuvert(false)}
+            aria-hidden="true"
+          />
           {/* Le menu descend du bouton qui l'ouvre, en haut à droite. */}
           <div className="absolute inset-x-0 top-0 max-h-[85dvh] overflow-y-auto rounded-b-xl border-b border-rule/70 bg-surface/95 p-3 pt-[calc(env(safe-area-inset-top)+8px)] pb-4 shadow-pop backdrop-blur-xl">
             <div className="mb-1 flex items-center justify-between px-3">
@@ -627,19 +841,11 @@ export function AppLayout() {
             </NavLink>
             {session?.utilisateur.role === 'ADMIN' && (
               <>
-                <NavLink
-                  to="/emplacements"
-                  onClick={() => setPlusOuvert(false)}
-                  className={classesLienPlus}
-                >
+                <NavLink to="/emplacements" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
                   <MapPin className="size-5 text-steel-500" aria-hidden="true" />
                   Emplacements
                 </NavLink>
-                <NavLink
-                  to="/categories"
-                  onClick={() => setPlusOuvert(false)}
-                  className={classesLienPlus}
-                >
+                <NavLink to="/categories" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
                   <Tag className="size-5 text-steel-500" aria-hidden="true" />
                   Catégories & marques
                 </NavLink>

@@ -223,8 +223,9 @@ body,
     background: linear-gradient(118deg, #141b28 0%, #18243a 55%, #1c2b4d 100%);
   }
 
+  /* Panneau flottant : un filet sur tout le contour le détache du fond sombre. */
   [data-theme='dark'] .barre-laterale {
-    box-shadow: inset -1px 0 0 #1a2230;
+    box-shadow: inset 0 0 0 1px #1a2230;
   }
 }
 
