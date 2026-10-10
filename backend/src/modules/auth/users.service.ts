@@ -7,6 +7,7 @@ import { LimitesService } from '../../common/limites/limites.service.js';
 import { hashToken } from './token-hash.util.js';
 import { EMAIL_SERVICE, type EmailService } from '../../common/email/email.service.js';
 import { domaineEmailExiste } from '../../common/email/domaine-email.util.js';
+import { adresseSite, composerEmail, dureeEnClair, LIBELLE_ROLE } from '../../common/email/gabarit-email.js';
 import type { InviteUserDto } from './dto/invite-user.dto.js';
 
 /** Champs exposés d'un utilisateur : jamais le hash du mot de passe. */
@@ -127,8 +128,9 @@ export class UsersService {
   /**
    * AUTH-003 — Un Admin invite un nouvel utilisateur par email + rôle.
    * Aucun Utilisateur n'est créé immédiatement : l'invitation est stockée,
-   * un email est envoyé avec un jeton à usage unique, et c'est la personne
-   * invitée qui choisit son nom et son mot de passe en l'acceptant.
+   * un email est envoyé avec un lien à usage unique (/invitation?token=…),
+   * et c'est la personne invitée qui choisit son nom et son mot de passe
+   * en l'acceptant.
    */
   async inviter(entrepriseId: string, invitedById: string, dto: InviteUserDto): Promise<{ message: string }> {
     const emailDejaUtilise = await this.prisma.utilisateur.findUnique({ where: { email: dto.email } });
@@ -165,10 +167,26 @@ export class UsersService {
       },
     });
 
+    const [entreprise, invitant] = await Promise.all([
+      this.prisma.entreprise.findUniqueOrThrow({ where: { id: entrepriseId }, select: { nom: true } }),
+      this.prisma.utilisateur.findUniqueOrThrow({ where: { id: invitedById }, select: { nom: true } }),
+    ]);
     await this.emailService.send({
       to: dto.email,
-      subject: 'Invitation à rejoindre StockFlow',
-      body: `Vous avez été invité(e) à rejoindre une entreprise sur StockFlow avec le rôle ${dto.role}.\n\nJeton d'invitation : ${token}\n\nCe jeton expire dans ${expiration}.`,
+      subject: `${invitant.nom} vous invite à rejoindre ${entreprise.nom} sur StockFlow`,
+      ...composerEmail({
+        apercu: `Créez votre compte pour rejoindre ${entreprise.nom}.`,
+        titre: `Rejoignez ${entreprise.nom} sur StockFlow`,
+        paragraphes: [
+          `${invitant.nom} vous invite à rejoindre l'espace StockFlow de ${entreprise.nom} en tant que ${LIBELLE_ROLE[dto.role]}.`,
+          'Cliquez sur le bouton ci-dessous pour créer votre compte : il ne vous faut que votre nom et un mot de passe.',
+        ],
+        bouton: { libelle: "Rejoindre l'entreprise", url: `${adresseSite()}/invitation?token=${token}` },
+        mentions: [
+          `Cette invitation est personnelle et expire dans ${dureeEnClair(ms(expiration))}.`,
+          "Si vous ne connaissez pas l'expéditeur, ignorez cet email : aucun compte ne sera créé.",
+        ],
+      }),
     });
 
     return { message: 'Invitation envoyée.' };

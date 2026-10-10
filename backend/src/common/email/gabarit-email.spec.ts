@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { composerEmail } from './gabarit-email.js';
+import { composerEmail, dureeEnClair } from './gabarit-email.js';
 
 const CONTENU = {
   apercu: 'Aperçu',
@@ -46,5 +46,14 @@ describe('Gabarit des emails', () => {
     expect(html).toContain('<a href="mailto:contact@stockflowgn.com"');
     expect(html).not.toContain('ne pas y répondre');
     expect(body).toContain('Une question ? Écrivez à contact@stockflowgn.com.');
+  });
+});
+
+describe('Durée lisible', () => {
+  it('jours entiers au-delà de 24 h, heures sinon', () => {
+    expect(dureeEnClair(7 * 86_400_000)).toBe('7 jours');
+    expect(dureeEnClair(86_400_000)).toBe('24 heures');
+    expect(dureeEnClair(30 * 60_000)).toBe('1 heure');
+    expect(dureeEnClair(36 * 3_600_000)).toBe('36 heures');
   });
 });

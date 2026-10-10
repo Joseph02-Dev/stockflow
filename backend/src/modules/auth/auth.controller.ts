@@ -1,13 +1,13 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
 import { Public } from '../../common/decorators/public.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { RequestContext } from '../../common/context/tenant-context.service.js';
-import { AuthService, type AuthResult } from './auth.service.js';
+import { AuthService, type AuthResult, type DetailsInvitation } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { LogoutDto } from './dto/logout.dto.js';
 import { RefreshDto } from './dto/refresh.dto.js';
-import { AcceptInviteDto } from './dto/accept-invite.dto.js';
+import { AcceptInviteDto, DetailsInvitationDto } from './dto/accept-invite.dto.js';
 import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { VerifyEmailDto } from './dto/verify-email.dto.js';
@@ -63,6 +63,15 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   resetPassword(@Body() dto: ResetPasswordDto): Promise<{ message: string }> {
     return this.authService.resetPassword(dto);
+  }
+
+  // Lecture seule, avant l'inscription : même limite que l'acceptation
+  // (le jeton est long et aléatoire, la limite freine les essais au hasard).
+  @Public()
+  @LimiteStricte(LIMITES_STRICTES.acceptationInvitation)
+  @Get('invitation')
+  detailsInvitation(@Query() dto: DetailsInvitationDto): Promise<DetailsInvitation> {
+    return this.authService.detailsInvitation(dto.token);
   }
 
   @Public()

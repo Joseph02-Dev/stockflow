@@ -74,7 +74,9 @@ describe("Flux d'invitation AUTH-003 (intégration réelle, base PostgreSQL)", (
     const emailsEnvoyes = devEmail.getSentEmails();
     expect(emailsEnvoyes).toHaveLength(1);
     expect(emailsEnvoyes[0].to).toBe(emailInvite);
-    expect(emailsEnvoyes[0].body).toContain('GESTIONNAIRE');
+    expect(emailsEnvoyes[0].body).toContain('Gestionnaire de stock');
+    expect(emailsEnvoyes[0].body).toContain('/invitation?token=');
+    expect(emailsEnvoyes[0].html).toContain('Rejoindre l&#39;entreprise');
 
     // Vérifie que l'invitation existe bien en base, avec un token haché
     // (jamais le token en clair).
@@ -94,7 +96,7 @@ describe("Flux d'invitation AUTH-003 (intégration réelle, base PostgreSQL)", (
       .set('Authorization', `Bearer ${accessTokenAdmin}`)
       .send({ email: emailGestionnaire, role: 'GESTIONNAIRE' });
     const [emailEnvoye] = devEmail.getSentEmails();
-    const token = emailEnvoye.body.match(/Jeton d'invitation : ([a-f0-9]+)/)?.[1];
+    const token = emailEnvoye.body.match(/invitation\?token=([a-f0-9]+)/)?.[1];
     const acceptResponse = await request(app.getHttpServer())
       .post('/auth/accept-invite')
       .send({ token, nom: 'Gestionnaire Test', password: 'motdepasse-solide-123' });
@@ -158,7 +160,7 @@ describe("Flux d'invitation AUTH-003 (intégration réelle, base PostgreSQL)", (
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ email: emailInvite, role: 'GESTIONNAIRE' });
     const [emailEnvoye] = devEmail.getSentEmails();
-    const token = emailEnvoye.body.match(/Jeton d'invitation : ([a-f0-9]+)/)?.[1];
+    const token = emailEnvoye.body.match(/invitation\?token=([a-f0-9]+)/)?.[1];
 
     const response = await request(app.getHttpServer())
       .post('/auth/accept-invite')
@@ -171,6 +173,52 @@ describe("Flux d'invitation AUTH-003 (intégration réelle, base PostgreSQL)", (
       role: 'GESTIONNAIRE',
     });
     expect(response.body.accessToken).toBeDefined();
+  });
+
+  it('affiche l’invitation avant l’inscription (email, entreprise, rôle, auteur), puis plus après usage', async () => {
+    const { accessToken } = await creerAdmin();
+    const emailInvite = `test-invite-details-${Date.now()}@stockflow.dev`;
+    emailsCrees.push(emailInvite);
+    await request(app.getHttpServer())
+      .post('/users')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ email: emailInvite, role: 'GESTIONNAIRE' });
+    const token = devEmail.getSentEmails()[0].body.match(/invitation\?token=([a-f0-9]+)/)?.[1];
+
+    const details = await request(app.getHttpServer()).get('/auth/invitation').query({ token });
+    expect(details.status).toBe(200);
+    expect(details.body).toEqual({
+      email: emailInvite,
+      role: 'GESTIONNAIRE',
+      entreprise: expect.any(String),
+      invitePar: expect.any(String),
+    });
+
+    await request(app.getHttpServer())
+      .post('/auth/accept-invite')
+      .send({ token, nom: 'Fatoumata Camara', password: 'motdepasse-solide-123' });
+    const apres = await request(app.getHttpServer()).get('/auth/invitation').query({ token });
+    expect(apres.status).toBe(404);
+  });
+
+  it('prévient l’Admin qui a invité quand la personne rejoint l’entreprise', async () => {
+    const { accessToken, emailAdmin } = await creerAdmin();
+    const emailInvite = `test-invite-notif-${Date.now()}@stockflow.dev`;
+    emailsCrees.push(emailInvite);
+    await request(app.getHttpServer())
+      .post('/users')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ email: emailInvite, role: 'GESTIONNAIRE' });
+    const token = devEmail.getSentEmails()[0].body.match(/invitation\?token=([a-f0-9]+)/)?.[1];
+
+    await request(app.getHttpServer())
+      .post('/auth/accept-invite')
+      .send({ token, nom: 'Fatoumata Camara', password: 'motdepasse-solide-123' });
+
+    const notification = devEmail.getSentEmails().find((e) => e.to === emailAdmin);
+    expect(notification?.subject).toBe('Fatoumata Camara a rejoint votre entreprise sur StockFlow');
+    expect(notification?.body).toContain(emailInvite);
+    expect(notification?.body).toContain('gestionnaire de stock');
   });
 
   it('rejette avec 404 un token d’invitation invalide', async () => {
@@ -191,7 +239,7 @@ describe("Flux d'invitation AUTH-003 (intégration réelle, base PostgreSQL)", (
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ email: emailInvite, role: 'GESTIONNAIRE' });
     const [emailEnvoye] = devEmail.getSentEmails();
-    const token = emailEnvoye.body.match(/Jeton d'invitation : ([a-f0-9]+)/)?.[1];
+    const token = emailEnvoye.body.match(/invitation\?token=([a-f0-9]+)/)?.[1];
 
     await request(app.getHttpServer())
       .post('/auth/accept-invite')
@@ -246,7 +294,7 @@ describe("Flux d'invitation AUTH-003 (intégration réelle, base PostgreSQL)", (
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ email: emailInvite, role: 'GESTIONNAIRE' });
     const [emailEnvoye] = devEmail.getSentEmails();
-    const token = emailEnvoye.body.match(/Jeton d'invitation : ([a-f0-9]+)/)?.[1];
+    const token = emailEnvoye.body.match(/invitation\?token=([a-f0-9]+)/)?.[1];
     await request(app.getHttpServer())
       .post('/auth/accept-invite')
       .send({ token, nom: 'Nouveau Gestionnaire', password: 'motdepasse-solide-123' });
@@ -268,7 +316,7 @@ describe("Flux d'invitation AUTH-003 (intégration réelle, base PostgreSQL)", (
       .set('Authorization', `Bearer ${accessTokenAdmin}`)
       .send({ email: emailGestionnaire, role: 'GESTIONNAIRE' });
     const [emailEnvoye] = devEmail.getSentEmails();
-    const token = emailEnvoye.body.match(/Jeton d'invitation : ([a-f0-9]+)/)?.[1];
+    const token = emailEnvoye.body.match(/invitation\?token=([a-f0-9]+)/)?.[1];
     const acceptation = await request(app.getHttpServer())
       .post('/auth/accept-invite')
       .send({ token, nom: 'Gestionnaire Liste', password: 'motdepasse-solide-123' });
@@ -303,7 +351,7 @@ describe("Flux d'invitation AUTH-003 (intégration réelle, base PostgreSQL)", (
       .set('Authorization', `Bearer ${accessTokenAdmin}`)
       .send({ email, role: 'GESTIONNAIRE' });
     const [emailEnvoye] = devEmail.getSentEmails();
-    const token = emailEnvoye.body.match(/Jeton d'invitation : ([a-f0-9]+)/)?.[1];
+    const token = emailEnvoye.body.match(/invitation\?token=([a-f0-9]+)/)?.[1];
     const acceptation = await request(app.getHttpServer())
       .post('/auth/accept-invite')
       .send({ token, nom: 'Gestionnaire Role', password: 'motdepasse-solide-123' });
