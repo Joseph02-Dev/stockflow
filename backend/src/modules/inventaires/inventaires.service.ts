@@ -4,6 +4,7 @@ import { AlerteNotificationService } from '../alertes/alerte-notification.servic
 import type { CreateInventaireDto } from './dto/create-inventaire.dto.js';
 import type { SaisirComptageDto } from './dto/saisir-comptage.dto.js';
 import { MouvementsService } from '../mouvements/mouvements.service.js';
+import { ajusterLot, ajusterStock, enregistrerMouvement } from '../stock/moteur-stock.js';
 
 @Injectable()
 export class InventairesService {
@@ -200,28 +201,17 @@ export class InventairesService {
         throw new ConflictException('Aucun écart à valider : le stock correspond déjà au comptage.');
       }
 
-      await tx.stock.upsert({
-        where: {
-          produitId_emplacementId: { produitId: ligne.produitId, emplacementId: inventaire.emplacementId },
-        },
-        create: { produitId: ligne.produitId, emplacementId: inventaire.emplacementId, quantite: ecart },
-        update: { quantite: { increment: ecart } },
-      });
+      await ajusterStock(tx, { produitId: ligne.produitId, emplacementId: inventaire.emplacementId }, ecart);
+      if (ligne.lotId) await ajusterLot(tx, ligne.lotId, ecart);
 
-      if (ligne.lotId) {
-        await tx.lot.update({ where: { id: ligne.lotId }, data: { quantite: { increment: ecart } } });
-      }
-
-      await tx.mouvement.create({
-        data: {
-          entrepriseId,
-          produitId: ligne.produitId,
-          emplacementId: inventaire.emplacementId,
-          type: 'AJUSTEMENT',
-          quantite: ecart,
-          utilisateurId,
-          lotId: ligne.lotId,
-        },
+      await enregistrerMouvement(tx, {
+        entrepriseId,
+        produitId: ligne.produitId,
+        emplacementId: inventaire.emplacementId,
+        type: 'AJUSTEMENT',
+        quantite: ecart,
+        utilisateurId,
+        lotId: ligne.lotId,
       });
 
       await tx.inventaireLigne.update({

@@ -4,15 +4,19 @@ import { api } from './api';
 interface EntrepriseModules {
   moduleInventaires?: boolean;
   moduleTransferts?: boolean;
+  moduleLots?: boolean;
+  moduleArborescence?: boolean;
   /** Interrupteurs globaux coupés côté serveur (FONCTIONNALITES_DESACTIVEES). */
   fonctionnalitesSuspendues?: string[];
 }
 
 /**
- * Modules activés pour l'entreprise de l'utilisateur, réglés par un
- * opérateur depuis la console. Sert uniquement à masquer ce qui n'est pas
- * disponible : le serveur refuse de toute façon les routes d'un module
- * désactivé. Par défaut (chargement en cours), tout est affiché.
+ * Modules activés pour l'entreprise de l'utilisateur : ceux de l'offre
+ * (réglés par un opérateur depuis la console) et les modules métier
+ * (réglés par l'administrateur dans Paramètres). Sert uniquement à masquer
+ * ce qui n'est pas disponible : le serveur refuse de toute façon les routes
+ * d'un module désactivé. Pendant le chargement, chaque module garde sa
+ * valeur par défaut côté serveur.
  * S'y ajoutent les fonctionnalités coupées pour tous par l'exploitation.
  */
 export function useModules() {
@@ -23,8 +27,11 @@ export function useModules() {
   });
   const suspendue = (nom: string) => data?.fonctionnalitesSuspendues?.includes(nom) ?? false;
   return {
+    charge: data !== undefined,
     inventaires: data?.moduleInventaires ?? true,
     transferts: data?.moduleTransferts ?? true,
+    lots: data?.moduleLots ?? true,
+    arborescence: data?.moduleArborescence ?? false,
     rapports: !suspendue('rapports'),
     import: !suspendue('import'),
   };

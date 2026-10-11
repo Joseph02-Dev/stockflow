@@ -18,6 +18,7 @@ import { Card } from '@/components/patterns/Page';
 import { LoadingState, ErrorState } from '@/components/patterns/States';
 import { cn } from '@/lib/cn';
 import { LotsDuProduit } from '@/features/peremptions/LotsDuProduit';
+import { useModules } from '@/lib/useModules';
 
 interface ElementReference {
   id: string;
@@ -89,6 +90,7 @@ export function ProduitFormPage() {
   const enEdition = id !== undefined;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const modules = useModules();
   const [erreur, setErreur] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined);
   const [dernierEnregistrementLocal, setDernierEnregistrementLocal] = useState<Date | null>(null);
@@ -473,59 +475,62 @@ export function ProduitFormPage() {
               </div>
             </Card>
 
-            <Card>
-              <div className="flex items-start justify-between gap-4 border-b border-rule px-5 py-4">
-                <div className="min-w-0">
-                  <h2 className="text-panneau text-ink-900">Suivi par lot et date de péremption</h2>
-                  <p className="mt-0.5 text-meta text-steel-500">
-                    Chaque réception devient un lot daté ; les ventes sortent d’abord ce qui périme le plus tôt.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={suiviParLot}
-                  aria-label="Suivi par lot et date de péremption"
-                  onClick={() => setValue('suiviParLot', !suiviParLot, { shouldDirty: true })}
-                  className={cn(
-                    'inline-flex h-7 shrink-0 items-center gap-2 rounded-full border px-1 pr-3 text-meta font-medium transition-colors',
-                    suiviParLot ? 'border-action bg-action-wash text-action' : 'border-rule-strong bg-paper text-steel-500',
-                  )}
-                >
-                  <span
-                    className={cn('size-5 rounded-full transition-colors', suiviParLot ? 'bg-action' : 'bg-steel-400')}
-                    aria-hidden="true"
-                  />
-                  {suiviParLot ? 'Activé' : 'Désactivé'}
-                </button>
-              </div>
-              <div className="flex flex-col gap-4 p-5">
-                <p className="text-corps text-steel-500">
-                  Le suivi par lot est facultatif. Un produit sans date de péremption — ciment, fer à béton, quincaillerie —
-                  fonctionne exactement comme avant, sans lot ni date à saisir.
-                </p>
-                {suiviParLot && (
-                  <>
-                    {enEdition && produit.data && !produit.data.suiviParLot && (
-                      <Alert variant="info">
-                        Le stock déjà présent deviendra un lot « SANS-LOT », sans date de péremption : il sortira après
-                        les lots datés.
-                      </Alert>
+            {/* Module Lots coupé : la section disparaît, sauf pour un produit encore suivi (le désactiver). */}
+            {(modules.lots || suiviParLot) && (
+              <Card>
+                <div className="flex items-start justify-between gap-4 border-b border-rule px-5 py-4">
+                  <div className="min-w-0">
+                    <h2 className="text-panneau text-ink-900">Suivi par lot et date de péremption</h2>
+                    <p className="mt-0.5 text-meta text-steel-500">
+                      Chaque réception devient un lot daté ; les ventes sortent d’abord ce qui périme le plus tôt.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={suiviParLot}
+                    aria-label="Suivi par lot et date de péremption"
+                    onClick={() => setValue('suiviParLot', !suiviParLot, { shouldDirty: true })}
+                    className={cn(
+                      'inline-flex h-7 shrink-0 items-center gap-2 rounded-full border px-1 pr-3 text-meta font-medium transition-colors',
+                      suiviParLot ? 'border-action bg-action-wash text-action' : 'border-rule-strong bg-paper text-steel-500',
                     )}
-                    <Input
-                      label="Alerte de péremption (jours)"
-                      type="number"
-                      min={1}
-                      placeholder="Seuil de l’entreprise"
-                      hint="Un lot est mis sous surveillance ce nombre de jours avant sa péremption. Vide : seuil de l’entreprise."
-                      error={formState.errors.seuilAlertePeremption?.message}
-                      {...register('seuilAlertePeremption', { valueAsNumber: true })}
+                  >
+                    <span
+                      className={cn('size-5 rounded-full transition-colors', suiviParLot ? 'bg-action' : 'bg-steel-400')}
+                      aria-hidden="true"
                     />
-                  </>
-                )}
-                {enEdition && produit.data?.suiviParLot && <LotsDuProduit produitId={id} />}
-              </div>
-            </Card>
+                    {suiviParLot ? 'Activé' : 'Désactivé'}
+                  </button>
+                </div>
+                <div className="flex flex-col gap-4 p-5">
+                  <p className="text-corps text-steel-500">
+                    Le suivi par lot est facultatif. Un produit sans date de péremption — ciment, fer à béton, quincaillerie —
+                    fonctionne exactement comme avant, sans lot ni date à saisir.
+                  </p>
+                  {suiviParLot && (
+                    <>
+                      {enEdition && produit.data && !produit.data.suiviParLot && (
+                        <Alert variant="info">
+                          Le stock déjà présent deviendra un lot « SANS-LOT », sans date de péremption : il sortira après
+                          les lots datés.
+                        </Alert>
+                      )}
+                      <Input
+                        label="Alerte de péremption (jours)"
+                        type="number"
+                        min={1}
+                        placeholder="Seuil de l’entreprise"
+                        hint="Un lot est mis sous surveillance ce nombre de jours avant sa péremption. Vide : seuil de l’entreprise."
+                        error={formState.errors.seuilAlertePeremption?.message}
+                        {...register('seuilAlertePeremption', { valueAsNumber: true })}
+                      />
+                    </>
+                  )}
+                  {enEdition && produit.data?.suiviParLot && <LotsDuProduit produitId={id} />}
+                </div>
+              </Card>
+            )}
           </div>
 
           <div className="flex flex-col gap-6">

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { trajetMouvement, type NatureEmplacement } from '@/lib/natureEmplacement';
 import { Link } from 'react-router-dom';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Download, Plus } from 'lucide-react';
@@ -37,6 +38,8 @@ interface Mouvement {
   produit: { nom: string };
   emplacement: { nom: string };
   emplacementDestination: { nom: string } | null;
+  origine?: NatureEmplacement;
+  destination?: NatureEmplacement;
   utilisateur: { nom: string };
   fournisseur: { nom: string } | null;
   vente: { id: string; numero: string } | null;
@@ -45,6 +48,7 @@ interface Mouvement {
 interface Emplacement {
   id: string;
   nom: string;
+  chemin?: string;
 }
 
 const onglets = [
@@ -95,10 +99,8 @@ export function StockPage() {
 
   const dateHeure = (iso: string) =>
     new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-  const lieu = (m: Mouvement) =>
-    m.type === 'TRANSFERT' && m.emplacementDestination
-      ? `${m.emplacement.nom} vers ${m.emplacementDestination.nom}`
-      : m.emplacement.nom;
+  // Double entrée : d'où vient la quantité et où elle va.
+  const lieu = (m: Mouvement) => trajetMouvement(m);
 
   return (
     <div className="flex flex-col gap-5">
@@ -166,7 +168,7 @@ export function StockPage() {
               className="w-56"
               options={[
                 { valeur: '', libelle: 'Tous les emplacements' },
-                ...(emplacements.data ?? []).map((e) => ({ valeur: e.id, libelle: e.nom })),
+                ...(emplacements.data ?? []).map((e) => ({ valeur: e.id, libelle: e.chemin ?? e.nom })),
               ]}
               value={emplacementFiltre}
               onChange={setEmplacementFiltre}

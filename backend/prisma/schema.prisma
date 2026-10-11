@@ -41,6 +41,18 @@ enum MotifPerte {
   AUTRE
 }
 
+/// Double entrée (inspirée d'Odoo) : tout mouvement va d'une origine vers
+/// une destination. INTERNE désigne un Emplacement réel de l'entreprise ;
+/// les autres natures sont des emplacements virtuels, sans stock propre.
+enum NatureEmplacement {
+  INTERNE
+  FOURNISSEUR
+  CLIENT
+  REBUT
+  INVENTAIRE
+  TRANSIT
+}
+
 enum StatutAvoir {
   ATTENDU
   RECU
@@ -153,6 +165,12 @@ model Entreprise {
   limiteReferences   Int?    @map("limite_references")
   moduleInventaires  Boolean @default(true) @map("module_inventaires")
   moduleTransferts   Boolean @default(true) @map("module_transferts")
+
+  // Modules métier, activés par l'administrateur de l'entreprise selon
+  // son activité (Paramètres) : un module désactivé disparaît de
+  // l'interface et ses routes sont refusées côté serveur.
+  moduleLots         Boolean @default(true) @map("module_lots")
+  moduleArborescence Boolean @default(false) @map("module_arborescence")
 
   // Nombre de jours avant péremption à partir duquel un lot est « sous
   // surveillance », sauf seuil propre au produit.
@@ -321,6 +339,13 @@ model Emplacement {
   archive      Boolean  @default(false)
   createdAt    DateTime @default(now()) @map("created_at")
 
+  // Arborescence facultative (module « arborescence ») : Dépôt > Zone >
+  // Allée > Étagère. Un emplacement de n'importe quel niveau peut porter
+  // du stock ; même entreprise que son parent, jamais de cycle.
+  parentId String?       @map("parent_id")
+  parent   Emplacement?  @relation("EmplacementParent", fields: [parentId], references: [id])
+  enfants  Emplacement[] @relation("EmplacementParent")
+
   entreprise      Entreprise            @relation(fields: [entrepriseId], references: [id])
   stocks          Stock[]
   mouvements      Mouvement[]
@@ -336,6 +361,7 @@ model Emplacement {
   retoursFournisseur RetourFournisseur[]
 
   @@index([entrepriseId])
+  @@index([parentId])
   @@map("emplacement")
 }
 
@@ -489,6 +515,14 @@ model Mouvement {
   fournisseurId String?       @map("fournisseur_id")
   utilisateurId String        @map("utilisateur_id")
   createdAt     DateTime      @default(now()) @map("created_at")
+
+  // Double entrée : d'où vient la quantité et où elle va. Le côté INTERNE
+  // est emplacementId (et emplacementDestinationId pour un TRANSFERT).
+  // La quantité d'un AJUSTEMENT reste signée (compatibilité), son sens
+  // est aussi porté ici. Écrits par le moteur de stock ; un déclencheur
+  // les déduit du type si une ancienne version de l'API les omet.
+  origine     NatureEmplacement
+  destination NatureEmplacement
 
   // Uniquement renseigné pour un TRANSFERT — emplacementId joue alors le
   // rôle de source. Relation nommée car deux relations distinctes

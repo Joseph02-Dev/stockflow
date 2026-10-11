@@ -40,6 +40,7 @@ interface LigneStock {
 interface Emplacement {
   id: string;
   nom: string;
+  chemin?: string;
   archive: boolean;
 }
 
@@ -309,7 +310,7 @@ export function NouvelleVentePage() {
                     aria-label="Dépôt de sortie"
                     taille="sm"
                     className="w-44"
-                    options={actifs.map((e) => ({ valeur: e.id, libelle: e.nom }))}
+                    options={actifs.map((e) => ({ valeur: e.id, libelle: e.chemin ?? e.nom }))}
                     value={emplacementId ?? ''}
                     onChange={setEmplacementChoisi}
                   />

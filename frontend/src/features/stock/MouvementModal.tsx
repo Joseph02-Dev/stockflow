@@ -22,6 +22,8 @@ import type { LotProduit } from '@/features/peremptions/types';
 interface Option {
   id: string;
   nom: string;
+  /** Emplacements : chemin complet (« Dépôt / Zone A »). */
+  chemin?: string;
 }
 
 interface OptionProduit extends Option {
@@ -218,7 +220,7 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
     sousTitre: p.reference ?? undefined,
     icone: <Vignette nom={p.nom} photoUrl={p.photoUrl} taille={28} />,
   }));
-  const optionsEmplacements = (emplacements.data ?? []).map((e) => ({ valeur: e.id, libelle: e.nom }));
+  const optionsEmplacements = (emplacements.data ?? []).map((e) => ({ valeur: e.id, libelle: e.chemin ?? e.nom }));
   const optionsFournisseurs = [
     { valeur: '', libelle: 'Aucun fournisseur' },
     ...(fournisseurs.data ?? []).map((f) => ({ valeur: f.id, libelle: f.nom })),

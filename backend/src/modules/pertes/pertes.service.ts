@@ -214,6 +214,7 @@ export class PertesService {
         },
         {
           type: 'AJUSTEMENT',
+          origine: 'REBUT',
           lotId,
           donnees: {
             commentaire: `Annulation d’une casse : ${motif}`,
