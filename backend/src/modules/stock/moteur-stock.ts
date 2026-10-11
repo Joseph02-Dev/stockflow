@@ -3,6 +3,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import type { PrismaService } from '../../config/prisma.service.js';
 import { sensParDefaut, type Sens } from './sens-mouvement.js';
 import { valoriserMouvement } from './valorisation.js';
+import { emettreEvenement } from '../webhooks/emission.js';
 
 /**
  * Moteur de stock : SEUL point d'écriture des quantités (tables stock et
@@ -166,7 +167,21 @@ export async function enregistrerMouvement(
       destination: data.destination ?? sens.destination,
     },
   });
-  // Même transaction : un mouvement n'existe jamais sans sa valorisation.
+  // Même transaction : un mouvement n'existe jamais sans sa valorisation
+  // ni son événement webhook (et inversement).
   await valoriserMouvement(tx, mouvement, options.coutUnitaire);
+  await emettreEvenement(tx, mouvement.entrepriseId, 'mouvement.cree', {
+    id: mouvement.id,
+    type: mouvement.type,
+    produitId: mouvement.produitId,
+    quantite: mouvement.quantite,
+    origine: mouvement.origine,
+    destination: mouvement.destination,
+    emplacementId: mouvement.emplacementId,
+    emplacementDestinationId: mouvement.emplacementDestinationId,
+    lotId: mouvement.lotId,
+    venteId: mouvement.venteId,
+    creeLe: mouvement.createdAt.toISOString(),
+  });
   return mouvement;
 }

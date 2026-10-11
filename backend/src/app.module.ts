@@ -15,6 +15,7 @@ import { ConditionnementsModule } from './modules/conditionnements/conditionneme
 import { ReapprovisionnementModule } from './modules/reapprovisionnement/reapprovisionnement.module.js';
 import { RangementModule } from './modules/rangement/rangement.module.js';
 import { ValorisationModule } from './modules/valorisation/valorisation.module.js';
+import { WebhooksModule } from './modules/webhooks/webhooks.module.js';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LotsModule } from './modules/lots/lots.module.js';
 import { PertesModule } from './modules/pertes/pertes.module.js';
@@ -89,6 +90,7 @@ import {
     ReapprovisionnementModule,
     RangementModule,
     ValorisationModule,
+    WebhooksModule,
     LotsModule,
     PertesModule,
     RetoursModule,

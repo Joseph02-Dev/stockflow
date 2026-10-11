@@ -33,6 +33,7 @@ const CORPS: Record<string, object> = {
   'PATCH /modeles/:id': { nom: 'Pirate' },
   'PATCH /conditionnements/:id': { nom: 'Pirate' },
   'PATCH /reapprovisionnement/regles/:id': { stockMin: 0, stockMax: 1 },
+  'PATCH /webhooks/:id': { actif: false },
   'POST /produits/:produitId/conditionnements': { nom: 'Pirate', facteur: 10 },
   'PATCH /retours-fournisseur/:id/avoir': { statut: 'REFUSE' },
   'PATCH /users/:id/role': { role: 'GESTIONNAIRE' },
@@ -78,6 +79,9 @@ describe('Isolation multi-entreprise transverse — toutes les routes à identif
         moduleConditionnements: true,
         moduleReapprovisionnement: true,
         moduleRangement: true,
+        moduleValorisation: true,
+        moduleRotation: true,
+        moduleWebhooks: true,
       },
     });
     const token = (await connecterClient(app, utilisateur.email)).body.accessToken as string;
@@ -120,6 +124,14 @@ describe('Isolation multi-entreprise transverse — toutes les routes à identif
     const reserve = await c('/emplacements', { nom: `Zone ${MARQUEUR}` });
     await c('/reapprovisionnement/regles', { produitId: produit.id, emplacementId: depot.id, fournisseurId: fournisseur.id, stockMin: 500, stockMax: 800 });
     await c('/rangement/regles', { categorieId: categorie.id, emplacementId: reserve.id });
+    // Destinataire local : autorisé hors production le temps de l'abonnement.
+    process.env.WEBHOOKS_RESEAU_PRIVE = 'true';
+    try {
+      await c('/webhooks', { url: 'http://127.0.0.1:9/hook', evenements: ['mouvement.cree'] });
+    } finally {
+      delete process.env.WEBHOOKS_RESEAU_PRIVE;
+    }
+    await c('/mouvements/entree', { produitId: produit.id, emplacementId: depot.id, quantite: 1, coutUnitaire: 900 });
   }
 
   /** Tous les identifiants appartenant à A, entités filles comprises. */
@@ -146,6 +158,9 @@ describe('Isolation multi-entreprise transverse — toutes les routes à identif
         UNION ALL SELECT id FROM conditionnement WHERE entreprise_id = ${entrepriseId}
         UNION ALL SELECT id FROM regle_reapprovisionnement WHERE entreprise_id = ${entrepriseId}
         UNION ALL SELECT id FROM regle_rangement WHERE entreprise_id = ${entrepriseId}
+        UNION ALL SELECT id FROM couche_valorisation WHERE entreprise_id = ${entrepriseId}
+        UNION ALL SELECT id FROM abonnement_webhook WHERE entreprise_id = ${entrepriseId}
+        UNION ALL SELECT id FROM evenement_webhook WHERE entreprise_id = ${entrepriseId}
       )
       SELECT id FROM proprietaires
       UNION ALL SELECT lv.id FROM ligne_vente lv JOIN vente v ON v.id = lv.vente_id WHERE v.entreprise_id = ${entrepriseId}
