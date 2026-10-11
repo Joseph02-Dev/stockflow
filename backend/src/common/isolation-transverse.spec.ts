@@ -30,6 +30,9 @@ const CORPS: Record<string, object> = {
   'PATCH /emplacements/:id': { nom: 'Pirate' },
   'PATCH /fournisseurs/:id': { nom: 'Pirate' },
   'PATCH /produits/:id': { nom: 'Pirate' },
+  'PATCH /modeles/:id': { nom: 'Pirate' },
+  'PATCH /conditionnements/:id': { nom: 'Pirate' },
+  'POST /produits/:produitId/conditionnements': { nom: 'Pirate', facteur: 10 },
   'PATCH /retours-fournisseur/:id/avoir': { statut: 'REFUSE' },
   'PATCH /users/:id/role': { role: 'GESTIONNAIRE' },
   'POST /clients/:id/reglements': { montant: 1000, mode: 'ESPECES' },
@@ -64,6 +67,12 @@ describe('Isolation multi-entreprise transverse — toutes les routes à identif
   async function entreprise(nom: string) {
     const { entreprise: e, utilisateur } = await creerEntrepriseAvecAdmin(prisma, nom);
     entrepriseIds.push(e.id);
+    // Tous les modules actifs des deux côtés : un 403 « module désactivé »
+    // masquerait une fuite au lieu de la révéler.
+    await prisma.entreprise.update({
+      where: { id: e.id },
+      data: { moduleArborescence: true, moduleVariantes: true, moduleConditionnements: true },
+    });
     const token = (await connecterClient(app, utilisateur.email)).body.accessToken as string;
     const appel = (methode: string, url: string, corps?: object) =>
       (request(app.getHttpServer()) as unknown as Record<string, (u: string) => request.Test>)
@@ -98,6 +107,9 @@ describe('Isolation multi-entreprise transverse — toutes les routes à identif
     await c('/retours-fournisseur', { fournisseurId: fournisseur.id, emplacementId: depot.id, motif: `Retour ${MARQUEUR}`, lignes: [{ produitId: produit.id, quantite: 1 }] });
     await c('/commandes', { fournisseurId: fournisseur.id, emplacementId: depot.id, lignes: [{ produitId: produit.id, quantiteCommandee: 10 }] });
     await c('/inventaires', { emplacementId: depot.id });
+    await c('/modeles', { nom: `T-shirt ${MARQUEUR}`, reference: 'TS', attributs: [{ nom: 'Taille', valeurs: ['S', 'M'] }] });
+    const carton = await c(`/produits/${produit.id}/conditionnements`, { nom: `Carton ${MARQUEUR}`, facteur: 20 });
+    await c('/mouvements/entree', { produitId: produit.id, emplacementId: depot.id, quantite: 2, conditionnementId: carton.id });
   }
 
   /** Tous les identifiants appartenant à A, entités filles comprises. */
@@ -120,12 +132,15 @@ describe('Isolation multi-entreprise transverse — toutes les routes à identif
         UNION ALL SELECT id FROM retour_fournisseur WHERE entreprise_id = ${entrepriseId}
         UNION ALL SELECT id FROM utilisateur WHERE entreprise_id = ${entrepriseId}
         UNION ALL SELECT id FROM vente WHERE entreprise_id = ${entrepriseId}
+        UNION ALL SELECT id FROM modele_produit WHERE entreprise_id = ${entrepriseId}
+        UNION ALL SELECT id FROM conditionnement WHERE entreprise_id = ${entrepriseId}
       )
       SELECT id FROM proprietaires
       UNION ALL SELECT lv.id FROM ligne_vente lv JOIN vente v ON v.id = lv.vente_id WHERE v.entreprise_id = ${entrepriseId}
       UNION ALL SELECT r.id FROM reglement r JOIN vente v ON v.id = r.vente_id WHERE v.entreprise_id = ${entrepriseId}
       UNION ALL SELECT il.id FROM inventaire_ligne il JOIN inventaire i ON i.id = il.inventaire_id WHERE i.entreprise_id = ${entrepriseId}
-      UNION ALL SELECT cl.id FROM commande_ligne cl JOIN commande_fournisseur c ON c.id = cl.commande_id WHERE c.entreprise_id = ${entrepriseId}`;
+      UNION ALL SELECT cl.id FROM commande_ligne cl JOIN commande_fournisseur c ON c.id = cl.commande_id WHERE c.entreprise_id = ${entrepriseId}
+      UNION ALL SELECT am.id FROM attribut_modele am JOIN modele_produit m ON m.id = am.modele_id WHERE m.entreprise_id = ${entrepriseId}`;
     return lignes.map((l) => l.id);
   }
 

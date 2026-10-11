@@ -19,6 +19,7 @@ import { LoadingState, ErrorState } from '@/components/patterns/States';
 import { cn } from '@/lib/cn';
 import { LotsDuProduit } from '@/features/peremptions/LotsDuProduit';
 import { useModules } from '@/lib/useModules';
+import { ConditionnementsProduit } from './ConditionnementsProduit';
 
 interface ElementReference {
   id: string;
@@ -542,6 +543,10 @@ export function ProduitFormPage() {
                 <ImageUploadField label="" valeur={photoUrl} dossier="produits" onChange={setPhotoUrl} />
               </div>
             </Card>
+
+            {enEdition && modules.conditionnements && id && (
+              <ConditionnementsProduit produitId={id} unite={produit.data?.uniteMesure ?? null} />
+            )}
 
             {enEdition && (
               <Card>

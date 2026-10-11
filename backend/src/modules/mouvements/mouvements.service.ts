@@ -7,6 +7,10 @@ import {
 import { PrismaService } from '../../config/prisma.service.js';
 import { AlerteNotificationService } from '../alertes/alerte-notification.service.js';
 import {
+  ConditionnementsService,
+  type SaisieConvertie,
+} from '../conditionnements/conditionnements.service.js';
+import {
   ORDRE_RECENT_DABORD,
   type Pagination,
 } from '../../common/pagination/pagination.js';
@@ -52,6 +56,9 @@ export interface DonneesMouvement {
   retourFournisseurId?: string;
   retourClientId?: string;
   annuleMouvementId?: string;
+  /** Saisie en conditionnement : facteur figé au moment du mouvement. */
+  conditionnementId?: string;
+  facteurConditionnement?: number;
 }
 
 export interface AlerteANotifier {
@@ -65,6 +72,7 @@ export class MouvementsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly alerteNotification: AlerteNotificationService,
+    private readonly conditionnements: ConditionnementsService,
   ) {}
 
   /**
@@ -89,9 +97,22 @@ export class MouvementsService {
     if (dto.fournisseurId) {
       await this.verifierFournisseur(entrepriseId, dto.fournisseurId);
     }
+    const { quantite, ...conditionnement } =
+      await this.conditionnements.convertir(
+        entrepriseId,
+        dto.produitId,
+        dto.quantite,
+        dto.conditionnementId,
+      );
 
     return this.prisma.$transaction((tx) =>
-      this.entreeDansTransaction(tx, entrepriseId, utilisateurId, dto),
+      this.entreeDansTransaction(
+        tx,
+        entrepriseId,
+        utilisateurId,
+        { ...dto, quantite },
+        { donnees: conditionnement },
+      ),
     );
   }
 
@@ -192,8 +213,22 @@ export class MouvementsService {
       dto.emplacementId,
     );
 
+    const { quantite, ...conditionnement } =
+      await this.conditionnements.convertir(
+        entrepriseId,
+        dto.produitId,
+        dto.quantite,
+        dto.conditionnementId,
+      );
+
     const resultat = await this.prisma.$transaction((tx) =>
-      this.sortieDansTransaction(tx, entrepriseId, utilisateurId, dto),
+      this.sortieDansTransaction(
+        tx,
+        entrepriseId,
+        utilisateurId,
+        { ...dto, quantite },
+        { donnees: conditionnement },
+      ),
     );
 
     // ALERT-004 — Notification envoyée APRÈS le commit de la transaction :
@@ -404,6 +439,14 @@ export class MouvementsService {
     if (destination.archive) {
       throw new ConflictException('L’emplacement de destination est archivé.');
     }
+    const { quantite, ...conditionnement } =
+      await this.conditionnements.convertir(
+        entrepriseId,
+        dto.produitId,
+        dto.quantite,
+        dto.conditionnementId,
+      );
+    dto = { ...dto, quantite };
 
     const resultat = await this.prisma.$transaction(async (tx) => {
       await this.verrouillerProduit(tx, dto.produitId);
@@ -426,7 +469,13 @@ export class MouvementsService {
         where: { id: dto.produitId },
       });
       if (produit.suiviParLot) {
-        return this.transfererDesLots(tx, entrepriseId, utilisateurId, dto);
+        return this.transfererDesLots(
+          tx,
+          entrepriseId,
+          utilisateurId,
+          dto,
+          conditionnement,
+        );
       }
       if (dto.lotId) {
         throw new BadRequestException(
@@ -443,6 +492,7 @@ export class MouvementsService {
           type: 'TRANSFERT',
           quantite: dto.quantite,
           utilisateurId,
+          ...conditionnement,
         }),
       ];
     });
@@ -488,6 +538,7 @@ export class MouvementsService {
         fournisseur: { select: { id: true, nom: true } },
         // Une sortie issue d'une vente affiche son numéro (« Vente V-2026-0012 »).
         vente: { select: { id: true, numero: true } },
+        conditionnement: { select: { nom: true } },
       },
       orderBy: ORDRE_RECENT_DABORD,
       ...pagination,
@@ -818,6 +869,8 @@ export class MouvementsService {
       retourFournisseurId: d.retourFournisseurId,
       retourClientId: d.retourClientId,
       annuleMouvementId: d.annuleMouvementId,
+      conditionnementId: d.conditionnementId,
+      facteurConditionnement: d.facteurConditionnement,
       ...(d.valeurUnitaire !== undefined
         ? {
             valeurUnitaire: d.valeurUnitaire,
@@ -836,6 +889,7 @@ export class MouvementsService {
     entrepriseId: string,
     utilisateurId: string,
     dto: TransfertStockDto,
+    conditionnement: Omit<SaisieConvertie, 'quantite'>,
   ) {
     const lots = await this.lotsFefoVerrouilles(
       tx,
@@ -888,6 +942,7 @@ export class MouvementsService {
           quantite,
           utilisateurId,
           lotId: lot.id,
+          ...conditionnement,
         }),
       );
     }

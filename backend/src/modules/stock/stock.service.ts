@@ -109,6 +109,7 @@ export class StockService {
         fournisseurId: dto.fournisseurId,
         numeroLot: dto.numeroLot,
         datePeremption: dto.datePeremption,
+        conditionnementId: dto.conditionnementId,
       });
     }
     if (source.nature === 'INTERNE' && destination.nature === 'CLIENT') {
@@ -117,6 +118,7 @@ export class StockService {
         produitId: dto.produitId,
         emplacementId: this.emplacementInterne(source, 'source'),
         quantite: dto.quantite,
+        conditionnementId: dto.conditionnementId,
       });
     }
     if (source.nature === 'INTERNE' && destination.nature === 'INTERNE') {
@@ -128,6 +130,7 @@ export class StockService {
         emplacementDestinationId: this.emplacementInterne(destination, 'destination'),
         quantite: dto.quantite,
         lotId: dto.lotId,
+        conditionnementId: dto.conditionnementId,
       });
     }
     throw new BadRequestException(

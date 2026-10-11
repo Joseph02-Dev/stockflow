@@ -19,14 +19,15 @@ export class ProduitsService {
    * à la casse) ; `archive` (false par défaut) exclut les produits
    * archivés des usages courants, sans jamais les supprimer.
    */
-  async lister(entrepriseId: string, options: { search?: string; inclureArchives: boolean }) {
+  async lister(entrepriseId: string, options: { search?: string; inclureArchives: boolean; modeleId?: string }) {
     return this.prisma.produit.findMany({
       where: {
         entrepriseId,
+        ...(options.modeleId ? { modeleId: options.modeleId } : {}),
         ...(options.inclureArchives ? {} : { archive: false }),
         ...(options.search ? { nom: { contains: options.search, mode: 'insensitive' } } : {}),
       },
-      include: { categorie: true, marque: true },
+      include: { categorie: true, marque: true, modele: { select: { id: true, nom: true } } },
       orderBy: { nom: 'asc' },
     });
   }
@@ -37,6 +38,7 @@ export class ProduitsService {
       include: {
         categorie: true,
         marque: true,
+        modele: { select: { id: true, nom: true } },
         // Nécessaire pour le widget « Fournisseur habituel » de la fiche
         // produit — pas de champ dédié, on réutilise l'association déjà
         // existante plutôt que d'ajouter un concept de fournisseur

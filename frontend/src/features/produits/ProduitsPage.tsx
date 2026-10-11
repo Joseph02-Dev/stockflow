@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Archive, Download, MapPin, Pencil, Plus, Search, Upload } from 'lucide-react';
+import { Archive, Download, Layers, MapPin, Pencil, Plus, Search, Upload } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { exporterCsv } from '@/lib/exporterCsv';
 import { Button } from '@/components/ui/Button';
@@ -28,6 +28,8 @@ interface Produit {
   uniteMesure: string | null;
   categorie: { id: string; nom: string } | null;
   marque: { nom: string } | null;
+  /** Variante d'un modèle (module « variantes »). */
+  modele?: { id: string; nom: string } | null;
 }
 
 interface LigneStock {
@@ -175,6 +177,12 @@ export function ProduitsPage() {
                 Importer
               </Button>
             )}
+            {modules.variantes && (
+              <Button variant="secondary" onClick={() => navigate('/produits/modeles')}>
+                <Layers className="size-4" aria-hidden="true" />
+                Modèles à variantes
+              </Button>
+            )}
             <Button onClick={() => navigate('/produits/nouveau')}>
               <Plus className="size-4" aria-hidden="true" />
               Nouveau produit
@@ -280,6 +288,7 @@ export function ProduitsPage() {
                               </span>
                               <span className="block font-mono text-meta text-steel-500">
                                 {produit.reference ?? '—'}
+                                {produit.modele && <span className="ml-2 font-sans text-action">Variante</span>}
                               </span>
                             </span>
                           </Link>

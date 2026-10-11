@@ -52,6 +52,11 @@ export class CreerMouvementDto {
   @IsUUID('4', { message: 'fournisseurId doit être un identifiant valide.' })
   fournisseurId?: string;
 
+  /** Quantité saisie dans ce conditionnement (module « conditionnements »). */
+  @IsOptional()
+  @IsUUID('4', { message: 'conditionnementId doit être un identifiant valide.' })
+  conditionnementId?: string;
+
   /** Transfert d'un produit suivi par lot : lot désigné (sinon ordre FEFO). */
   @IsOptional()
   @IsUUID('4', { message: 'lotId doit être un identifiant valide.' })

@@ -41,7 +41,7 @@ export function ParametresPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader titre="Paramètres" description="Votre entreprise, votre équipe et l’apparence de cet appareil." />
+      <PageHeader titre="Paramètres" description="Votre entreprise, votre équipe, vos modules métier et l’apparence de cet appareil." />
 
       <Onglets
         onglets={visibles}

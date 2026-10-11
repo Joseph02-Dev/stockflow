@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { MouvementsController } from './mouvements.controller.js';
 import { MouvementsService } from './mouvements.service.js';
 import { AlertesModule } from '../alertes/alertes.module.js';
+import { ConditionnementsModule } from '../conditionnements/conditionnements.module.js';
 
 @Module({
-  imports: [AlertesModule],
+  imports: [AlertesModule, ConditionnementsModule],
   controllers: [MouvementsController],
   providers: [MouvementsService],
   // Exporté pour que CommandesService puisse réutiliser entree() lors de

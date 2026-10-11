@@ -72,4 +72,12 @@ export class UpdateEntrepriseDto {
   @IsOptional()
   @IsBoolean()
   moduleArborescence?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  moduleVariantes?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  moduleConditionnements?: boolean;
 }
