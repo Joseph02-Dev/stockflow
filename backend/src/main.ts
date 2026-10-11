@@ -8,6 +8,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger as JournalPino } from 'nestjs-pino';
 import { AppModule } from './app.module.js';
 import { configurerApplication } from './config/application.js';
+import { configurerDocumentation } from './config/documentation-api.js';
 import { diagnostiquerEnvironnement } from './config/environnement.js';
 
 async function bootstrap() {
@@ -15,6 +16,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
   app.useLogger(app.get(JournalPino));
   configurerApplication(app);
+  configurerDocumentation(app);
   // Arrêt propre sur SIGTERM (redéploiement Railway) : connexions à la
   // base et à Redis fermées, requêtes en cours terminées.
   app.enableShutdownHooks();

@@ -5,12 +5,14 @@ import { ChoixApparence } from '@/components/patterns/SelecteurTheme';
 import { EntrepriseSection } from './EntrepriseSection';
 import { UtilisateursSection } from './UtilisateursSection';
 import { ModulesSection } from './ModulesSection';
+import { IntegrationsSection } from './IntegrationsSection';
 import { useSession } from '@/lib/useSession';
 
 const onglets = [
   { cle: 'entreprise', libelle: 'Entreprise' },
   { cle: 'utilisateurs', libelle: 'Utilisateurs' },
   { cle: 'modules', libelle: 'Modules' },
+  { cle: 'integrations', libelle: 'Intégrations' },
   { cle: 'apparence', libelle: 'Apparence' },
 ] as const;
 
@@ -35,8 +37,8 @@ export function ParametresPage() {
   if (onglet === 'categories' || onglet === 'marques') {
     return <Navigate to={onglet === 'marques' ? '/categories?onglet=marques' : '/categories'} replace />;
   }
-  // Modules métier : réglés par l'administrateur seulement.
-  const visibles = onglets.filter((o) => o.cle !== 'modules' || estAdmin);
+  // Modules métier et intégrations : réglés par l'administrateur seulement.
+  const visibles = onglets.filter((o) => (o.cle !== 'modules' && o.cle !== 'integrations') || estAdmin);
   const actif: CleOnglet = estOngletValide(onglet) && visibles.some((o) => o.cle === onglet) ? onglet : 'entreprise';
 
   return (
@@ -54,6 +56,7 @@ export function ParametresPage() {
         {actif === 'entreprise' && <EntrepriseSection />}
         {actif === 'utilisateurs' && <UtilisateursSection />}
         {actif === 'modules' && <ModulesSection />}
+        {actif === 'integrations' && <IntegrationsSection />}
         {actif === 'apparence' && (
           // Préférence propre à cet appareil, jamais enregistrée sur le compte.
           <Card className="max-w-[520px] p-5">

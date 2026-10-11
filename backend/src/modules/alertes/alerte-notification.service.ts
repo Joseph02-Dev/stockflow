@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
 import { EMAIL_SERVICE, type EmailService } from '../../common/email/email.service.js';
+import { emettreEvenement } from '../webhooks/emission.js';
 
 @Injectable()
 export class AlerteNotificationService {
@@ -26,6 +27,14 @@ export class AlerteNotificationService {
     type: 'STOCK_FAIBLE' | 'RUPTURE',
     quantite: number,
   ): Promise<void> {
+    // Webhook « alerte.stock » (module « webhooks ») : écrit en base avant
+    // l'email, livré ensuite par LivreurWebhooks. Jamais propagé non plus.
+    try {
+      await emettreEvenement(this.prisma, entrepriseId, 'alerte.stock', { type, produit: { nom: produitNom }, quantite });
+    } catch (error) {
+      this.logger.error(`Événement webhook « alerte.stock » non enregistré : ${(error as Error).message}`);
+    }
+
     try {
       const destinataires = await this.prisma.utilisateur.findMany({
         where: { entrepriseId },

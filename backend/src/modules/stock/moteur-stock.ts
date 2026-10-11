@@ -2,6 +2,8 @@ import { ConflictException } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { PrismaService } from '../../config/prisma.service.js';
 import { sensParDefaut, type Sens } from './sens-mouvement.js';
+import { valoriserMouvement } from './valorisation.js';
+import { emettreEvenement } from '../webhooks/emission.js';
 
 /**
  * Moteur de stock : SEUL point d'écriture des quantités (tables stock et
@@ -142,22 +144,44 @@ export type DonneesNouveauMouvement = Omit<
   Partial<Sens>;
 
 /**
- * Enregistre un mouvement (immuable) avec son origine et sa destination :
+ * Enregistre un mouvement (immuable) avec son origine et sa destination,
+ * puis sa couche de valorisation (module « valorisation ») :
  * déduites du type, sauf précision de l'appelant (restitution d'une
  * vente : CLIENT ; annulation d'une casse : REBUT ; stock d'ouverture :
  * INVENTAIRE). La base refuse un mouvement qui ne touche aucun
  * emplacement interne.
  */
-export function enregistrerMouvement(
+export async function enregistrerMouvement(
   tx: TransactionPrisma,
   data: DonneesNouveauMouvement,
+  options: {
+    /** Coût unitaire d'achat saisi à la réception (valorisation). */
+    coutUnitaire?: number;
+  } = {},
 ) {
   const sens = sensParDefaut(data.type, data.quantite);
-  return tx.mouvement.create({
+  const mouvement = await tx.mouvement.create({
     data: {
       ...data,
       origine: data.origine ?? sens.origine,
       destination: data.destination ?? sens.destination,
     },
   });
+  // Même transaction : un mouvement n'existe jamais sans sa valorisation
+  // ni son événement webhook (et inversement).
+  await valoriserMouvement(tx, mouvement, options.coutUnitaire);
+  await emettreEvenement(tx, mouvement.entrepriseId, 'mouvement.cree', {
+    id: mouvement.id,
+    type: mouvement.type,
+    produitId: mouvement.produitId,
+    quantite: mouvement.quantite,
+    origine: mouvement.origine,
+    destination: mouvement.destination,
+    emplacementId: mouvement.emplacementId,
+    emplacementDestinationId: mouvement.emplacementDestinationId,
+    lotId: mouvement.lotId,
+    venteId: mouvement.venteId,
+    creeLe: mouvement.createdAt.toISOString(),
+  });
+  return mouvement;
 }

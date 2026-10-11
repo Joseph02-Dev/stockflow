@@ -59,7 +59,7 @@ const sectionsNav: { titre: string; liens: Lien[] }[] = [
     titre: 'Pilotage',
     liens: [
       { to: '/', libelle: 'Tableau de bord', Icone: LayoutDashboard, exact: true },
-      { to: '/statistiques', libelle: 'Statistiques', Icone: ChartLine },
+      { to: '/statistiques', libelle: 'Statistiques', Icone: ChartLine, aussi: ['/valorisation', '/rotation'] },
       { to: '/alertes', libelle: 'Alertes', Icone: Bell, aussi: ['/peremptions'] },
       { to: '/ventes', libelle: 'Ventes', Icone: Receipt },
     ],
@@ -125,6 +125,8 @@ function filAriane(chemin: string): { libelle: string; to?: string }[] {
     pertes: 'Pertes',
     'retours-fournisseur': 'Retours fournisseur',
     reapprovisionnement: 'Réapprovisionnement',
+    valorisation: 'Valorisation',
+    rotation: 'Rotation',
     rapports: 'Rapports',
     statistiques: 'Statistiques',
     parametres: 'Paramètres',
@@ -149,6 +151,8 @@ function filAriane(chemin: string): { libelle: string; to?: string }[] {
     creances: { libelle: 'Clients & créances', to: '/clients' },
     'retours-fournisseur': { libelle: 'Commandes & retours', to: '/commandes' },
     reapprovisionnement: { libelle: 'Commandes & retours', to: '/commandes' },
+    valorisation: { libelle: 'Statistiques', to: '/statistiques' },
+    rotation: { libelle: 'Statistiques', to: '/statistiques' },
   };
   if (parents[racine] && !detail) return [parents[racine], { libelle: sections[racine] }];
   const section = sections[racine] ?? 'StockFlow';
@@ -390,6 +394,18 @@ export function AppLayout() {
 
   // Sections réunies : une entrée de menu, des onglets en haut de chaque page.
   const groupes: { libelle: string; onglets: OngletSection[] }[] = [
+    ...(modules.valorisation || modules.rotation
+      ? [
+          {
+            libelle: 'Statistiques',
+            onglets: [
+              { to: '/statistiques', libelle: 'Vue d’ensemble' },
+              ...(modules.valorisation ? [{ to: '/valorisation', libelle: 'Valorisation' }] : []),
+              ...(modules.rotation ? [{ to: '/rotation', libelle: 'Rotation' }] : []),
+            ],
+          },
+        ]
+      : []),
     {
       libelle: 'Alertes',
       onglets: [

@@ -191,7 +191,7 @@ export class MouvementsService {
             lotId: part.lotId,
             venteId: options.venteId,
             ...this.champsDonnees(options.donnees, part.quantite),
-          }),
+          }, { coutUnitaire: this.coutUnitaireBase(dto, options.donnees) }),
         );
       }
       const mouvement = mouvements[0];
@@ -968,6 +968,15 @@ export class MouvementsService {
       );
     }
     return mouvements;
+  }
+
+  /**
+   * Coût d'achat saisi, ramené à l'unité de base : un prix « par carton »
+   * se divise par le facteur du conditionnement.
+   */
+  private coutUnitaireBase(dto: EntreeStockDto, donnees?: DonneesMouvement) {
+    if (dto.coutUnitaire === undefined) return undefined;
+    return Math.round(dto.coutUnitaire / (donnees?.facteurConditionnement ?? 1));
   }
 
   /** Champs de perte ou de retour d'un mouvement (vide pour un mouvement ordinaire). */

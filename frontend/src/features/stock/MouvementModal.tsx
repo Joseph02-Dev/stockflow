@@ -63,6 +63,8 @@ const schema = z.object({
   lotId: z.string().optional(),
   conditionnementId: z.string().optional(),
   numerosSerie: z.string().optional(),
+  // Coût d'achat unitaire (module « valorisation ») ; vide : prix d'achat du produit.
+  coutUnitaire: z.string().optional(),
 });
 
 type Formulaire = z.infer<typeof schema>;
@@ -116,6 +118,7 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
       lotId: '',
       conditionnementId: '',
       numerosSerie: '',
+      coutUnitaire: '',
     },
   });
 
@@ -201,6 +204,9 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
                       : {}),
                   }),
               ...(valeurs.fournisseurId ? { fournisseurId: valeurs.fournisseurId } : {}),
+              ...(modules.valorisation && valeurs.coutUnitaire?.trim()
+                ? { coutUnitaire: Math.round(Number(valeurs.coutUnitaire)) }
+                : {}),
             }
           : {
               produitId: valeurs.produitId,
@@ -498,6 +504,18 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
               />
             )}
           </div>
+        )}
+
+        {type === 'ENTREE' && modules.valorisation && (
+          <Input
+            label={conditionnement ? `Coût d’achat par ${conditionnement.nom.toLowerCase()} (GNF)` : 'Coût d’achat unitaire (GNF)'}
+            type="number"
+            min={0}
+            inputMode="numeric"
+            placeholder="Prix d’achat du produit"
+            hint="Sert à valoriser le stock. Vide : prix d’achat enregistré sur le produit."
+            {...register('coutUnitaire')}
+          />
         )}
 
         {type === 'ENTREE' && suiviParLot && !suiviParSerie && (

@@ -10,7 +10,8 @@
  * gérés par ModuleRequis.
  */
 // « reapprovisionnement » coupe aussi le calcul quotidien automatique.
-export const FONCTIONNALITES = ['import', 'rapports', 'uploads', 'reapprovisionnement'] as const;
+// « webhooks » coupe aussi les envois en attente (ils repartiront ensuite).
+export const FONCTIONNALITES = ['import', 'rapports', 'uploads', 'reapprovisionnement', 'webhooks'] as const;
 export type Fonctionnalite = (typeof FONCTIONNALITES)[number];
 
 const noms = (env: NodeJS.ProcessEnv) =>

@@ -21,6 +21,9 @@ export const MODULES_ENTREPRISE = {
   strategiesSortie: { champ: 'moduleStrategiesSortie', nom: 'Stratégies de sortie', reglePar: 'entreprise' },
   reapprovisionnement: { champ: 'moduleReapprovisionnement', nom: 'Réapprovisionnement automatique', reglePar: 'entreprise' },
   rangement: { champ: 'moduleRangement', nom: 'Règles de rangement', reglePar: 'entreprise' },
+  valorisation: { champ: 'moduleValorisation', nom: 'Valorisation du stock', reglePar: 'entreprise' },
+  rotation: { champ: 'moduleRotation', nom: 'Rotation et stock dormant', reglePar: 'entreprise' },
+  webhooks: { champ: 'moduleWebhooks', nom: 'Webhooks', reglePar: 'entreprise' },
 } as const;
 
 export type ModuleOptionnel = keyof typeof MODULES_ENTREPRISE;
