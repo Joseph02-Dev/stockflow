@@ -9,6 +9,16 @@
         "include": "modules/rapports/pdf/*.mjs",
         "outDir": "dist"
       }
+    ],
+    "plugins": [
+      {
+        "name": "@nestjs/swagger",
+        "options": {
+          "introspectComments": true,
+          "classValidatorShim": true,
+          "esmCompatible": true
+        }
+      }
     ]
   }
 }
