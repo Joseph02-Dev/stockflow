@@ -82,6 +82,15 @@ describe.skipIf(!REDIS_TEST)(
       await stockage.onApplicationShutdown();
     });
 
+    it('sans durée de blocage (quota), reste au-delà de la limite jusqu’à la fin de la fenêtre', async () => {
+      await redis!.flushdb();
+      const stockage = new StockageLimitation(new Redis(REDIS_TEST!));
+      const coups = [];
+      for (let i = 0; i < 4; i++) coups.push((await stockage.increment('quota', 60_000, 2, 0, 'assistant')).totalHits);
+      expect(coups).toEqual([1, 2, 3, 4]);
+      await stockage.onApplicationShutdown();
+    });
+
     it('deux instances de l’API partagent les mêmes compteurs', async () => {
       await redis!.flushdb();
       process.env.REDIS_URL = REDIS_TEST;

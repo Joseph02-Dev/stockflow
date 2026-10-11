@@ -208,6 +208,7 @@ model Entreprise {
   methodeValorisation       MethodeValorisation @default(PMP) @map("methode_valorisation")
   moduleRotation            Boolean             @default(false) @map("module_rotation")
   moduleWebhooks            Boolean             @default(false) @map("module_webhooks")
+  moduleAssistant           Boolean             @default(false) @map("module_assistant")
 
   // Nombre de jours avant péremption à partir duquel un lot est « sous
   // surveillance », sauf seuil propre au produit.

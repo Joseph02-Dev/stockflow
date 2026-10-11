@@ -18,6 +18,7 @@ interface EntrepriseModules {
   methodeValorisation?: 'FIFO' | 'PMP';
   moduleRotation?: boolean;
   moduleWebhooks?: boolean;
+  moduleAssistant?: boolean;
   strategieSortie?: StrategieSortie;
   /** Interrupteurs globaux coupés côté serveur (FONCTIONNALITES_DESACTIVEES). */
   fonctionnalitesSuspendues?: string[];
@@ -56,6 +57,7 @@ export function useModules() {
     methodeValorisation: data?.methodeValorisation ?? 'PMP',
     rotation: data?.moduleRotation ?? false,
     webhooks: (data?.moduleWebhooks ?? false) && !suspendue('webhooks'),
+    assistant: (data?.moduleAssistant ?? false) && !suspendue('assistant'),
     /** Stratégie de sortie par défaut de l'entreprise. */
     strategieSortie: data?.strategieSortie ?? 'FEFO',
     rapports: !suspendue('rapports'),

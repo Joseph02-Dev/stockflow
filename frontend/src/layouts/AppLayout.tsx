@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
+  Bot,
   ChartLine,
   CircleHelp,
   MapPin,
@@ -38,6 +39,7 @@ import { useSynchronisation } from '@/lib/useSynchronisation';
 import { BarreProgression } from '@/components/patterns/BarreProgression';
 import { useModules } from '@/lib/useModules';
 import { SelecteurTheme } from '@/components/patterns/SelecteurTheme';
+import { AssistantPanel } from '@/features/assistant/AssistantPanel';
 import { OngletsSection, type OngletSection } from '@/components/patterns/OngletsSection';
 
 // Navigation en quatre sections : piloter, gérer le stock, s'approvisionner,
@@ -334,6 +336,7 @@ const classesLienPlus =
 export function AppLayout() {
   const session = useSession();
   const modules = useModules();
+  const [assistantOuvert, setAssistantOuvert] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const [profilOuvert, setProfilOuvert] = useState(false);
@@ -743,6 +746,17 @@ export function AppLayout() {
               />
               {libelleReseau}
             </span>
+            {modules.assistant && (
+              <button
+                type="button"
+                onClick={() => setAssistantOuvert(true)}
+                aria-label="Ouvrir l’assistant"
+                title="Assistant"
+                className="inline-flex size-9 items-center justify-center rounded-md text-steel-700 transition-colors hover:bg-survol hover:text-ink-900"
+              >
+                <Bot className="size-[18px]" aria-hidden="true" />
+              </button>
+            )}
             <a
               href={`mailto:${ADRESSE_AIDE}`}
               aria-label={`Aide : écrire à ${ADRESSE_AIDE}`}
@@ -920,6 +934,7 @@ export function AppLayout() {
       )}
 
       <ProfilModal ouvert={profilOuvert} onFermer={() => setProfilOuvert(false)} />
+      {modules.assistant && <AssistantPanel ouvert={assistantOuvert} onFermer={() => setAssistantOuvert(false)} />}
     </div>
   );
 }

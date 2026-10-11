@@ -40,6 +40,11 @@ describe('Validation de l’environnement au démarrage', () => {
     expect(diagnostiquerEnvironnement({ ...complet, WEB_CONCURRENCY: '4' }).avertissements).toHaveLength(1);
   });
 
+  it('quota de l’assistant invalide : avertissement, quota par défaut', () => {
+    expect(diagnostiquerEnvironnement({ ...complet, ASSISTANT_QUOTA_JOUR: 'beaucoup' }).avertissements).toHaveLength(1);
+    expect(diagnostiquerEnvironnement({ ...complet, ASSISTANT_QUOTA_JOUR: '200' }).avertissements).toHaveLength(0);
+  });
+
   it('en cas d’erreur : service, environnement Railway et noms des variables apparentées, jamais leurs valeurs', () => {
     const { JWT_ACCESS_SECRET: _retiree, ...sansAcces } = complet;
     const { erreurs } = diagnostiquerEnvironnement({

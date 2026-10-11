@@ -116,6 +116,10 @@ export class UpdateEntrepriseDto {
   @IsBoolean()
   moduleWebhooks?: boolean;
 
+  @IsOptional()
+  @IsBoolean()
+  moduleAssistant?: boolean;
+
   /** Stratégie de sortie par défaut (module « strategiesSortie »). */
   @IsOptional()
   @IsIn(STRATEGIES, { message: 'La stratégie de sortie doit valoir FEFO, FIFO ou LIFO.' })

@@ -20,7 +20,8 @@ type CleModule =
   | 'rangement'
   | 'valorisation'
   | 'rotation'
-  | 'webhooks';
+  | 'webhooks'
+  | 'assistant';
 
 /** Modules métier : l'administrateur n'affiche que ce dont son activité a besoin. */
 const MODULES: { cle: CleModule; champ: string; libelle: string; aide: string }[] = [
@@ -89,6 +90,12 @@ const MODULES: { cle: CleModule; champ: string; libelle: string; aide: string }[
     champ: 'moduleWebhooks',
     libelle: 'Webhooks',
     aide: 'Prévenir un autre logiciel (comptabilité, site marchand…) à chaque mouvement, alerte ou lot proche de péremption.',
+  },
+  {
+    cle: 'assistant',
+    champ: 'moduleAssistant',
+    libelle: 'Assistant IA',
+    aide: 'Poser des questions sur le stock et les ventes. Lecture seule ; les données utiles à la réponse sont transmises au fournisseur d’IA (Anthropic).',
   },
 ];
 
