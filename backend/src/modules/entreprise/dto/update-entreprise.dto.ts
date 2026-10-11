@@ -8,6 +8,7 @@ const renseigne = (_: object, valeur: unknown) => valeur !== null && valeur !== 
 
 const SECTEURS = ['MATERIAUX', 'COMMERCE', 'ARTISANAT', 'AUTRE'] as const;
 const STRATEGIES = ['FEFO', 'FIFO', 'LIFO'] as const;
+const METHODES = ['FIFO', 'PMP'] as const;
 
 export class UpdateEntrepriseDto {
   @IsOptional()
@@ -97,6 +98,23 @@ export class UpdateEntrepriseDto {
   @IsOptional()
   @IsBoolean()
   moduleRangement?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  moduleValorisation?: boolean;
+
+  /** Méthode de valorisation (module « valorisation »). */
+  @IsOptional()
+  @IsIn(METHODES, { message: 'La méthode de valorisation doit valoir FIFO ou PMP.' })
+  methodeValorisation?: (typeof METHODES)[number];
+
+  @IsOptional()
+  @IsBoolean()
+  moduleRotation?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  moduleWebhooks?: boolean;
 
   /** Stratégie de sortie par défaut (module « strategiesSortie »). */
   @IsOptional()

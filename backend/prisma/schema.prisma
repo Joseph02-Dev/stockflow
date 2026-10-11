@@ -62,6 +62,19 @@ enum StrategieSortie {
   LIFO
 }
 
+/// Valorisation du stock (module « valorisation ») : FIFO (coût des
+/// couches d'entrée les plus anciennes) ou PMP (coût moyen pondéré).
+enum MethodeValorisation {
+  FIFO
+  PMP
+}
+
+enum StatutLivraisonWebhook {
+  EN_ATTENTE
+  LIVREE
+  ECHEC
+}
+
 enum StatutAvoir {
   ATTENDU
   RECU
@@ -178,19 +191,23 @@ model Entreprise {
   // Modules métier, activés par l'administrateur de l'entreprise selon
   // son activité (Paramètres) : un module désactivé disparaît de
   // l'interface et ses routes sont refusées côté serveur.
-  moduleLots                Boolean         @default(true) @map("module_lots")
-  moduleArborescence        Boolean         @default(false) @map("module_arborescence")
-  moduleVariantes           Boolean         @default(false) @map("module_variantes")
-  moduleConditionnements    Boolean         @default(false) @map("module_conditionnements")
-  moduleNumerosSerie        Boolean         @default(false) @map("module_numeros_serie")
-  moduleStrategiesSortie    Boolean         @default(false) @map("module_strategies_sortie")
+  moduleLots                Boolean             @default(true) @map("module_lots")
+  moduleArborescence        Boolean             @default(false) @map("module_arborescence")
+  moduleVariantes           Boolean             @default(false) @map("module_variantes")
+  moduleConditionnements    Boolean             @default(false) @map("module_conditionnements")
+  moduleNumerosSerie        Boolean             @default(false) @map("module_numeros_serie")
+  moduleStrategiesSortie    Boolean             @default(false) @map("module_strategies_sortie")
   // Stratégie de sortie par défaut (module « strategiesSortie ») ; sans le
   // module, toujours FEFO.
-  strategieSortie           StrategieSortie @default(FEFO) @map("strategie_sortie")
-  moduleReapprovisionnement Boolean         @default(false) @map("module_reapprovisionnement")
-  moduleRangement           Boolean         @default(false) @map("module_rangement")
+  strategieSortie           StrategieSortie     @default(FEFO) @map("strategie_sortie")
+  moduleReapprovisionnement Boolean             @default(false) @map("module_reapprovisionnement")
+  moduleRangement           Boolean             @default(false) @map("module_rangement")
   // Dernier calcul de réapprovisionnement (automatique ou manuel).
-  dernierReapproAt          DateTime?       @map("dernier_reappro_at")
+  dernierReapproAt          DateTime?           @map("dernier_reappro_at")
+  moduleValorisation        Boolean             @default(false) @map("module_valorisation")
+  methodeValorisation       MethodeValorisation @default(PMP) @map("methode_valorisation")
+  moduleRotation            Boolean             @default(false) @map("module_rotation")
+  moduleWebhooks            Boolean             @default(false) @map("module_webhooks")
 
   // Nombre de jours avant péremption à partir duquel un lot est « sous
   // surveillance », sauf seuil propre au produit.
@@ -219,6 +236,10 @@ model Entreprise {
 
   reglesReappro   RegleReapprovisionnement[]
   reglesRangement RegleRangement[]
+
+  couchesValorisation CoucheValorisation[]
+  abonnementsWebhook  AbonnementWebhook[]
+  evenementsWebhook   EvenementWebhook[]
 
   @@map("entreprise")
 }
@@ -466,6 +487,8 @@ model Produit {
   reglesReappro   RegleReapprovisionnement[]
   reglesRangement RegleRangement[]
 
+  couchesValorisation CoucheValorisation[]
+
   @@unique([entrepriseId, codeBarre])
   @@unique([modeleId, cleVariante])
   @@index([entrepriseId, nom])
@@ -624,6 +647,8 @@ model Mouvement {
   retourFournisseur      RetourFournisseur? @relation(fields: [retourFournisseurId], references: [id])
   retourClient           RetourClient?      @relation(fields: [retourClientId], references: [id])
   conditionnement        Conditionnement?   @relation(fields: [conditionnementId], references: [id])
+
+  couchesValorisation CoucheValorisation[]
 
   @@index([produitId, createdAt])
   @@index([entrepriseId, type, createdAt])
@@ -1191,4 +1216,99 @@ model RegleRangement {
 
   @@index([entrepriseId])
   @@map("regle_rangement")
+}
+
+/**
+ * Couche de valorisation (stock.valuation.layer d'Odoo) : l'impact
+ * financier de chaque mouvement qui change le stock total. Entrée :
+ * quantité et valeur positives, quantiteRestante consommée par les
+ * sorties (ordre FIFO). Sortie : quantité et valeur négatives, valeur
+ * selon la méthode (FIFO ou PMP). Valeur du stock = Σ valeur. Montants en
+ * GNF, en BigInt (une couche peut dépasser 2 milliards).
+ */
+model CoucheValorisation {
+  id               String   @id @default(uuid())
+  entrepriseId     String   @map("entreprise_id")
+  produitId        String   @map("produit_id")
+  // Nul pour l'ouverture ou la resynchronisation à l'activation du module.
+  mouvementId      String?  @map("mouvement_id")
+  quantite         Int
+  coutUnitaire     Int      @map("cout_unitaire")
+  valeur           BigInt
+  quantiteRestante Int      @default(0) @map("quantite_restante")
+  libelle          String?
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  entreprise Entreprise @relation(fields: [entrepriseId], references: [id])
+  produit    Produit    @relation(fields: [produitId], references: [id])
+  mouvement  Mouvement? @relation(fields: [mouvementId], references: [id])
+
+  @@index([produitId, createdAt])
+  @@index([entrepriseId, createdAt])
+  @@map("couche_valorisation")
+}
+
+/**
+ * Abonnement webhook (module « webhooks ») : StockFlow envoie un POST
+ * JSON signé (HMAC-SHA256 avec secret) à l'URL pour chaque événement
+ * choisi. Désactivé d'office après trop d'échecs consécutifs.
+ */
+model AbonnementWebhook {
+  id                String   @id @default(uuid())
+  entrepriseId      String   @map("entreprise_id")
+  url               String
+  evenements        String[]
+  secret            String
+  actif             Boolean  @default(true)
+  echecsConsecutifs Int      @default(0) @map("echecs_consecutifs")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  entreprise Entreprise         @relation(fields: [entrepriseId], references: [id])
+  livraisons LivraisonWebhook[]
+
+  @@index([entrepriseId])
+  @@map("abonnement_webhook")
+}
+
+/**
+ * Événement à diffuser, écrit dans la même transaction que ce qu'il
+ * décrit (outbox transactionnelle) : jamais d'événement pour un mouvement
+ * annulé, jamais de mouvement sans son événement.
+ */
+model EvenementWebhook {
+  id           String   @id @default(uuid())
+  entrepriseId String   @map("entreprise_id")
+  type         String
+  charge       Json
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  entreprise Entreprise         @relation(fields: [entrepriseId], references: [id])
+  livraisons LivraisonWebhook[]
+
+  @@index([entrepriseId, createdAt])
+  @@map("evenement_webhook")
+}
+
+/**
+ * Livraison d'un événement à un abonnement, avec ses tentatives.
+ */
+model LivraisonWebhook {
+  id                   String                 @id @default(uuid())
+  evenementId          String                 @map("evenement_id")
+  abonnementId         String                 @map("abonnement_id")
+  statut               StatutLivraisonWebhook @default(EN_ATTENTE)
+  tentatives           Int                    @default(0)
+  prochaineTentativeAt DateTime               @default(now()) @map("prochaine_tentative_at")
+  codeHttp             Int?                   @map("code_http")
+  erreur               String?
+  livreeAt             DateTime?              @map("livree_at")
+  createdAt            DateTime               @default(now()) @map("created_at")
+
+  evenement  EvenementWebhook  @relation(fields: [evenementId], references: [id])
+  abonnement AbonnementWebhook @relation(fields: [abonnementId], references: [id])
+
+  @@unique([evenementId, abonnementId])
+  @@index([statut, prochaineTentativeAt])
+  @@index([abonnementId, createdAt])
+  @@map("livraison_webhook")
 }

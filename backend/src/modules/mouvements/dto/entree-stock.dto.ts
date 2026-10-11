@@ -48,6 +48,15 @@ export class EntreeStockDto {
   })
   datePeremption?: string;
 
+  /**
+   * Coût d'achat unitaire en GNF (module « valorisation ») ; saisi en
+   * conditionnement, c'est le prix d'un carton. Absent : prix d'achat du produit.
+   */
+  @IsOptional()
+  @IsInt({ message: 'Le coût unitaire doit être un nombre entier (GNF).' })
+  @Min(0, { message: 'Le coût unitaire ne peut pas être négatif.' })
+  coutUnitaire?: number;
+
   /** Produit suivi par numéro de série : un numéro par unité reçue. */
   @IsOptional()
   @IsArray({ message: 'numerosSerie doit être une liste.' })

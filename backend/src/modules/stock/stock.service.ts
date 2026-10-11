@@ -110,10 +110,12 @@ export class StockService {
         numeroLot: dto.numeroLot,
         datePeremption: dto.datePeremption,
         conditionnementId: dto.conditionnementId,
+        coutUnitaire: dto.coutUnitaire,
+        numerosSerie: dto.numerosSerie,
       });
     }
     if (source.nature === 'INTERNE' && destination.nature === 'CLIENT') {
-      this.refuser(dto, ['fournisseurId', 'lotId', 'numeroLot', 'datePeremption']);
+      this.refuser(dto, ['fournisseurId', 'lotId', 'numeroLot', 'datePeremption', 'coutUnitaire', 'numerosSerie']);
       return this.mouvementsService.sortie(entrepriseId, utilisateurId, {
         produitId: dto.produitId,
         emplacementId: this.emplacementInterne(source, 'source'),
@@ -122,7 +124,7 @@ export class StockService {
       });
     }
     if (source.nature === 'INTERNE' && destination.nature === 'INTERNE') {
-      this.refuser(dto, ['fournisseurId', 'numeroLot', 'datePeremption']);
+      this.refuser(dto, ['fournisseurId', 'numeroLot', 'datePeremption', 'coutUnitaire', 'numerosSerie']);
       await exigerModule(this.prisma, entrepriseId, 'transferts');
       return this.mouvementsService.transfert(entrepriseId, utilisateurId, {
         produitId: dto.produitId,

@@ -14,6 +14,7 @@ import { ModelesModule } from './modules/modeles/modeles.module.js';
 import { ConditionnementsModule } from './modules/conditionnements/conditionnements.module.js';
 import { ReapprovisionnementModule } from './modules/reapprovisionnement/reapprovisionnement.module.js';
 import { RangementModule } from './modules/rangement/rangement.module.js';
+import { ValorisationModule } from './modules/valorisation/valorisation.module.js';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LotsModule } from './modules/lots/lots.module.js';
 import { PertesModule } from './modules/pertes/pertes.module.js';
@@ -87,6 +88,7 @@ import {
     ConditionnementsModule,
     ReapprovisionnementModule,
     RangementModule,
+    ValorisationModule,
     LotsModule,
     PertesModule,
     RetoursModule,

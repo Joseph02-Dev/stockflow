@@ -1,5 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsIn,
   IsISO8601,
   IsInt,
@@ -56,6 +58,20 @@ export class CreerMouvementDto {
   @IsOptional()
   @IsUUID('4', { message: 'conditionnementId doit être un identifiant valide.' })
   conditionnementId?: string;
+
+  /** Réception d'un produit suivi par numéro de série : un numéro par unité. */
+  @IsOptional()
+  @IsArray({ message: 'numerosSerie doit être une liste.' })
+  @ArrayMaxSize(1000, { message: '1 000 numéros de série au maximum par entrée.' })
+  @IsString({ each: true, message: 'Chaque numéro de série doit être un texte.' })
+  @MaxLength(60, { each: true, message: 'Un numéro de série dépasse 60 caractères.' })
+  numerosSerie?: string[];
+
+  /** Réception : coût d'achat unitaire en GNF (module « valorisation »). */
+  @IsOptional()
+  @IsInt({ message: 'Le coût unitaire doit être un nombre entier (GNF).' })
+  @Min(0, { message: 'Le coût unitaire ne peut pas être négatif.' })
+  coutUnitaire?: number;
 
   /** Transfert d'un produit suivi par lot : lot désigné (sinon ordre FEFO). */
   @IsOptional()

@@ -1,6 +1,8 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
 import { exigerModule } from '../../common/modules/exiger-module.js';
+import { resynchroniserValorisation } from '../stock/valorisation.js';
+import type { TransactionPrisma } from '../stock/moteur-stock.js';
 import type { UpdateEntrepriseDto } from './dto/update-entreprise.dto.js';
 
 @Injectable()
@@ -12,13 +14,32 @@ export class EntrepriseService {
   }
 
   async updateEntreprise(entrepriseId: string, dto: UpdateEntrepriseDto) {
+    if (dto.moduleValorisation === true) {
+      // Activation : le stock présent est ouvert au prix d'achat actuel,
+      // dans la même transaction que la bascule du module.
+      return this.prisma.$transaction(
+        async (tx) => {
+          const entreprise = await this.mettreAJour(tx, entrepriseId, dto);
+          await resynchroniserValorisation(tx, entrepriseId);
+          return entreprise;
+        },
+        { timeout: 60_000 },
+      );
+    }
+    return this.mettreAJour(this.prisma, entrepriseId, dto);
+  }
+
+  private async mettreAJour(client: PrismaService | TransactionPrisma, entrepriseId: string, dto: UpdateEntrepriseDto) {
     if (dto.moduleLots === false) await this.exigerAucunProduitSuivi(entrepriseId, 'lot');
     if (dto.moduleNumerosSerie === false) await this.exigerAucunProduitSuivi(entrepriseId, 'numéro de série');
     // La stratégie peut accompagner l'activation du module dans la même requête.
     if (dto.strategieSortie !== undefined && dto.moduleStrategiesSortie !== true) {
       await exigerModule(this.prisma, entrepriseId, 'strategiesSortie');
     }
-    return this.prisma.entreprise.update({
+    if (dto.methodeValorisation !== undefined && dto.moduleValorisation !== true) {
+      await exigerModule(this.prisma, entrepriseId, 'valorisation');
+    }
+    return client.entreprise.update({
       where: { id: entrepriseId },
       data: {
         ...(dto.nom !== undefined ? { nom: dto.nom } : {}),
@@ -39,6 +60,10 @@ export class EntrepriseService {
         ...(dto.strategieSortie !== undefined ? { strategieSortie: dto.strategieSortie } : {}),
         ...(dto.moduleReapprovisionnement !== undefined ? { moduleReapprovisionnement: dto.moduleReapprovisionnement } : {}),
         ...(dto.moduleRangement !== undefined ? { moduleRangement: dto.moduleRangement } : {}),
+        ...(dto.moduleValorisation !== undefined ? { moduleValorisation: dto.moduleValorisation } : {}),
+        ...(dto.methodeValorisation !== undefined ? { methodeValorisation: dto.methodeValorisation } : {}),
+        ...(dto.moduleRotation !== undefined ? { moduleRotation: dto.moduleRotation } : {}),
+        ...(dto.moduleWebhooks !== undefined ? { moduleWebhooks: dto.moduleWebhooks } : {}),
       },
     });
   }
