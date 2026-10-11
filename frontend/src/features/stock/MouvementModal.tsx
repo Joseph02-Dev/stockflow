@@ -139,6 +139,21 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
   });
   const lotExistant = lots.data?.find((l) => l.numero === numeroLotSaisi.trim());
 
+  // Règles de rangement (module « rangement ») : à l'entrée, l'emplacement
+  // de rangement prévu est proposé, jamais imposé.
+  const proposition = useQuery({
+    queryKey: ['rangement', 'proposition', produitChoisi, emplacementSourceChoisi],
+    queryFn: async () =>
+      (
+        await api.get<{ emplacement: { id: string; nom: string } | null }>(
+          `/rangement/proposition?produit_id=${produitChoisi}&emplacement_id=${emplacementSourceChoisi}`,
+        )
+      ).data,
+    enabled: ouvert && modules.rangement && type === 'ENTREE' && !!produitChoisi && !!emplacementSourceChoisi && enLigne,
+  });
+  const rangementPropose =
+    type === 'ENTREE' && proposition.data?.emplacement?.id !== emplacementSourceChoisi ? proposition.data?.emplacement : null;
+
   // Saisie en cartons, palettes… (module « conditionnements ») : le serveur
   // convertit en unités. Un conditionnement d'un autre produit n'est jamais envoyé.
   const conditionnements = useQuery({
@@ -399,6 +414,18 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
           placeholder="Sélectionner un emplacement…"
           options={optionsEmplacements}
         />
+        {rangementPropose && (
+          <Alert variant="info">
+            Rangement prévu pour ce produit : <span className="font-medium">{rangementPropose.nom}</span>.{' '}
+            <button
+              type="button"
+              className="font-medium underline"
+              onClick={() => setValue('emplacementId', rangementPropose.id, { shouldDirty: true })}
+            >
+              Ranger là
+            </button>
+          </Alert>
+        )}
 
         {type === 'TRANSFERT' && (
           <>

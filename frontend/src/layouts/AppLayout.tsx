@@ -75,7 +75,7 @@ const sectionsNav: { titre: string; liens: Lien[] }[] = [
   {
     titre: 'Approvisionnement',
     liens: [
-      { to: '/commandes', libelle: 'Commandes & retours', Icone: ClipboardList, aussi: ['/retours-fournisseur'] },
+      { to: '/commandes', libelle: 'Commandes & retours', Icone: ClipboardList, aussi: ['/retours-fournisseur', '/reapprovisionnement'] },
       { to: '/fournisseurs', libelle: 'Fournisseurs', Icone: Truck },
     ],
   },
@@ -124,6 +124,7 @@ function filAriane(chemin: string): { libelle: string; to?: string }[] {
     peremptions: 'Péremptions',
     pertes: 'Pertes',
     'retours-fournisseur': 'Retours fournisseur',
+    reapprovisionnement: 'Réapprovisionnement',
     rapports: 'Rapports',
     statistiques: 'Statistiques',
     parametres: 'Paramètres',
@@ -147,6 +148,7 @@ function filAriane(chemin: string): { libelle: string; to?: string }[] {
     peremptions: { libelle: 'Alertes', to: '/alertes' },
     creances: { libelle: 'Clients & créances', to: '/clients' },
     'retours-fournisseur': { libelle: 'Commandes & retours', to: '/commandes' },
+    reapprovisionnement: { libelle: 'Commandes & retours', to: '/commandes' },
   };
   if (parents[racine] && !detail) return [parents[racine], { libelle: sections[racine] }];
   const section = sections[racine] ?? 'StockFlow';
@@ -407,6 +409,7 @@ export function AppLayout() {
       onglets: [
         { to: '/commandes', libelle: 'Commandes' },
         { to: '/retours-fournisseur', libelle: 'Retours fournisseur' },
+        ...(modules.reapprovisionnement ? [{ to: '/reapprovisionnement', libelle: 'Réapprovisionnement' }] : []),
       ],
     },
   ];

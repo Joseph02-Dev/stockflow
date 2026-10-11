@@ -11,6 +11,9 @@ interface EntrepriseModules {
   moduleConditionnements?: boolean;
   moduleNumerosSerie?: boolean;
   moduleStrategiesSortie?: boolean;
+  moduleReapprovisionnement?: boolean;
+  moduleRangement?: boolean;
+  dernierReapproAt?: string | null;
   strategieSortie?: StrategieSortie;
   /** Interrupteurs globaux coupés côté serveur (FONCTIONNALITES_DESACTIVEES). */
   fonctionnalitesSuspendues?: string[];
@@ -42,6 +45,9 @@ export function useModules() {
     conditionnements: data?.moduleConditionnements ?? false,
     numerosSerie: data?.moduleNumerosSerie ?? false,
     strategiesSortie: data?.moduleStrategiesSortie ?? false,
+    reapprovisionnement: (data?.moduleReapprovisionnement ?? false) && !suspendue('reapprovisionnement'),
+    rangement: data?.moduleRangement ?? false,
+    dernierReapproAt: data?.dernierReapproAt ?? null,
     /** Stratégie de sortie par défaut de l'entreprise. */
     strategieSortie: data?.strategieSortie ?? 'FEFO',
     rapports: !suspendue('rapports'),

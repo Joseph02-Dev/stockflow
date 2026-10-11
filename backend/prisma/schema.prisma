@@ -178,15 +178,19 @@ model Entreprise {
   // Modules métier, activés par l'administrateur de l'entreprise selon
   // son activité (Paramètres) : un module désactivé disparaît de
   // l'interface et ses routes sont refusées côté serveur.
-  moduleLots             Boolean         @default(true) @map("module_lots")
-  moduleArborescence     Boolean         @default(false) @map("module_arborescence")
-  moduleVariantes        Boolean         @default(false) @map("module_variantes")
-  moduleConditionnements Boolean         @default(false) @map("module_conditionnements")
-  moduleNumerosSerie     Boolean         @default(false) @map("module_numeros_serie")
-  moduleStrategiesSortie Boolean         @default(false) @map("module_strategies_sortie")
+  moduleLots                Boolean         @default(true) @map("module_lots")
+  moduleArborescence        Boolean         @default(false) @map("module_arborescence")
+  moduleVariantes           Boolean         @default(false) @map("module_variantes")
+  moduleConditionnements    Boolean         @default(false) @map("module_conditionnements")
+  moduleNumerosSerie        Boolean         @default(false) @map("module_numeros_serie")
+  moduleStrategiesSortie    Boolean         @default(false) @map("module_strategies_sortie")
   // Stratégie de sortie par défaut (module « strategiesSortie ») ; sans le
   // module, toujours FEFO.
-  strategieSortie        StrategieSortie @default(FEFO) @map("strategie_sortie")
+  strategieSortie           StrategieSortie @default(FEFO) @map("strategie_sortie")
+  moduleReapprovisionnement Boolean         @default(false) @map("module_reapprovisionnement")
+  moduleRangement           Boolean         @default(false) @map("module_rangement")
+  // Dernier calcul de réapprovisionnement (automatique ou manuel).
+  dernierReapproAt          DateTime?       @map("dernier_reappro_at")
 
   // Nombre de jours avant péremption à partir duquel un lot est « sous
   // surveillance », sauf seuil propre au produit.
@@ -212,6 +216,9 @@ model Entreprise {
 
   retoursFournisseur RetourFournisseur[]
   retoursClient      RetourClient[]
+
+  reglesReappro   RegleReapprovisionnement[]
+  reglesRangement RegleRangement[]
 
   @@map("entreprise")
 }
@@ -380,6 +387,10 @@ model Emplacement {
 
   retoursFournisseur RetourFournisseur[]
 
+  reglesReappro          RegleReapprovisionnement[]
+  reglesRangement        RegleRangement[]           @relation("RangementDestination")
+  reglesRangementEntrees RegleRangement[]           @relation("RangementReception")
+
   @@index([entrepriseId])
   @@index([parentId])
   @@map("emplacement")
@@ -452,6 +463,9 @@ model Produit {
   lignesVente          LigneVente[]
   lots                 Lot[]
 
+  reglesReappro   RegleReapprovisionnement[]
+  reglesRangement RegleRangement[]
+
   @@unique([entrepriseId, codeBarre])
   @@unique([modeleId, cleVariante])
   @@index([entrepriseId, nom])
@@ -470,6 +484,8 @@ model Categorie {
   entreprise Entreprise      @relation(fields: [entrepriseId], references: [id])
   produits   Produit[]
   modeles    ModeleProduit[]
+
+  reglesRangement RegleRangement[]
 
   @@unique([entrepriseId, nom])
   @@map("categorie")
@@ -508,6 +524,8 @@ model Fournisseur {
   commandes        CommandeFournisseur[]
 
   retours RetourFournisseur[]
+
+  reglesReappro RegleReapprovisionnement[]
 
   @@index([entrepriseId])
   @@map("fournisseur")
@@ -737,6 +755,8 @@ model CommandeFournisseur {
   createdAt     DateTime       @default(now()) @map("created_at")
   envoyeeAt     DateTime?      @map("envoyee_at")
   recueAt       DateTime?      @map("recue_at")
+  // Brouillon généré par le réapprovisionnement automatique (règles min/max).
+  automatique   Boolean        @default(false)
 
   entreprise  Entreprise      @relation(fields: [entrepriseId], references: [id])
   fournisseur Fournisseur     @relation(fields: [fournisseurId], references: [id])
@@ -1117,4 +1137,58 @@ model Conditionnement {
   @@unique([produitId, nom])
   @@index([entrepriseId])
   @@map("conditionnement")
+}
+
+/**
+ * Règle de réapprovisionnement min/max (module « reapprovisionnement ») —
+ * stock.warehouse.orderpoint d'Odoo. Quand le stock prévisionnel d'un
+ * produit à un emplacement (en stock + commandes fournisseur en cours)
+ * passe sous stockMin, un brouillon de commande le remonte à stockMax,
+ * arrondi au multiple de commande.
+ */
+model RegleReapprovisionnement {
+  id            String   @id @default(uuid())
+  entrepriseId  String   @map("entreprise_id")
+  produitId     String   @map("produit_id")
+  emplacementId String   @map("emplacement_id")
+  // Facultatif : sinon le seul fournisseur associé au produit.
+  fournisseurId String?  @map("fournisseur_id")
+  stockMin      Int      @map("stock_min")
+  stockMax      Int      @map("stock_max")
+  multiple      Int      @default(1)
+  actif         Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  entreprise  Entreprise   @relation(fields: [entrepriseId], references: [id])
+  produit     Produit      @relation(fields: [produitId], references: [id])
+  emplacement Emplacement  @relation(fields: [emplacementId], references: [id])
+  fournisseur Fournisseur? @relation(fields: [fournisseurId], references: [id])
+
+  @@unique([produitId, emplacementId])
+  @@index([entrepriseId])
+  @@map("regle_reapprovisionnement")
+}
+
+/**
+ * Règle de rangement (module « rangement ») — putaway rule d'Odoo : à la
+ * réception, un produit (ou une catégorie) est rangé à l'emplacement
+ * indiqué. emplacementReceptionId nul : quelle que soit l'arrivée.
+ */
+model RegleRangement {
+  id                     String   @id @default(uuid())
+  entrepriseId           String   @map("entreprise_id")
+  produitId              String?  @map("produit_id")
+  categorieId            String?  @map("categorie_id")
+  emplacementReceptionId String?  @map("emplacement_reception_id")
+  emplacementId          String   @map("emplacement_id")
+  createdAt              DateTime @default(now()) @map("created_at")
+
+  entreprise           Entreprise   @relation(fields: [entrepriseId], references: [id])
+  produit              Produit?     @relation(fields: [produitId], references: [id])
+  categorie            Categorie?   @relation(fields: [categorieId], references: [id])
+  emplacementReception Emplacement? @relation("RangementReception", fields: [emplacementReceptionId], references: [id])
+  emplacement          Emplacement  @relation("RangementDestination", fields: [emplacementId], references: [id])
+
+  @@index([entrepriseId])
+  @@map("regle_rangement")
 }

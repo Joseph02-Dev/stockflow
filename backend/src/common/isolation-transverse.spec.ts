@@ -32,6 +32,7 @@ const CORPS: Record<string, object> = {
   'PATCH /produits/:id': { nom: 'Pirate' },
   'PATCH /modeles/:id': { nom: 'Pirate' },
   'PATCH /conditionnements/:id': { nom: 'Pirate' },
+  'PATCH /reapprovisionnement/regles/:id': { stockMin: 0, stockMax: 1 },
   'POST /produits/:produitId/conditionnements': { nom: 'Pirate', facteur: 10 },
   'PATCH /retours-fournisseur/:id/avoir': { statut: 'REFUSE' },
   'PATCH /users/:id/role': { role: 'GESTIONNAIRE' },
@@ -71,7 +72,13 @@ describe('Isolation multi-entreprise transverse — toutes les routes à identif
     // masquerait une fuite au lieu de la révéler.
     await prisma.entreprise.update({
       where: { id: e.id },
-      data: { moduleArborescence: true, moduleVariantes: true, moduleConditionnements: true },
+      data: {
+        moduleArborescence: true,
+        moduleVariantes: true,
+        moduleConditionnements: true,
+        moduleReapprovisionnement: true,
+        moduleRangement: true,
+      },
     });
     const token = (await connecterClient(app, utilisateur.email)).body.accessToken as string;
     const appel = (methode: string, url: string, corps?: object) =>
@@ -110,6 +117,9 @@ describe('Isolation multi-entreprise transverse — toutes les routes à identif
     await c('/modeles', { nom: `T-shirt ${MARQUEUR}`, reference: 'TS', attributs: [{ nom: 'Taille', valeurs: ['S', 'M'] }] });
     const carton = await c(`/produits/${produit.id}/conditionnements`, { nom: `Carton ${MARQUEUR}`, facteur: 20 });
     await c('/mouvements/entree', { produitId: produit.id, emplacementId: depot.id, quantite: 2, conditionnementId: carton.id });
+    const reserve = await c('/emplacements', { nom: `Zone ${MARQUEUR}` });
+    await c('/reapprovisionnement/regles', { produitId: produit.id, emplacementId: depot.id, fournisseurId: fournisseur.id, stockMin: 500, stockMax: 800 });
+    await c('/rangement/regles', { categorieId: categorie.id, emplacementId: reserve.id });
   }
 
   /** Tous les identifiants appartenant à A, entités filles comprises. */
@@ -134,6 +144,8 @@ describe('Isolation multi-entreprise transverse — toutes les routes à identif
         UNION ALL SELECT id FROM vente WHERE entreprise_id = ${entrepriseId}
         UNION ALL SELECT id FROM modele_produit WHERE entreprise_id = ${entrepriseId}
         UNION ALL SELECT id FROM conditionnement WHERE entreprise_id = ${entrepriseId}
+        UNION ALL SELECT id FROM regle_reapprovisionnement WHERE entreprise_id = ${entrepriseId}
+        UNION ALL SELECT id FROM regle_rangement WHERE entreprise_id = ${entrepriseId}
       )
       SELECT id FROM proprietaires
       UNION ALL SELECT lv.id FROM ligne_vente lv JOIN vente v ON v.id = lv.vente_id WHERE v.entreprise_id = ${entrepriseId}

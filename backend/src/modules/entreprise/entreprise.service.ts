@@ -37,6 +37,8 @@ export class EntrepriseService {
         ...(dto.moduleNumerosSerie !== undefined ? { moduleNumerosSerie: dto.moduleNumerosSerie } : {}),
         ...(dto.moduleStrategiesSortie !== undefined ? { moduleStrategiesSortie: dto.moduleStrategiesSortie } : {}),
         ...(dto.strategieSortie !== undefined ? { strategieSortie: dto.strategieSortie } : {}),
+        ...(dto.moduleReapprovisionnement !== undefined ? { moduleReapprovisionnement: dto.moduleReapprovisionnement } : {}),
+        ...(dto.moduleRangement !== undefined ? { moduleRangement: dto.moduleRangement } : {}),
       },
     });
   }

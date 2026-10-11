@@ -90,6 +90,14 @@ export class UpdateEntrepriseDto {
   @IsBoolean()
   moduleStrategiesSortie?: boolean;
 
+  @IsOptional()
+  @IsBoolean()
+  moduleReapprovisionnement?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  moduleRangement?: boolean;
+
   /** Stratégie de sortie par défaut (module « strategiesSortie »). */
   @IsOptional()
   @IsIn(STRATEGIES, { message: 'La stratégie de sortie doit valoir FEFO, FIFO ou LIFO.' })
