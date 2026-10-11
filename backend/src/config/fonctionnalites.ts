@@ -11,7 +11,8 @@
  */
 // « reapprovisionnement » coupe aussi le calcul quotidien automatique.
 // « webhooks » coupe aussi les envois en attente (ils repartiront ensuite).
-export const FONCTIONNALITES = ['import', 'rapports', 'uploads', 'reapprovisionnement', 'webhooks'] as const;
+// « assistant » coupe l'assistant IA (incident ou coût du fournisseur IA).
+export const FONCTIONNALITES = ['import', 'rapports', 'uploads', 'reapprovisionnement', 'webhooks', 'assistant'] as const;
 export type Fonctionnalite = (typeof FONCTIONNALITES)[number];
 
 const noms = (env: NodeJS.ProcessEnv) =>

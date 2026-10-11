@@ -64,6 +64,7 @@ export class EntrepriseService {
         ...(dto.methodeValorisation !== undefined ? { methodeValorisation: dto.methodeValorisation } : {}),
         ...(dto.moduleRotation !== undefined ? { moduleRotation: dto.moduleRotation } : {}),
         ...(dto.moduleWebhooks !== undefined ? { moduleWebhooks: dto.moduleWebhooks } : {}),
+        ...(dto.moduleAssistant !== undefined ? { moduleAssistant: dto.moduleAssistant } : {}),
       },
     });
   }

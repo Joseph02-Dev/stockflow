@@ -12,7 +12,8 @@ type ThrottlerStorageRecord = Awaited<
 /**
  * Compte une requête et dit si la clé est bloquée, en une seule opération
  * atomique côté Redis (aucune course possible entre instances) :
- * fenêtre fixe de `ttl` ms, blocage de `block` ms au-delà de `limit`.
+ * fenêtre fixe de `ttl` ms, blocage de `block` ms au-delà de `limit`
+ * (block = 0 : simple quota, refusé jusqu'à la fin de la fenêtre).
  * Retour : { coups, ms avant fin de fenêtre, bloqué (0/1), ms avant déblocage }.
  */
 const SCRIPT_INCREMENT = `
@@ -22,7 +23,9 @@ local resteBlocage = redis.call('PTTL', cleBlocage)
 if resteBlocage > 0 then
   return { tonumber(redis.call('GET', cleCoups) or (limite + 1)), redis.call('PTTL', cleCoups), 1, resteBlocage }
 end
-if tonumber(redis.call('GET', cleCoups) or '0') > limite then
+-- Fin d'un blocage : nouvelle fenêtre. Sans blocage (quota), le compteur
+-- reste au-delà de la limite jusqu'à la fin de sa fenêtre.
+if blocage > 0 and tonumber(redis.call('GET', cleCoups) or '0') > limite then
   redis.call('DEL', cleCoups)
 end
 local coups = redis.call('INCR', cleCoups)

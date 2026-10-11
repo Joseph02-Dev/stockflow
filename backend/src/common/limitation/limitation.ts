@@ -34,6 +34,8 @@ export const LIMITES_STRICTES = {
   acceptationInvitation: { limit: 10, ttl: hours(1) },
   connexionConsole: { limit: 5, ttl: minutes(15) },
   televersement: { limit: 30, ttl: minutes(10) },
+  // Par IP, en plus du quota quotidien par entreprise (QuotaAssistant).
+  assistant: { limit: 20, ttl: minutes(1) },
 } as const;
 
 export const LimiteStricte = (limite: { limit: number; ttl: number }) =>

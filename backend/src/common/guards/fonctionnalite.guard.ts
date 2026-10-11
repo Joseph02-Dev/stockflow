@@ -9,6 +9,7 @@ const LIBELLES: Record<Fonctionnalite, string> = {
   uploads: 'L’envoi d’images',
   reapprovisionnement: 'Le réapprovisionnement automatique',
   webhooks: 'L’envoi de webhooks',
+  assistant: 'L’assistant IA',
 };
 
 /**

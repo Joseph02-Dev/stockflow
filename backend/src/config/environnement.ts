@@ -57,6 +57,10 @@ export function diagnostiquerEnvironnement(env: NodeJS.ProcessEnv): DiagnosticEn
       `FONCTIONNALITES_DESACTIVEES : nom(s) inconnu(s) ignoré(s) : ${inconnues.join(', ')} (valeurs possibles : ${FONCTIONNALITES.join(', ')}).`,
     );
   }
+  const quota = env.ASSISTANT_QUOTA_JOUR?.trim();
+  if (quota && !(Number.isInteger(Number(quota)) && Number(quota) > 0)) {
+    avertissements.push('ASSISTANT_QUOTA_JOUR doit être un entier positif : valeur ignorée, quota par défaut appliqué.');
+  }
   if (erreurs.length > 0) erreurs.push(contexteDeploiement(env));
   return { erreurs, avertissements };
 }
