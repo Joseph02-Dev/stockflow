@@ -26,6 +26,8 @@ export class EntrepriseService {
         ...(dto.logoUrl !== undefined ? { logoUrl: dto.logoUrl } : {}),
         ...(dto.moduleLots !== undefined ? { moduleLots: dto.moduleLots } : {}),
         ...(dto.moduleArborescence !== undefined ? { moduleArborescence: dto.moduleArborescence } : {}),
+        ...(dto.moduleVariantes !== undefined ? { moduleVariantes: dto.moduleVariantes } : {}),
+        ...(dto.moduleConditionnements !== undefined ? { moduleConditionnements: dto.moduleConditionnements } : {}),
       },
     });
   }

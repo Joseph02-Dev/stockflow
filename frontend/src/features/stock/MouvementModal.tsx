@@ -16,6 +16,8 @@ import { Alert } from '@/components/ui/Alert';
 import { Modal } from '@/components/ui/Modal';
 import { useModules } from '@/lib/useModules';
 import { cn } from '@/lib/cn';
+import { formatNombre } from '@/lib/format';
+import type { Conditionnement } from '@/features/produits/ConditionnementsProduit';
 import { RACCOURCIS_PEREMPTION, dansMois, datePeremption as formaterPeremption } from '@/features/peremptions/presentation';
 import type { LotProduit } from '@/features/peremptions/types';
 
@@ -30,6 +32,7 @@ interface OptionProduit extends Option {
   suiviParLot?: boolean;
   reference?: string | null;
   photoUrl?: string | null;
+  uniteMesure?: string | null;
 }
 
 /**
@@ -56,6 +59,7 @@ const schema = z.object({
   numeroLot: z.string().optional(),
   datePeremption: z.string().optional(),
   lotId: z.string().optional(),
+  conditionnementId: z.string().optional(),
 });
 
 type Formulaire = z.infer<typeof schema>;
@@ -107,6 +111,7 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
       numeroLot: '',
       datePeremption: '',
       lotId: '',
+      conditionnementId: '',
     },
   });
 
@@ -125,6 +130,18 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
     enabled: ouvert && suiviParLot && !!emplacementSourceChoisi && enLigne,
   });
   const lotExistant = lots.data?.find((l) => l.numero === numeroLotSaisi.trim());
+
+  // Saisie en cartons, palettes… (module « conditionnements ») : le serveur
+  // convertit en unités. Un conditionnement d'un autre produit n'est jamais envoyé.
+  const conditionnements = useQuery({
+    queryKey: ['conditionnements', produitChoisi],
+    queryFn: async () => (await api.get<Conditionnement[]>(`/produits/${produitChoisi}/conditionnements`)).data,
+    enabled: ouvert && modules.conditionnements && !!produitChoisi && enLigne,
+  });
+  const conditionnementSaisi = useWatch({ control, name: 'conditionnementId' });
+  const quantiteSaisie = useWatch({ control, name: 'quantite' });
+  const conditionnement = conditionnements.data?.find((c) => c.id === conditionnementSaisi);
+  const uniteProduit = produits.data?.find((p) => p.id === produitChoisi)?.uniteMesure || 'unité';
   const precedent = dateSaisie ? lotPrecedent(lots.data ?? [], numeroLotSaisi.trim(), dateSaisie) : null;
 
   const memeEmplacement =
@@ -148,6 +165,7 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
               produitId: valeurs.produitId,
               emplacementId: valeurs.emplacementId,
               quantite: valeurs.quantite,
+              ...(conditionnement ? { conditionnementId: conditionnement.id } : {}),
               ...(valeurs.fournisseurId ? { fournisseurId: valeurs.fournisseurId } : {}),
               ...(suiviParLot ? { numeroLot: valeurs.numeroLot?.trim(), datePeremption: valeurs.datePeremption } : {}),
             }
@@ -156,6 +174,7 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
               emplacementSourceId: valeurs.emplacementId,
               emplacementDestinationId: valeurs.emplacementDestinationId,
               quantite: valeurs.quantite,
+              ...(conditionnement ? { conditionnementId: conditionnement.id } : {}),
               ...(suiviParLot && valeurs.lotId ? { lotId: valeurs.lotId } : {}),
             };
       const nomProduit = produits.data?.find((p) => p.id === valeurs.produitId)?.nom ?? 'Produit';
@@ -372,13 +391,35 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
           </>
         )}
 
-        <Input
-          label="Quantité"
-          type="number"
-          min={1}
-          error={formState.errors.quantite?.message}
-          {...register('quantite', { valueAsNumber: true })}
-        />
+        <div className={conditionnements.data?.length ? 'grid grid-cols-2 gap-3' : undefined}>
+          <Input
+            label="Quantité"
+            type="number"
+            min={1}
+            error={formState.errors.quantite?.message}
+            hint={
+              conditionnement && Number.isInteger(quantiteSaisie)
+                ? `= ${formatNombre(quantiteSaisie * conditionnement.facteur)} ${uniteProduit}s`
+                : undefined
+            }
+            {...register('quantite', { valueAsNumber: true })}
+          />
+          {!!conditionnements.data?.length && (
+            <SelecteurChamp<Formulaire>
+              name="conditionnementId"
+              control={control}
+              label="Unité"
+              options={[
+                { valeur: '', libelle: `${uniteProduit}s` },
+                ...conditionnements.data.map((c) => ({
+                  valeur: c.id,
+                  libelle: c.nom,
+                  sousTitre: `${formatNombre(c.facteur)} ${uniteProduit}s`,
+                })),
+              ]}
+            />
+          )}
+        </div>
 
         {type === 'ENTREE' && suiviParLot && (
           <div className="flex flex-col gap-3 rounded-md border border-rule bg-entete-groupe p-3">

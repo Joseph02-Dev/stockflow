@@ -59,15 +59,37 @@ Registre unique : `src/common/modules/modules-entreprise.ts`. Un module coupé d
 | Transferts | `module_transferts` | Console (offre) | activé |
 | Lots et péremptions | `module_lots` | Administrateur (Paramètres › Modules) | activé |
 | Arborescence des emplacements | `module_arborescence` | Administrateur | désactivé |
+| Variantes de produits | `module_variantes` | Administrateur | désactivé |
+| Conditionnements | `module_conditionnements` | Administrateur | désactivé |
 
 Ajouter un module : une colonne booléenne sur `Entreprise`, une entrée dans le registre, puis `@ModuleRequis('cle')` sur ses routes et `useModules()` côté interface.
+
+## Variantes (vague 2)
+
+Un **modèle** (`ModeleProduit`, le *product.template* d'Odoo) porte des attributs (`AttributModele` : « Taille » → S, M, L ; trois au maximum). Chaque combinaison devient un **`Produit` ordinaire** (le *product.product*), avec `modeleId`, `valeursVariante` et une `cleVariante` unique par modèle.
+Le stock, les ventes, les lots et les inventaires fonctionnent donc sur les variantes sans aucun changement.
+
+- La grille est générée à la création (200 variantes au maximum, avec contrôle de la limite de références). Nom et référence sont automatiques : « T-shirt — Rouge / M », `TSHIRT-ROUGE-M`.
+- Les prix, la catégorie et l'unité du modèle sont **copiés** dans chaque nouvelle variante, qui reste ensuite modifiable sur sa fiche.
+- Une fois les variantes créées, on peut ajouter des valeurs : seules les variantes manquantes sont générées. Retirer une valeur ou changer d'axe est refusé, car les variantes existantes perdraient leur sens.
+- Routes : `GET/POST /modeles`, `GET/PATCH /modeles/:id`, `PATCH /modeles/:id/archive` (archive aussi les variantes), `GET /produits?modele_id=`.
+
+## Conditionnements (vague 2)
+
+Le stock reste tenu en **unité de base** (entier). Un `Conditionnement` déclare une contenance : 1 Carton = 12, 1 Palette = 480.
+Une entrée, une sortie ou un transfert peut être saisi dans un conditionnement (`conditionnementId`). La quantité est alors multipliée par le facteur avant d'atteindre le moteur.
+Le mouvement garde `conditionnementId` et le `facteurConditionnement` **figé**, ce qui permet d'afficher « 2 × Palette ». Le facteur d'un conditionnement ne se modifie jamais : on l'archive et on en crée un autre.
+
+Routes : `GET/POST /produits/:produitId/conditionnements`, `PATCH /conditionnements/:id`, `PATCH /conditionnements/:id/archive`.
+
+Hors périmètre pour l'instant : la saisie en conditionnement dans les ventes et les commandes fournisseur (toujours en unités), et les unités fractionnaires (kg → g), qui demanderaient des quantités décimales.
 
 ## Feuille de route
 
 | Vague | Contenu | État |
 |---|---|---|
 | 1 | Double entrée, moteur unique, arborescence des emplacements, modules | **Livrée** |
-| 2 | Variantes (attributs, grille, SKU auto) et unités de mesure avec conversions | À faire (`moduleVariantes`, `moduleMultiUnites`) |
+| 2 | Variantes (attributs, grille, référence automatique) et conditionnements avec conversion | **Livrée** (`moduleVariantes`, `moduleConditionnements`) |
 | 3 | Numéros de série ; FIFO/LIFO en plus du FEFO existant | Lots + FEFO déjà en place ; séries à faire |
 | 4 | Règles de réapprovisionnement min/max (tâche planifiée), rangement automatique, stratégie de retrait par entrepôt | À faire |
 | 5 | Couches de valorisation (FIFO, coût moyen pondéré), rapports de rotation et de stock dormant, OpenAPI et webhooks | À faire. La valorisation se fait aujourd'hui au prix d'achat actuel. |

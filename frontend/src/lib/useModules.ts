@@ -6,6 +6,8 @@ interface EntrepriseModules {
   moduleTransferts?: boolean;
   moduleLots?: boolean;
   moduleArborescence?: boolean;
+  moduleVariantes?: boolean;
+  moduleConditionnements?: boolean;
   /** Interrupteurs globaux coupés côté serveur (FONCTIONNALITES_DESACTIVEES). */
   fonctionnalitesSuspendues?: string[];
 }
@@ -32,6 +34,8 @@ export function useModules() {
     transferts: data?.moduleTransferts ?? true,
     lots: data?.moduleLots ?? true,
     arborescence: data?.moduleArborescence ?? false,
+    variantes: data?.moduleVariantes ?? false,
+    conditionnements: data?.moduleConditionnements ?? false,
     rapports: !suspendue('rapports'),
     import: !suspendue('import'),
   };

@@ -1,4 +1,4 @@
-import { IsInt, IsUUID, Min } from 'class-validator';
+import { IsInt, IsOptional, IsUUID, Min } from 'class-validator';
 
 export class SortieStockDto {
   @IsUUID('4', { message: 'produitId doit être un identifiant valide.' })
@@ -10,4 +10,9 @@ export class SortieStockDto {
   @IsInt({ message: 'La quantité doit être un nombre entier.' })
   @Min(1, { message: 'La quantité doit être supérieure à 0.' })
   quantite!: number;
+
+  /** Quantité saisie dans ce conditionnement (carton…), convertie en unités. */
+  @IsOptional()
+  @IsUUID('4', { message: 'conditionnementId doit être un identifiant valide.' })
+  conditionnementId?: string;
 }

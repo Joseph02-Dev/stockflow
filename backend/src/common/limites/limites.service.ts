@@ -46,6 +46,11 @@ export class LimitesService {
    * risque assumé, la limite sert le modèle commercial, pas la sécurité.
    */
   async exigerPlace(entrepriseId: string, ressource: RessourceLimitee): Promise<void> {
+    return this.exigerPlaces(entrepriseId, ressource, 1);
+  }
+
+  /** Même contrôle pour une création groupée (variantes d'un modèle). */
+  async exigerPlaces(entrepriseId: string, ressource: RessourceLimitee, nombre: number): Promise<void> {
     const entreprise = await this.prisma.entreprise.findUniqueOrThrow({
       where: { id: entrepriseId },
       select: { limiteEmplacements: true, limiteUtilisateurs: true, limiteReferences: true },
@@ -58,13 +63,13 @@ export class LimitesService {
     if (limite === null) return;
 
     const utilise = (await this.usage(entrepriseId))[ressource];
-    if (utilise >= limite) {
+    if (utilise + nombre > limite) {
       const [singulier, pluriel] = LIBELLES[ressource];
       throw new ForbiddenException({
         statusCode: 403,
         error: 'Forbidden',
         code: CODE_LIMITE_ATTEINTE,
-        message: `Limite atteinte : votre formule autorise ${limite} ${limite > 1 ? pluriel : singulier}. Contactez StockFlow pour l'augmenter.`,
+        message: `Limite atteinte : votre formule autorise ${limite} ${limite > 1 ? pluriel : singulier}. ${nombre > 1 ? ` Il en reste ${Math.max(0, limite - utilise)}, il en faudrait ${nombre}.` : ''} Contactez StockFlow pour l'augmenter.`,
       });
     }
   }

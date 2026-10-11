@@ -7,7 +7,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Card, PanneauEntete } from '@/components/patterns/Page';
 import { LoadingState } from '@/components/patterns/States';
 
-type CleModule = 'lots' | 'arborescence';
+type CleModule = 'lots' | 'arborescence' | 'variantes' | 'conditionnements';
 
 /** Modules métier : l'administrateur n'affiche que ce dont son activité a besoin. */
 const MODULES: { cle: CleModule; champ: string; libelle: string; aide: string }[] = [
@@ -22,6 +22,18 @@ const MODULES: { cle: CleModule; champ: string; libelle: string; aide: string }[
     champ: 'moduleArborescence',
     libelle: 'Arborescence des emplacements',
     aide: 'Ranger les emplacements les uns dans les autres : Dépôt › Zone › Allée › Étagère.',
+  },
+  {
+    cle: 'variantes',
+    champ: 'moduleVariantes',
+    libelle: 'Variantes de produits',
+    aide: 'Un modèle décliné en tailles, couleurs… : chaque combinaison a son propre stock. Habillement, chaussures, peinture…',
+  },
+  {
+    cle: 'conditionnements',
+    champ: 'moduleConditionnements',
+    libelle: 'Conditionnements',
+    aide: 'Acheter en palettes, stocker en cartons, vendre à l’unité : les saisies en cartons sont converties automatiquement.',
   },
 ];
 

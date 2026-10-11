@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { trajetMouvement, type NatureEmplacement } from '@/lib/natureEmplacement';
+import { formatNombre } from '@/lib/format';
 import { Link } from 'react-router-dom';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Download, Plus } from 'lucide-react';
@@ -39,6 +40,9 @@ interface Mouvement {
   emplacement: { nom: string };
   emplacementDestination: { nom: string } | null;
   origine?: NatureEmplacement;
+  /** Saisi en conditionnement (carton…) : facteur figé au mouvement. */
+  conditionnement?: { nom: string } | null;
+  facteurConditionnement?: number | null;
   destination?: NatureEmplacement;
   utilisateur: { nom: string };
   fournisseur: { nom: string } | null;
@@ -312,6 +316,12 @@ export function StockPage() {
                           <td className={cn(tableau.td, 'text-steel-700')}>{lieu(mouvement)}</td>
                           <td className={cn(tableau.td, 'text-right font-semibold whitespace-nowrap', p.couleur)}>
                             {quantiteSignee(mouvement.type, mouvement.quantite)}
+                            {mouvement.conditionnement && mouvement.facteurConditionnement && (
+                              <span className="block text-meta font-normal text-steel-500">
+                                {formatNombre(mouvement.quantite / mouvement.facteurConditionnement)} ×{' '}
+                                {mouvement.conditionnement.nom}
+                              </span>
+                            )}
                           </td>
                           <td className={cn(tableau.td, 'whitespace-nowrap text-steel-500')}>
                             {dateHeure(mouvement.createdAt)}

@@ -45,4 +45,9 @@ export class EntreeStockDto {
     message: 'La date de péremption doit être au format AAAA-MM-JJ.',
   })
   datePeremption?: string;
+
+  /** Quantité saisie dans ce conditionnement (carton…), convertie en unités. */
+  @IsOptional()
+  @IsUUID('4', { message: 'conditionnementId doit être un identifiant valide.' })
+  conditionnementId?: string;
 }

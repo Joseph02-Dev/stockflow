@@ -13,8 +13,9 @@ export class ProduitsController {
     @CurrentTenant() entrepriseId: string,
     @Query('search') search?: string,
     @Query('archive') archive?: string,
+    @Query('modele_id') modeleId?: string,
   ) {
-    return this.produitsService.lister(entrepriseId, { search, inclureArchives: archive === 'true' });
+    return this.produitsService.lister(entrepriseId, { search, inclureArchives: archive === 'true', modeleId });
   }
 
   @Get(':id')

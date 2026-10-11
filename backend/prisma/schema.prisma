@@ -169,28 +169,32 @@ model Entreprise {
   // Modules métier, activés par l'administrateur de l'entreprise selon
   // son activité (Paramètres) : un module désactivé disparaît de
   // l'interface et ses routes sont refusées côté serveur.
-  moduleLots         Boolean @default(true) @map("module_lots")
-  moduleArborescence Boolean @default(false) @map("module_arborescence")
+  moduleLots             Boolean @default(true) @map("module_lots")
+  moduleArborescence     Boolean @default(false) @map("module_arborescence")
+  moduleVariantes        Boolean @default(false) @map("module_variantes")
+  moduleConditionnements Boolean @default(false) @map("module_conditionnements")
 
   // Nombre de jours avant péremption à partir duquel un lot est « sous
   // surveillance », sauf seuil propre au produit.
   seuilAlertePeremptionJours Int @default(30) @map("seuil_alerte_peremption_jours")
 
-  utilisateurs Utilisateur[]
-  emplacements Emplacement[]
-  produits     Produit[]
-  clients      Client[]
-  ventes       Vente[]
-  fournisseurs Fournisseur[]
-  mouvements   Mouvement[]
-  alertes      Alerte[]
-  invitations  Invitation[]
-  categories   Categorie[]
-  marques      Marque[]
-  inventaires  Inventaire[]
-  commandes    CommandeFournisseur[]
-  lots         Lot[]
-  imports      ImportCatalogue[]
+  utilisateurs     Utilisateur[]
+  emplacements     Emplacement[]
+  produits         Produit[]
+  clients          Client[]
+  ventes           Vente[]
+  fournisseurs     Fournisseur[]
+  mouvements       Mouvement[]
+  alertes          Alerte[]
+  invitations      Invitation[]
+  categories       Categorie[]
+  marques          Marque[]
+  inventaires      Inventaire[]
+  commandes        CommandeFournisseur[]
+  lots             Lot[]
+  imports          ImportCatalogue[]
+  modeles          ModeleProduit[]
+  conditionnements Conditionnement[]
 
   retoursFournisseur RetourFournisseur[]
   retoursClient      RetourClient[]
@@ -225,9 +229,9 @@ model Utilisateur {
   // n'est jamais supprimé : son nom reste sur l'historique (ventes,
   // mouvements, déclarations). Connexion, renouvellement de session et
   // toute requête sont refusés dès la désactivation.
-  desactiveAt    DateTime?    @map("desactive_at")
-  desactiveParId String?      @map("desactive_par_id")
-  desactivePar   Utilisateur? @relation("UtilisateurDesactivePar", fields: [desactiveParId], references: [id])
+  desactiveAt    DateTime?     @map("desactive_at")
+  desactiveParId String?       @map("desactive_par_id")
+  desactivePar   Utilisateur?  @relation("UtilisateurDesactivePar", fields: [desactiveParId], references: [id])
   desactives     Utilisateur[] @relation("UtilisateurDesactivePar")
 
   entreprise                  Entreprise                   @relation(fields: [entrepriseId], references: [id])
@@ -406,7 +410,17 @@ model Produit {
   // (archivage des produits qu'il a créés).
   importId              String? @map("import_id")
 
+  // Variante d'un modèle (module « variantes ») : chaque variante est un
+  // produit à part entière (stock, ventes, lots, inventaires inchangés),
+  // comme product.product dans Odoo. valeursVariante = { "Couleur": "Rouge" } ;
+  // cleVariante, normalisée, interdit deux fois la même combinaison.
+  modeleId        String? @map("modele_id")
+  valeursVariante Json?   @map("valeurs_variante")
+  cleVariante     String? @map("cle_variante")
+
   entreprise           Entreprise           @relation(fields: [entrepriseId], references: [id])
+  modele               ModeleProduit?       @relation(fields: [modeleId], references: [id])
+  conditionnements     Conditionnement[]
   categorie            Categorie?           @relation(fields: [categorieId], references: [id])
   marque               Marque?              @relation(fields: [marqueId], references: [id])
   import               ImportCatalogue?     @relation(fields: [importId], references: [id])
@@ -420,6 +434,7 @@ model Produit {
   lots                 Lot[]
 
   @@unique([entrepriseId, codeBarre])
+  @@unique([modeleId, cleVariante])
   @@index([entrepriseId, nom])
   @@index([importId])
   @@map("produit")
@@ -433,8 +448,9 @@ model Categorie {
   nom          String
   createdAt    DateTime @default(now()) @map("created_at")
 
-  entreprise Entreprise @relation(fields: [entrepriseId], references: [id])
+  entreprise Entreprise      @relation(fields: [entrepriseId], references: [id])
   produits   Produit[]
+  modeles    ModeleProduit[]
 
   @@unique([entrepriseId, nom])
   @@map("categorie")
@@ -446,8 +462,9 @@ model Marque {
   nom          String
   createdAt    DateTime @default(now()) @map("created_at")
 
-  entreprise Entreprise @relation(fields: [entrepriseId], references: [id])
+  entreprise Entreprise      @relation(fields: [entrepriseId], references: [id])
   produits   Produit[]
+  modeles    ModeleProduit[]
 
   @@unique([entrepriseId, nom])
   @@map("marque")
@@ -537,19 +554,24 @@ model Mouvement {
 
   // Pertes (CASSE) et retours : motif, valeur figée au prix d'achat du
   // moment — si le prix change plus tard, la perte enregistrée ne bouge pas.
-  motifPerte          MotifPerte? @map("motif_perte")
-  valeurUnitaire      Int?        @map("valeur_unitaire")
-  valeurTotale        Int?        @map("valeur_totale")
-  commentaire         String?
-  photoUrl            String?     @map("photo_url")
+  motifPerte             MotifPerte? @map("motif_perte")
+  valeurUnitaire         Int?        @map("valeur_unitaire")
+  valeurTotale           Int?        @map("valeur_totale")
+  commentaire            String?
+  photoUrl               String?     @map("photo_url")
   // Annulation d'une casse (administrateur) : la déclaration reste, marquée
   // annulée ; le mouvement inverse la désigne par annuleMouvementId.
-  annuleAt            DateTime?   @map("annule_at")
-  annuleParId         String?     @map("annule_par_id")
-  motifAnnulation     String?     @map("motif_annulation")
-  annuleMouvementId   String?     @unique @map("annule_mouvement_id")
-  retourFournisseurId String?     @map("retour_fournisseur_id")
-  retourClientId      String?     @map("retour_client_id")
+  annuleAt               DateTime?   @map("annule_at")
+  annuleParId            String?     @map("annule_par_id")
+  motifAnnulation        String?     @map("motif_annulation")
+  annuleMouvementId      String?     @unique @map("annule_mouvement_id")
+  // Saisie dans un conditionnement (module « conditionnements ») : la
+  // quantité reste en unité de base ; le facteur est figé au moment du
+  // mouvement (quantite / facteurConditionnement = nombre de cartons).
+  conditionnementId      String?     @map("conditionnement_id")
+  facteurConditionnement Int?        @map("facteur_conditionnement")
+  retourFournisseurId    String?     @map("retour_fournisseur_id")
+  retourClientId         String?     @map("retour_client_id")
 
   entreprise             Entreprise         @relation(fields: [entrepriseId], references: [id])
   produit                Produit            @relation(fields: [produitId], references: [id])
@@ -564,6 +586,7 @@ model Mouvement {
   annulation             Mouvement?         @relation("AnnulationMouvement")
   retourFournisseur      RetourFournisseur? @relation(fields: [retourFournisseurId], references: [id])
   retourClient           RetourClient?      @relation(fields: [retourClientId], references: [id])
+  conditionnement        Conditionnement?   @relation(fields: [conditionnementId], references: [id])
 
   @@index([produitId, createdAt])
   @@index([entrepriseId, type, createdAt])
@@ -1002,4 +1025,77 @@ model RetourClientLigne {
 
   @@index([ligneVenteId])
   @@map("retour_client_ligne")
+}
+
+/**
+ * Modèle de produit à variantes (module « variantes ») — product.template
+ * d'Odoo. Ses valeurs par défaut (prix, catégorie, unité…) sont copiées
+ * dans chaque variante générée, qui reste ensuite modifiable une à une.
+ */
+model ModeleProduit {
+  id           String   @id @default(uuid())
+  entrepriseId String   @map("entreprise_id")
+  nom          String
+  // Préfixe des références des variantes : « TSHIRT » → TSHIRT-ROUGE-M.
+  reference    String?
+  categorieId  String?  @map("categorie_id")
+  marqueId     String?  @map("marque_id")
+  uniteMesure  String?  @map("unite_mesure")
+  prixAchat    Int?     @map("prix_achat")
+  prixVente    Int?     @map("prix_vente")
+  tauxTva      Int?     @map("taux_tva")
+  seuilAlerte  Int      @default(0) @map("seuil_alerte")
+  archive      Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  entreprise Entreprise       @relation(fields: [entrepriseId], references: [id])
+  categorie  Categorie?       @relation(fields: [categorieId], references: [id])
+  marque     Marque?          @relation(fields: [marqueId], references: [id])
+  attributs  AttributModele[]
+  variantes  Produit[]
+
+  @@index([entrepriseId, nom])
+  @@map("modele_produit")
+}
+
+/**
+ * Axe de variation d'un modèle : « Taille » → [S, M, L].
+ */
+model AttributModele {
+  id       String   @id @default(uuid())
+  modeleId String   @map("modele_id")
+  nom      String
+  ordre    Int
+  valeurs  String[]
+
+  modele ModeleProduit @relation(fields: [modeleId], references: [id])
+
+  @@unique([modeleId, nom])
+  @@map("attribut_modele")
+}
+
+/**
+ * Conditionnement d'un produit (module « conditionnements ») : un carton
+ * de 20, une palette de 200. Le stock reste tenu en unité de base ; un
+ * mouvement saisi en cartons est converti par le facteur. Jamais supprimé
+ * (les mouvements le référencent) : archivé.
+ */
+model Conditionnement {
+  id           String   @id @default(uuid())
+  entrepriseId String   @map("entreprise_id")
+  produitId    String   @map("produit_id")
+  nom          String
+  // Nombre d'unités de base contenues (≥ 2).
+  facteur      Int
+  codeBarre    String?  @map("code_barre")
+  archive      Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  entreprise Entreprise  @relation(fields: [entrepriseId], references: [id])
+  produit    Produit     @relation(fields: [produitId], references: [id])
+  mouvements Mouvement[]
+
+  @@unique([produitId, nom])
+  @@index([entrepriseId])
+  @@map("conditionnement")
 }

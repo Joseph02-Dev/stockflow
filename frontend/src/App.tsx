@@ -10,6 +10,8 @@ import { ReinitialiserMotDePassePage } from '@/features/auth/ReinitialiserMotDeP
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { ProduitsPage } from '@/features/produits/ProduitsPage';
 import { ProduitFormPage } from '@/features/produits/ProduitFormPage';
+import { ModelesPage } from '@/features/produits/ModelesPage';
+import { ModeleFormPage } from '@/features/produits/ModeleFormPage';
 import { StockPage } from '@/features/stock/StockPage';
 import { InventaireDetailPage } from '@/features/stock/InventaireDetailPage';
 import { CommandesPage } from '@/features/commandes/CommandesPage';
@@ -99,6 +101,9 @@ export function App() {
               </Suspense>
             }
           />
+          <Route path="/produits/modeles" element={<ModelesPage />} />
+          <Route path="/produits/modeles/nouveau" element={<ModeleFormPage />} />
+          <Route path="/produits/modeles/:id" element={<ModeleFormPage />} />
           <Route path="/produits/:id" element={<ProduitFormPage />} />
           <Route path="/stock" element={<StockPage />} />
           <Route path="/inventaires/:id" element={<InventaireDetailPage />} />

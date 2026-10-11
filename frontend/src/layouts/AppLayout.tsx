@@ -130,8 +130,18 @@ function filAriane(chemin: string): { libelle: string; to?: string }[] {
     emplacements: 'Emplacements',
     categories: 'Catégories & marques',
   };
-  const [racine, detail] = chemin.split('/').filter(Boolean);
+  const [racine, detail, sousDetail] = chemin.split('/').filter(Boolean);
   if (!racine) return [{ libelle: 'Tableau de bord' }];
+  // Modèles à variantes : Produits › Modèles › fiche du modèle.
+  if (racine === 'produits' && detail === 'modeles') {
+    const modeles = { libelle: 'Modèles', to: '/produits/modeles' };
+    if (!sousDetail) return [{ libelle: 'Produits', to: '/produits' }, { libelle: 'Modèles' }];
+    return [
+      { libelle: 'Produits', to: '/produits' },
+      modeles,
+      { libelle: sousDetail === 'nouveau' ? 'Nouveau modèle' : 'Fiche modèle' },
+    ];
+  }
   // Pages réunies en onglets : la section parente, puis l'onglet.
   const parents: Record<string, { libelle: string; to: string }> = {
     peremptions: { libelle: 'Alertes', to: '/alertes' },

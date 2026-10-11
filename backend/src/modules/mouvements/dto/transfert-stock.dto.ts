@@ -25,4 +25,9 @@ export class TransfertStockDto {
   @IsOptional()
   @IsUUID('4', { message: 'lotId doit être un identifiant valide.' })
   lotId?: string;
+
+  /** Quantité saisie dans ce conditionnement (carton…), convertie en unités. */
+  @IsOptional()
+  @IsUUID('4', { message: 'conditionnementId doit être un identifiant valide.' })
+  conditionnementId?: string;
 }
