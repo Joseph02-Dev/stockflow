@@ -46,8 +46,20 @@ export function construireDocumentation(app: INestApplication): OpenAPIObject {
   return document;
 }
 
+/**
+ * Politique de sécurité des seules pages /docs : l'API répond partout
+ * ailleurs avec « default-src 'none' » (aucune page à afficher), qui
+ * bloquerait les feuilles de style et le script de Swagger UI.
+ */
+export const CSP_DOCUMENTATION =
+  "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'; connect-src 'self'; frame-ancestors 'none'";
+
 export function configurerDocumentation(app: INestApplication, env: NodeJS.ProcessEnv = process.env): boolean {
   if (!documentationActive(env)) return false;
+  app.use('/docs', (_req: unknown, res: { setHeader: (nom: string, valeur: string) => void }, suite: () => void) => {
+    res.setHeader('Content-Security-Policy', CSP_DOCUMENTATION);
+    suite();
+  });
   SwaggerModule.setup('docs', app, () => construireDocumentation(app), {
     jsonDocumentUrl: 'docs/openapi.json',
     customSiteTitle: 'StockFlow API',

@@ -32,6 +32,8 @@ import { DeclarationCassePage } from '@/features/pertes/DeclarationCassePage';
 import { RetoursFournisseurPage } from '@/features/retours/RetoursFournisseurPage';
 import { RapportsPage } from '@/features/rapports/RapportsPage';
 import { StatistiquesPage } from '@/features/statistiques/StatistiquesPage';
+import { ValorisationPage } from '@/features/finance/ValorisationPage';
+import { RotationPage } from '@/features/finance/RotationPage';
 import { ParametresPage } from '@/features/parametres/ParametresPage';
 import { EmplacementsPage } from '@/features/parametres/EmplacementsPage';
 import { CategoriesMarquesPage } from '@/features/parametres/CategoriesMarquesPage';
@@ -126,6 +128,8 @@ export function App() {
           <Route path="/retours-fournisseur" element={<RetoursFournisseurPage />} />
           <Route path="/rapports" element={<RapportsPage />} />
           <Route path="/statistiques" element={<StatistiquesPage />} />
+          <Route path="/valorisation" element={<ValorisationPage />} />
+          <Route path="/rotation" element={<RotationPage />} />
           <Route element={<RouteAdmin />}>
             <Route path="/parametres" element={<ParametresPage />} />
             <Route path="/emplacements" element={<EmplacementsPage />} />

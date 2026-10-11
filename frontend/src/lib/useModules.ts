@@ -14,6 +14,10 @@ interface EntrepriseModules {
   moduleReapprovisionnement?: boolean;
   moduleRangement?: boolean;
   dernierReapproAt?: string | null;
+  moduleValorisation?: boolean;
+  methodeValorisation?: 'FIFO' | 'PMP';
+  moduleRotation?: boolean;
+  moduleWebhooks?: boolean;
   strategieSortie?: StrategieSortie;
   /** Interrupteurs globaux coupés côté serveur (FONCTIONNALITES_DESACTIVEES). */
   fonctionnalitesSuspendues?: string[];
@@ -48,6 +52,10 @@ export function useModules() {
     reapprovisionnement: (data?.moduleReapprovisionnement ?? false) && !suspendue('reapprovisionnement'),
     rangement: data?.moduleRangement ?? false,
     dernierReapproAt: data?.dernierReapproAt ?? null,
+    valorisation: data?.moduleValorisation ?? false,
+    methodeValorisation: data?.methodeValorisation ?? 'PMP',
+    rotation: data?.moduleRotation ?? false,
+    webhooks: (data?.moduleWebhooks ?? false) && !suspendue('webhooks'),
     /** Stratégie de sortie par défaut de l'entreprise. */
     strategieSortie: data?.strategieSortie ?? 'FEFO',
     rapports: !suspendue('rapports'),

@@ -65,6 +65,9 @@ Registre unique : `src/common/modules/modules-entreprise.ts`. Un module coupé d
 | Stratégies de sortie | `module_strategies_sortie` | Administrateur | désactivé (FEFO) |
 | Réapprovisionnement automatique | `module_reapprovisionnement` | Administrateur | désactivé |
 | Règles de rangement | `module_rangement` | Administrateur | désactivé |
+| Valorisation du stock | `module_valorisation` | Administrateur | désactivé |
+| Rotation et stock dormant | `module_rotation` | Administrateur | désactivé |
+| Webhooks | `module_webhooks` | Administrateur | désactivé |
 
 Ajouter un module : une colonne booléenne sur `Entreprise`, une entrée dans le registre, puis `@ModuleRequis('cle')` sur ses routes et `useModules()` côté interface.
 
@@ -134,6 +137,64 @@ Une `RegleRangement` dit où ranger un **produit ou une catégorie**, éventuell
   - `DELETE /rangement/regles/:id`
   - `GET /rangement/proposition?produit_id=&emplacement_id=`
 
+## Valorisation (vague 5)
+
+Chaque mouvement qui change le stock total laisse une `CoucheValorisation`, écrite par le moteur de stock dans la même transaction. C'est l'équivalent de stock.valuation.layer dans Odoo.
+
+- **Entrée** : coût saisi (`coutUnitaire`, ramené à l'unité pour un conditionnement). À défaut, coût moyen courant pour une entrée qui n'est pas un achat (retour, ajustement), sinon prix d'achat du produit.
+- **Sortie** : coût FIFO (couches d'entrée les plus anciennes) ou coût moyen pondéré (PMP), selon `methodeValorisation`. Les restes des couches d'entrée sont toujours consommés dans l'ordre FIFO : changer de méthode ne fausse jamais les quantités.
+- **Transfert** : aucune couche, la valeur de l'entreprise ne change pas.
+- **Valeur du stock** = Σ valeur des couches, en BigInt.
+- **Concurrence** : un verrou consultatif par produit sérialise la valorisation.
+- **Activation** : le stock présent est ouvert au prix d'achat actuel. **Réactivation** : les écarts sont resynchronisés.
+- Routes : `GET /valorisation`, `GET /valorisation/produits/:id/couches`.
+- Les statistiques existantes (tableau de bord) restent au prix d'achat actuel.
+
+## Rotation et stock dormant (vague 5)
+
+`GET /statistiques/rotation?jours=90` (de 7 à 730 jours) :
+- **Sorties nettes** vers les clients : ventes, moins les retours et les ventes annulées.
+- **Rotation** = sorties / stock actuel.
+- **Couverture** en jours de vente.
+- **Dormants** : du stock, mais aucune sortie sur la période.
+- **Valeur** au coût : couches si le module de valorisation est actif, sinon prix d'achat actuel.
+- **Agrégats par catégorie** en valeur, seule unité commune à tous les produits.
+
+## Documentation OpenAPI (vague 5)
+
+`/docs` (Swagger UI) et `/docs/openapi.json`. Les schémas sont générés au build par le plugin `@nestjs/swagger` : types, validations et commentaires des DTO.
+- **Activation** : par défaut hors production ; en production seulement avec `API_DOCS=true`.
+- La console opérateur est exclue.
+- Une politique de sécurité propre aux pages `/docs` autorise les styles de Swagger UI ; le reste de l'API garde `default-src 'none'`.
+
+## Webhooks (vague 5)
+
+**Événements**
+- `mouvement.cree` : écrit par le moteur de stock, dans la transaction du mouvement (outbox transactionnelle).
+- `alerte.stock` : stock faible ou rupture.
+- `lot.peremption` : chaque matin à 5 h 30.
+- `test.ping` : à la demande.
+
+**Envoi**
+- Toutes les 15 s, `LivreurWebhooks` réserve les livraisons dues avec `FOR UPDATE SKIP LOCKED` (plusieurs instances possibles), puis envoie hors transaction.
+- `POST` JSON `{ id, type, creeLe, donnees }`, en-têtes `X-StockFlow-Evenement`, `X-StockFlow-Livraison` et `X-StockFlow-Signature: t=<horodatage>,v1=<HMAC-SHA256 hex de "t.corps">`.
+- Délai de 5 s, aucune redirection suivie.
+- Échec : nouvelle tentative après 1 min, 5 min, 30 min, 2 h puis 6 h ; abandon après 6 tentatives. L'abonnement est désactivé après 20 échecs consécutifs.
+
+**Sécurité (SSRF)**
+- https obligatoire, pas d'identifiants dans l'URL.
+- Toute adresse privée, locale, CGNAT ou de métadonnées cloud est refusée, à l'abonnement et avant chaque envoi.
+- `WEBHOOKS_RESEAU_PRIVE=true` lève ces restrictions **hors production uniquement** (tests).
+
+**Exploitation**
+- Le secret de signature n'est montré qu'à la création.
+- `FONCTIONNALITES_DESACTIVEES=webhooks` suspend routes et envois.
+- Routes (administrateur) :
+  - `GET/POST /webhooks`
+  - `PATCH/DELETE /webhooks/:id`
+  - `GET /webhooks/:id/livraisons`
+  - `POST /webhooks/:id/test`
+
 ## Feuille de route
 
 | Vague | Contenu | État |
@@ -142,4 +203,4 @@ Une `RegleRangement` dit où ranger un **produit ou une catégorie**, éventuell
 | 2 | Variantes (attributs, grille, référence automatique) et conditionnements avec conversion | **Livrée** (`moduleVariantes`, `moduleConditionnements`) |
 | 3 | Numéros de série, stratégies de sortie FEFO/FIFO/LIFO, traçabilité par lot | **Livrée** (`moduleNumerosSerie`, `moduleStrategiesSortie`) |
 | 4 | Réapprovisionnement min/max (calcul quotidien), règles de rangement ; stratégie de retrait par emplacement (livrée en vague 3) | **Livrée** (`moduleReapprovisionnement`, `moduleRangement`) |
-| 5 | Couches de valorisation (FIFO, coût moyen pondéré), rapports de rotation et de stock dormant, OpenAPI et webhooks | À faire. La valorisation se fait aujourd'hui au prix d'achat actuel. |
+| 5 | Couches de valorisation (FIFO, coût moyen pondéré), rotation et stock dormant, OpenAPI, webhooks | **Livrée** (`moduleValorisation`, `moduleRotation`, `moduleWebhooks`) |

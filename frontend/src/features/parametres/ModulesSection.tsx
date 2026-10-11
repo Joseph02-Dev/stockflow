@@ -17,7 +17,10 @@ type CleModule =
   | 'numerosSerie'
   | 'strategiesSortie'
   | 'reapprovisionnement'
-  | 'rangement';
+  | 'rangement'
+  | 'valorisation'
+  | 'rotation'
+  | 'webhooks';
 
 /** Modules métier : l'administrateur n'affiche que ce dont son activité a besoin. */
 const MODULES: { cle: CleModule; champ: string; libelle: string; aide: string }[] = [
@@ -69,6 +72,24 @@ const MODULES: { cle: CleModule; champ: string; libelle: string; aide: string }[
     libelle: 'Règles de rangement',
     aide: 'À la réception, chaque produit (ou catégorie) est dirigé vers son emplacement de rangement.',
   },
+  {
+    cle: 'valorisation',
+    champ: 'moduleValorisation',
+    libelle: 'Valorisation du stock',
+    aide: 'Valeur réelle du stock au coût d’achat, en FIFO ou en coût moyen pondéré. À l’activation, le stock présent est valorisé au prix d’achat actuel.',
+  },
+  {
+    cle: 'rotation',
+    champ: 'moduleRotation',
+    libelle: 'Rotation et stock dormant',
+    aide: 'Ce qui se vend, ce qui dort et combien d’argent est immobilisé, par produit et par catégorie.',
+  },
+  {
+    cle: 'webhooks',
+    champ: 'moduleWebhooks',
+    libelle: 'Webhooks',
+    aide: 'Prévenir un autre logiciel (comptabilité, site marchand…) à chaque mouvement, alerte ou lot proche de péremption.',
+  },
 ];
 
 export function ModulesSection() {
@@ -82,7 +103,7 @@ export function ModulesSection() {
     onSuccess: (_, { valeur }) => {
       setResultat({
         ok: true,
-        texte: typeof valeur === 'string' ? 'Stratégie enregistrée.' : valeur ? 'Module activé.' : 'Module désactivé.',
+        texte: typeof valeur === 'string' ? 'Réglage enregistré.' : valeur ? 'Module activé.' : 'Module désactivé.',
       });
       queryClient.invalidateQueries({ queryKey: ['entreprise'] });
       queryClient.invalidateQueries({ queryKey: ['emplacements'] });
@@ -126,6 +147,23 @@ export function ModulesSection() {
           })}
         </ul>
       </Card>
+
+      {modules.valorisation && (
+        <Card>
+          <PanneauEntete titre="Méthode de valorisation" meta="Le coût des sorties ; la valeur des entrées est toujours leur coût d’achat." />
+          <div className="p-5">
+            <Selecteur
+              label="Coût des sorties"
+              value={modules.methodeValorisation}
+              onChange={(valeur) => basculer.mutate({ champ: 'methodeValorisation', valeur })}
+              options={[
+                { valeur: 'PMP', libelle: 'Coût moyen pondéré (PMP)', sousTitre: 'Simple et stable : chaque sortie au coût moyen du stock' },
+                { valeur: 'FIFO', libelle: 'FIFO — premier entré, premier sorti', sousTitre: 'Chaque sortie au coût des achats les plus anciens' },
+              ]}
+            />
+          </div>
+        </Card>
+      )}
 
       {modules.strategiesSortie && (
         <Card>
