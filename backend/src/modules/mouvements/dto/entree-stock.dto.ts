@@ -1,5 +1,7 @@
 import { Transform } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsISO8601,
   IsInt,
   IsNotEmpty,
@@ -45,6 +47,14 @@ export class EntreeStockDto {
     message: 'La date de péremption doit être au format AAAA-MM-JJ.',
   })
   datePeremption?: string;
+
+  /** Produit suivi par numéro de série : un numéro par unité reçue. */
+  @IsOptional()
+  @IsArray({ message: 'numerosSerie doit être une liste.' })
+  @ArrayMaxSize(1000, { message: '1 000 numéros de série au maximum par entrée.' })
+  @IsString({ each: true, message: 'Chaque numéro de série doit être un texte.' })
+  @MaxLength(60, { each: true, message: 'Un numéro de série dépasse 60 caractères.' })
+  numerosSerie?: string[];
 
   /** Quantité saisie dans ce conditionnement (carton…), convertie en unités. */
   @IsOptional()

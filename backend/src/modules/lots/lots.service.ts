@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
 import type { Pagination } from '../../common/pagination/pagination.js';
-import { comparerFefo, debutJour, joursRestants } from './fefo.js';
+import { debutJour, joursRestants } from './fefo.js';
+import { comparateurLots, strategieEffective } from './strategie-sortie.js';
 
 /** Tranches de l'écran Péremptions, de la plus urgente à la moins urgente. */
 export const TRANCHES = ['PERIME', 'MOINS_7', 'DE_8_A_30', 'PLUS_30'] as const;
@@ -150,9 +151,9 @@ export class LotsService {
   }
 
   /**
-   * Lots en stock d'un produit (fiche produit, réception), dans l'ordre
-   * FEFO de chaque emplacement ; le premier de chacun « sortira en
-   * premier ».
+   * Lots en stock d'un produit (fiche produit, réception), dans l'ordre de
+   * sortie de chaque emplacement (sa stratégie : FEFO par défaut) ; le
+   * premier de chacun « sortira en premier ».
    */
   async lotsDuProduit(
     entrepriseId: string,
@@ -183,13 +184,19 @@ export class LotsService {
         quantite: true,
         datePeremption: true,
         recuAt: true,
-        emplacement: { select: { id: true, nom: true } },
+        emplacement: { select: { id: true, nom: true, strategieSortie: true } },
       },
     });
+    const entreprise = await this.prisma.entreprise.findUniqueOrThrow({
+      where: { id: entrepriseId },
+      select: { moduleStrategiesSortie: true, strategieSortie: true },
+    });
+    const strategieDe = (e: (typeof lots)[number]['emplacement']) =>
+      strategieEffective(entreprise.moduleStrategiesSortie, entreprise.strategieSortie, e.strategieSortie);
     lots.sort(
       (a, b) =>
         a.emplacement.nom.localeCompare(b.emplacement.nom) ||
-        comparerFefo(a, b),
+        comparateurLots(strategieDe(a.emplacement))(a, b),
     );
     const premiers = new Set<string>();
     return lots.map((lot) => {
@@ -197,11 +204,41 @@ export class LotsService {
       premiers.add(lot.emplacement.id);
       return {
         ...lot,
+        emplacement: { id: lot.emplacement.id, nom: lot.emplacement.nom },
+        strategieSortie: strategieDe(lot.emplacement),
         joursRestants: lot.datePeremption
           ? joursRestants(lot.datePeremption, maintenant)
           : null,
         sortiraEnPremier: premier,
       };
+    });
+  }
+
+  /**
+   * Traçabilité d'un lot ou d'un numéro de série : tous ses mouvements,
+   * du plus ancien au plus récent, à travers les emplacements (un lot
+   * transféré garde son numéro).
+   */
+  async historiqueLot(entrepriseId: string, produitId: string, numero: string) {
+    const produit = await this.prisma.produit.findUnique({ where: { id: produitId }, select: { entrepriseId: true } });
+    if (!produit || produit.entrepriseId !== entrepriseId) throw new NotFoundException('Produit introuvable.');
+    if (!numero?.trim()) throw new BadRequestException('Indiquez le numéro de lot ou de série.');
+    return this.prisma.mouvement.findMany({
+      where: { entrepriseId, produitId, lot: { numero: numero.trim() } },
+      select: {
+        id: true,
+        type: true,
+        quantite: true,
+        origine: true,
+        destination: true,
+        createdAt: true,
+        emplacement: { select: { id: true, nom: true } },
+        emplacementDestination: { select: { id: true, nom: true } },
+        utilisateur: { select: { nom: true } },
+        fournisseur: { select: { id: true, nom: true } },
+        vente: { select: { id: true, numero: true } },
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
   }
 

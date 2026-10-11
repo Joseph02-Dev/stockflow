@@ -43,4 +43,6 @@ export interface LotProduit {
   joursRestants: number | null;
   sortiraEnPremier: boolean;
   emplacement: { id: string; nom: string };
+  /** Ordre de sortie appliqué à cet emplacement (FEFO par défaut). */
+  strategieSortie?: 'FEFO' | 'FIFO' | 'LIFO';
 }

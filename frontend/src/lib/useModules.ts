@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from './api';
+import type { StrategieSortie } from './strategieSortie';
 
 interface EntrepriseModules {
   moduleInventaires?: boolean;
@@ -8,6 +9,9 @@ interface EntrepriseModules {
   moduleArborescence?: boolean;
   moduleVariantes?: boolean;
   moduleConditionnements?: boolean;
+  moduleNumerosSerie?: boolean;
+  moduleStrategiesSortie?: boolean;
+  strategieSortie?: StrategieSortie;
   /** Interrupteurs globaux coupés côté serveur (FONCTIONNALITES_DESACTIVEES). */
   fonctionnalitesSuspendues?: string[];
 }
@@ -36,6 +40,10 @@ export function useModules() {
     arborescence: data?.moduleArborescence ?? false,
     variantes: data?.moduleVariantes ?? false,
     conditionnements: data?.moduleConditionnements ?? false,
+    numerosSerie: data?.moduleNumerosSerie ?? false,
+    strategiesSortie: data?.moduleStrategiesSortie ?? false,
+    /** Stratégie de sortie par défaut de l'entreprise. */
+    strategieSortie: data?.strategieSortie ?? 'FEFO',
     rapports: !suspendue('rapports'),
     import: !suspendue('import'),
   };

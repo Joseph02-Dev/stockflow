@@ -17,6 +17,8 @@ export const MODULES_ENTREPRISE = {
   arborescence: { champ: 'moduleArborescence', nom: 'Arborescence des emplacements', reglePar: 'entreprise' },
   variantes: { champ: 'moduleVariantes', nom: 'Variantes de produits', reglePar: 'entreprise' },
   conditionnements: { champ: 'moduleConditionnements', nom: 'Conditionnements', reglePar: 'entreprise' },
+  numerosSerie: { champ: 'moduleNumerosSerie', nom: 'Numéros de série', reglePar: 'entreprise' },
+  strategiesSortie: { champ: 'moduleStrategiesSortie', nom: 'Stratégies de sortie', reglePar: 'entreprise' },
 } as const;
 
 export type ModuleOptionnel = keyof typeof MODULES_ENTREPRISE;

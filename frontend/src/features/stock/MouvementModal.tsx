@@ -17,6 +17,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useModules } from '@/lib/useModules';
 import { cn } from '@/lib/cn';
 import { formatNombre } from '@/lib/format';
+import { lireNumerosSerie } from '@/lib/strategieSortie';
 import type { Conditionnement } from '@/features/produits/ConditionnementsProduit';
 import { RACCOURCIS_PEREMPTION, dansMois, datePeremption as formaterPeremption } from '@/features/peremptions/presentation';
 import type { LotProduit } from '@/features/peremptions/types';
@@ -30,6 +31,7 @@ interface Option {
 
 interface OptionProduit extends Option {
   suiviParLot?: boolean;
+  suiviParSerie?: boolean;
   reference?: string | null;
   photoUrl?: string | null;
   uniteMesure?: string | null;
@@ -60,6 +62,7 @@ const schema = z.object({
   datePeremption: z.string().optional(),
   lotId: z.string().optional(),
   conditionnementId: z.string().optional(),
+  numerosSerie: z.string().optional(),
 });
 
 type Formulaire = z.infer<typeof schema>;
@@ -112,6 +115,7 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
       datePeremption: '',
       lotId: '',
       conditionnementId: '',
+      numerosSerie: '',
     },
   });
 
@@ -119,6 +123,10 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
   const numeroLotSaisi = useWatch({ control, name: 'numeroLot' }) ?? '';
   const dateSaisie = useWatch({ control, name: 'datePeremption' }) ?? '';
   const suiviParLot = !!produits.data?.find((p) => p.id === produitChoisi)?.suiviParLot;
+  // Numéros de série : un lot par unité ; à la réception, la quantité est le nombre de numéros.
+  const suiviParSerie = !!produits.data?.find((p) => p.id === produitChoisi)?.suiviParSerie;
+  const entreeSerie = type === 'ENTREE' && suiviParSerie;
+  const numerosSaisis = lireNumerosSerie(useWatch({ control, name: 'numerosSerie' }) ?? '');
 
   const emplacementSourceChoisi = useWatch({ control, name: 'emplacementId' });
   const emplacementDestinationChoisi = useWatch({ control, name: 'emplacementDestinationId' });
@@ -164,10 +172,20 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
           ? {
               produitId: valeurs.produitId,
               emplacementId: valeurs.emplacementId,
-              quantite: valeurs.quantite,
-              ...(conditionnement ? { conditionnementId: conditionnement.id } : {}),
+              ...(entreeSerie
+                ? {
+                    quantite: numerosSaisis.length,
+                    numerosSerie: numerosSaisis,
+                    ...(valeurs.datePeremption ? { datePeremption: valeurs.datePeremption } : {}),
+                  }
+                : {
+                    quantite: valeurs.quantite,
+                    ...(conditionnement ? { conditionnementId: conditionnement.id } : {}),
+                    ...(suiviParLot
+                      ? { numeroLot: valeurs.numeroLot?.trim(), datePeremption: valeurs.datePeremption }
+                      : {}),
+                  }),
               ...(valeurs.fournisseurId ? { fournisseurId: valeurs.fournisseurId } : {}),
-              ...(suiviParLot ? { numeroLot: valeurs.numeroLot?.trim(), datePeremption: valeurs.datePeremption } : {}),
             }
           : {
               produitId: valeurs.produitId,
@@ -274,8 +292,14 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
       <form
         id="formulaire-mouvement"
         onSubmit={handleSubmit((valeurs) => {
-          // Produit suivi par lot : numéro et date exigés à la réception.
-          if (type === 'ENTREE' && suiviParLot) {
+          // Numéros de série : au moins un, la quantité en découle.
+          if (entreeSerie) {
+            if (numerosSaisis.length === 0) {
+              setError('numerosSerie', { message: 'Saisissez au moins un numéro de série.' });
+              return;
+            }
+          } else if (type === 'ENTREE' && suiviParLot) {
+            // Produit suivi par lot : numéro et date exigés à la réception.
             let incomplet = false;
             if (!valeurs.numeroLot?.trim()) {
               setError('numeroLot', { message: 'Indiquez le numéro du lot.' });
@@ -391,37 +415,65 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
           </>
         )}
 
-        <div className={conditionnements.data?.length ? 'grid grid-cols-2 gap-3' : undefined}>
-          <Input
-            label="Quantité"
-            type="number"
-            min={1}
-            error={formState.errors.quantite?.message}
-            hint={
-              conditionnement && Number.isInteger(quantiteSaisie)
-                ? `= ${formatNombre(quantiteSaisie * conditionnement.facteur)} ${uniteProduit}s`
-                : undefined
-            }
-            {...register('quantite', { valueAsNumber: true })}
-          />
-          {!!conditionnements.data?.length && (
-            <SelecteurChamp<Formulaire>
-              name="conditionnementId"
-              control={control}
-              label="Unité"
-              options={[
-                { valeur: '', libelle: `${uniteProduit}s` },
-                ...conditionnements.data.map((c) => ({
-                  valeur: c.id,
-                  libelle: c.nom,
-                  sousTitre: `${formatNombre(c.facteur)} ${uniteProduit}s`,
-                })),
-              ]}
+        {entreeSerie ? (
+          <div className="flex flex-col gap-3 rounded-md border border-rule bg-entete-groupe p-3">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="numeros-serie" className="text-corps font-medium text-ink-900">
+                Numéros de série
+              </label>
+              <textarea
+                id="numeros-serie"
+                rows={4}
+                placeholder={'SN-0001\nSN-0002'}
+                className="rounded-md border border-rule-strong bg-surface-elevee px-3 py-2 font-mono text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-action"
+                aria-describedby="numeros-serie-aide"
+                {...register('numerosSerie')}
+              />
+              <p id="numeros-serie-aide" className={cn('text-meta', formState.errors.numerosSerie ? 'text-rupture' : 'text-steel-500')}>
+                {formState.errors.numerosSerie?.message ??
+                  `Un par ligne (ou scannés à la suite) — ${numerosSaisis.length} unité${numerosSaisis.length > 1 ? 's' : ''}.`}
+              </p>
+            </div>
+            <Input
+              label="Date de péremption (facultatif)"
+              type="date"
+              error={formState.errors.datePeremption?.message}
+              {...register('datePeremption')}
             />
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className={conditionnements.data?.length ? 'grid grid-cols-2 gap-3' : undefined}>
+            <Input
+              label="Quantité"
+              type="number"
+              min={1}
+              error={formState.errors.quantite?.message}
+              hint={
+                conditionnement && Number.isInteger(quantiteSaisie)
+                  ? `= ${formatNombre(quantiteSaisie * conditionnement.facteur)} ${uniteProduit}s`
+                  : undefined
+              }
+              {...register('quantite', { valueAsNumber: true })}
+            />
+            {!!conditionnements.data?.length && (
+              <SelecteurChamp<Formulaire>
+                name="conditionnementId"
+                control={control}
+                label="Unité"
+                options={[
+                  { valeur: '', libelle: `${uniteProduit}s` },
+                  ...conditionnements.data.map((c) => ({
+                    valeur: c.id,
+                    libelle: c.nom,
+                    sousTitre: `${formatNombre(c.facteur)} ${uniteProduit}s`,
+                  })),
+                ]}
+              />
+            )}
+          </div>
+        )}
 
-        {type === 'ENTREE' && suiviParLot && (
+        {type === 'ENTREE' && suiviParLot && !suiviParSerie && (
           <div className="flex flex-col gap-3 rounded-md border border-rule bg-entete-groupe p-3">
             <Input
               label="Numéro de lot"

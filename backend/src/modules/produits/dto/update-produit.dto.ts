@@ -77,6 +77,11 @@ export class UpdateProduitDto {
   @IsBoolean({ message: 'suiviParLot doit être vrai ou faux.' })
   suiviParLot?: boolean;
 
+  /** Numéros de série (un lot par unité) ; active aussi le suivi par lot. */
+  @IsOptional()
+  @IsBoolean({ message: 'suiviParSerie doit être vrai ou faux.' })
+  suiviParSerie?: boolean;
+
   // Seuil d'alerte de péremption propre au produit, en jours ; null =
   // seuil de l'entreprise.
   @ValidateIf((_, valeur) => valeur !== null && valeur !== undefined)

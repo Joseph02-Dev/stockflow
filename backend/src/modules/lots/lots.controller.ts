@@ -61,6 +61,17 @@ export class LotsController {
     );
   }
 
+  /** Historique complet d'un lot ou d'un numéro de série. */
+  @ModuleRequis('lots')
+  @Get('produits/:id/tracabilite')
+  historique(
+    @CurrentTenant() entrepriseId: string,
+    @Param('id', ParseUUIDPipe) produitId: string,
+    @Query('numero') numero: string,
+  ) {
+    return this.lotsService.historiqueLot(entrepriseId, produitId, numero);
+  }
+
   @Get('produits/:id/lots')
   lotsDuProduit(
     @CurrentTenant() entrepriseId: string,

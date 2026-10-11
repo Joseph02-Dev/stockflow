@@ -11,6 +11,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Modal } from '@/components/ui/Modal';
 import { SelecteurChamp } from '@/components/ui/SelecteurChamp';
 import { useModules } from '@/lib/useModules';
+import { STRATEGIES, type StrategieSortie } from '@/lib/strategieSortie';
 import { Card } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 
@@ -20,6 +21,7 @@ interface Emplacement {
   adresse: string | null;
   archive: boolean;
   parentId: string | null;
+  strategieSortie: StrategieSortie | null;
   /** « Dépôt / Zone A / Allée 3 » (le nom seul sans arborescence). */
   chemin: string;
 }
@@ -28,6 +30,7 @@ const schema = z.object({
   nom: z.string().min(2, 'Le nom doit contenir au moins 2 caractères.'),
   adresse: z.string().optional(),
   parentId: z.string().optional(),
+  strategieSortie: z.string().optional(),
 });
 
 /** L'emplacement et tous ses sous-emplacements : jamais parents possibles de lui-même. */
@@ -70,14 +73,19 @@ export function EmplacementsSection() {
   function ouvrirCreation() {
     setEnEdition(null);
     setErreur(null);
-    reset({ nom: '', adresse: '', parentId: '' });
+    reset({ nom: '', adresse: '', parentId: '', strategieSortie: '' });
     setModaleOuverte(true);
   }
 
   function ouvrirEdition(emplacement: Emplacement) {
     setEnEdition(emplacement);
     setErreur(null);
-    reset({ nom: emplacement.nom, adresse: emplacement.adresse ?? '', parentId: emplacement.parentId ?? '' });
+    reset({
+      nom: emplacement.nom,
+      adresse: emplacement.adresse ?? '',
+      parentId: emplacement.parentId ?? '',
+      strategieSortie: emplacement.strategieSortie ?? '',
+    });
     setModaleOuverte(true);
   }
 
@@ -90,6 +98,8 @@ export function EmplacementsSection() {
         ...(valeurs.adresse ? { adresse: valeurs.adresse } : {}),
         // Arborescence : '' = premier niveau. Rien n'est envoyé sans le module.
         ...(modules.arborescence ? { parentId: valeurs.parentId || null } : {}),
+        // '' = la stratégie de l'entreprise.
+        ...(modules.strategiesSortie ? { strategieSortie: valeurs.strategieSortie || null } : {}),
       };
       if (enEdition) {
         await api.patch(`/emplacements/${enEdition.id}`, corps);
@@ -207,6 +217,20 @@ export function EmplacementsSection() {
                 ...(data ?? [])
                   .filter((e) => !(enEdition ? descendants(enEdition.id, data ?? []) : new Set<string>()).has(e.id))
                   .map((e) => ({ valeur: e.id, libelle: e.chemin })),
+              ]}
+            />
+          )}
+          {modules.strategiesSortie && (
+            <SelecteurChamp<Formulaire>
+              name="strategieSortie"
+              control={control}
+              label="Ordre de sortie des lots"
+              options={[
+                {
+                  valeur: '',
+                  libelle: `Celui de l’entreprise (${modules.strategieSortie})`,
+                },
+                ...STRATEGIES.map((s) => ({ valeur: s.valeur, libelle: s.libelle, sousTitre: s.aide })),
               ]}
             />
           )}

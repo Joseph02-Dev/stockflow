@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { RecevoirCommandeDto } from './dto/recevoir-commande.dto.js';
 import { PrismaService } from '../../config/prisma.service.js';
+import { refusNumerosSerie } from '../lots/strategie-sortie.js';
 import { MouvementsService } from '../mouvements/mouvements.service.js';
 import type { CreateCommandeDto } from './dto/create-commande.dto.js';
 import type { UpdateCommandeDto } from './dto/update-commande.dto.js';
@@ -129,17 +130,26 @@ export class CommandesService {
     }
     const lignes = await this.prisma.commandeLigne.findMany({
       where: { commandeId },
-      include: { produit: { select: { nom: true, suiviParLot: true } } },
+      include: { produit: { select: { nom: true, suiviParLot: true, suiviParSerie: true } } },
     });
 
     // Produits suivis par lot : numéro et date exigés pour chacun, vérifiés
     // AVANT toute entrée pour ne jamais réceptionner une commande à moitié.
+    // Produits suivis par série : un numéro par unité reçue.
     const lotParProduit = new Map((dto.lots ?? []).map((l) => [l.produitId, l]));
-    const manquants = lignes.filter((l) => l.produit.suiviParLot && !lotParProduit.has(l.produitId));
+    const manquants = lignes.filter((l) => {
+      const lot = lotParProduit.get(l.produitId);
+      if (l.produit.suiviParSerie) return !lot?.numerosSerie?.length;
+      return l.produit.suiviParLot && !(lot?.numeroLot && lot.datePeremption);
+    });
     if (manquants.length > 0) {
       throw new BadRequestException(
-        `Numéro de lot et date de péremption requis pour : ${manquants.map((l) => l.produit.nom).join(', ')}.`,
+        `Numéro de lot et date de péremption (ou numéros de série) requis pour : ${manquants.map((l) => l.produit.nom).join(', ')}.`,
       );
+    }
+    for (const ligne of lignes.filter((l) => l.produit.suiviParSerie)) {
+      const refus = refusNumerosSerie(lotParProduit.get(ligne.produitId)!.numerosSerie!, ligne.quantiteCommandee);
+      if (refus) throw new BadRequestException(`${ligne.produit.nom} : ${refus}`);
     }
 
     for (const ligne of lignes) {
@@ -149,7 +159,11 @@ export class CommandesService {
         emplacementId: commande.emplacementId,
         quantite: ligne.quantiteCommandee,
         fournisseurId: commande.fournisseurId,
-        ...(lot ? { numeroLot: lot.numeroLot.trim(), datePeremption: lot.datePeremption } : {}),
+        ...(lot && ligne.produit.suiviParSerie
+          ? { numerosSerie: lot.numerosSerie, ...(lot.datePeremption ? { datePeremption: lot.datePeremption } : {}) }
+          : lot
+            ? { numeroLot: lot.numeroLot!.trim(), datePeremption: lot.datePeremption }
+            : {}),
       });
     }
 

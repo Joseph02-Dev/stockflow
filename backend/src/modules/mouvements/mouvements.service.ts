@@ -32,9 +32,13 @@ import {
 import {
   joursRestants,
   lireDatePeremption,
-  repartirFefo,
   type LotFefo,
 } from '../lots/fefo.js';
+import {
+  refusNumerosSerie,
+  repartirLots,
+  strategieEffective,
+} from '../lots/strategie-sortie.js';
 
 export type { TransactionPrisma } from '../stock/moteur-stock.js';
 
@@ -157,23 +161,40 @@ export class MouvementsService {
         dto.quantite,
       );
 
-      const lotId = produit.suiviParLot
-        ? await this.alimenterLot(tx, entrepriseId, dto, options.lotId)
-        : this.refuserInfosLot(dto);
+      // Numéros de série : un lot d'une unité par numéro, et un mouvement
+      // par unité (traçabilité unitaire). Une restitution (lot désigné)
+      // passe par le cas général.
+      const parts: { lotId: string | undefined; quantite: number }[] =
+        produit.suiviParSerie && !options.lotId
+          ? (await this.alimenterSeries(tx, entrepriseId, dto)).map((id) => ({ lotId: id, quantite: 1 }))
+          : [
+              {
+                lotId: produit.suiviParLot
+                  ? await this.alimenterLot(tx, entrepriseId, dto, options.lotId)
+                  : this.refuserInfosLot(dto),
+                quantite: dto.quantite,
+              },
+            ];
 
-      const mouvement = await enregistrerMouvement(tx, {
-        entrepriseId,
-        produitId: dto.produitId,
-        emplacementId: dto.emplacementId,
-        type: options.type ?? 'ENTREE',
-        origine: options.origine,
-        quantite: dto.quantite,
-        fournisseurId: dto.fournisseurId,
-        utilisateurId,
-        lotId,
-        venteId: options.venteId,
-        ...this.champsDonnees(options.donnees, dto.quantite),
-      });
+      const mouvements = [];
+      for (const part of parts) {
+        mouvements.push(
+          await enregistrerMouvement(tx, {
+            entrepriseId,
+            produitId: dto.produitId,
+            emplacementId: dto.emplacementId,
+            type: options.type ?? 'ENTREE',
+            origine: options.origine,
+            quantite: part.quantite,
+            fournisseurId: dto.fournisseurId,
+            utilisateurId,
+            lotId: part.lotId,
+            venteId: options.venteId,
+            ...this.champsDonnees(options.donnees, part.quantite),
+          }),
+        );
+      }
+      const mouvement = mouvements[0];
 
       const stockTotal = await this.stockTotalProduit(tx, dto.produitId);
 
@@ -724,12 +745,101 @@ export class MouvementsService {
 
   /** Un produit sans suivi par lot n'accepte ni numéro de lot ni date. */
   private refuserInfosLot(dto: EntreeStockDto): undefined {
-    if (dto.numeroLot !== undefined || dto.datePeremption !== undefined) {
+    if (
+      dto.numeroLot !== undefined ||
+      dto.datePeremption !== undefined ||
+      dto.numerosSerie !== undefined
+    ) {
       throw new BadRequestException(
-        'Ce produit n’est pas suivi par lot : ni numéro de lot ni date de péremption à saisir.',
+        'Ce produit n’est pas suivi par lot : ni numéro de lot, ni numéro de série, ni date de péremption à saisir.',
       );
     }
     return undefined;
+  }
+
+  /**
+   * Entrée d'un produit suivi par numéro de série : un lot d'une unité par
+   * numéro (complété s'il existe ici vide : unité revenue), date de
+   * péremption facultative. Un numéro déjà en stock, où que ce soit, est
+   * refusé ; le verrou consultatif par produit sérialise les entrées
+   * simultanées de ce produit pour que deux ne réservent pas le même numéro.
+   */
+  private async alimenterSeries(
+    tx: TransactionPrisma,
+    entrepriseId: string,
+    dto: EntreeStockDto,
+  ): Promise<string[]> {
+    if (dto.numeroLot !== undefined) {
+      throw new BadRequestException(
+        'Ce produit est suivi par numéro de série : saisissez les numéros de série, pas un numéro de lot.',
+      );
+    }
+    const refus = refusNumerosSerie(dto.numerosSerie ?? [], dto.quantite);
+    if (refus) throw new BadRequestException(refus);
+    const numeros = dto.numerosSerie!.map((n) => n.trim());
+    const datePeremption = dto.datePeremption
+      ? lireDatePeremption(dto.datePeremption)
+      : null;
+
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${dto.produitId}))`;
+    const enStock = await tx.$queryRaw<{ numero: string }[]>`
+      SELECT numero FROM lot
+      WHERE produit_id = ${dto.produitId} AND quantite > 0
+        AND upper(numero) = ANY(${numeros.map((n) => n.toUpperCase())})`;
+    if (enStock.length > 0) {
+      throw new ConflictException(
+        `Numéro${enStock.length > 1 ? 's' : ''} de série déjà en stock : ${enStock.map((l) => l.numero).join(', ')}.`,
+      );
+    }
+
+    const lotIds: string[] = [];
+    for (const numero of numeros) {
+      const existant = await tx.lot.findUnique({
+        where: {
+          produitId_emplacementId_numero: {
+            produitId: dto.produitId,
+            emplacementId: dto.emplacementId,
+            numero,
+          },
+        },
+      });
+      if (existant) {
+        await crediterLot(tx, existant.id, 1);
+        lotIds.push(existant.id);
+      } else {
+        const lot = await creerLot(tx, {
+          entrepriseId,
+          produitId: dto.produitId,
+          emplacementId: dto.emplacementId,
+          numero,
+          quantite: 1,
+          datePeremption,
+        });
+        lotIds.push(lot.id);
+      }
+    }
+    return lotIds;
+  }
+
+  /**
+   * Stratégie de sortie de l'emplacement (module « strategiesSortie ») :
+   * la sienne, sinon celle de l'entreprise ; FEFO sans le module.
+   */
+  private async strategieSortie(tx: TransactionPrisma, emplacementId: string) {
+    const emplacement = await tx.emplacement.findUniqueOrThrow({
+      where: { id: emplacementId },
+      select: {
+        strategieSortie: true,
+        entreprise: {
+          select: { moduleStrategiesSortie: true, strategieSortie: true },
+        },
+      },
+    });
+    return strategieEffective(
+      emplacement.entreprise.moduleStrategiesSortie,
+      emplacement.entreprise.strategieSortie,
+      emplacement.strategieSortie,
+    );
   }
 
   /**
@@ -830,9 +940,10 @@ export class MouvementsService {
       p.produitId,
       p.emplacementId,
     );
-    const plan = repartirFefo(
+    const plan = repartirLots(
       p.lotId ? lots.filter((l) => l.id === p.lotId) : lots,
       p.quantite,
+      await this.strategieSortie(tx, p.emplacementId),
     );
     if (!plan) {
       throw new ConflictException(
@@ -902,7 +1013,11 @@ export class MouvementsService {
         'Lot introuvable ou vide à l’emplacement source.',
       );
     }
-    const plan = repartirFefo(cibles, dto.quantite);
+    const plan = repartirLots(
+      cibles,
+      dto.quantite,
+      await this.strategieSortie(tx, dto.emplacementSourceId),
+    );
     if (!plan) {
       throw new ConflictException(
         'Stock insuffisant à l’emplacement source pour effectuer ce transfert.',

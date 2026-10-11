@@ -6,8 +6,10 @@ import { useModules } from '@/lib/useModules';
 import { Alert } from '@/components/ui/Alert';
 import { Card, PanneauEntete } from '@/components/patterns/Page';
 import { LoadingState } from '@/components/patterns/States';
+import { Selecteur } from '@/components/ui/Selecteur';
+import { STRATEGIES } from '@/lib/strategieSortie';
 
-type CleModule = 'lots' | 'arborescence' | 'variantes' | 'conditionnements';
+type CleModule = 'lots' | 'arborescence' | 'variantes' | 'conditionnements' | 'numerosSerie' | 'strategiesSortie';
 
 /** Modules métier : l'administrateur n'affiche que ce dont son activité a besoin. */
 const MODULES: { cle: CleModule; champ: string; libelle: string; aide: string }[] = [
@@ -35,6 +37,18 @@ const MODULES: { cle: CleModule; champ: string; libelle: string; aide: string }[
     libelle: 'Conditionnements',
     aide: 'Acheter en palettes, stocker en cartons, vendre à l’unité : les saisies en cartons sont converties automatiquement.',
   },
+  {
+    cle: 'numerosSerie',
+    champ: 'moduleNumerosSerie',
+    libelle: 'Numéros de série',
+    aide: 'Chaque unité reçue avec son numéro, suivie jusqu’à sa vente. Téléphonie, informatique, électroménager, matériel médical…',
+  },
+  {
+    cle: 'strategiesSortie',
+    champ: 'moduleStrategiesSortie',
+    libelle: 'Stratégies de sortie',
+    aide: 'Choisir l’ordre de sortie des lots : FEFO (péremption), FIFO (ancienneté) ou LIFO, pour l’entreprise ou par emplacement.',
+  },
 ];
 
 export function ModulesSection() {
@@ -43,9 +57,13 @@ export function ModulesSection() {
   const [resultat, setResultat] = useState<{ ok: boolean; texte: string } | null>(null);
 
   const basculer = useMutation({
-    mutationFn: async ({ champ, valeur }: { champ: string; valeur: boolean }) => api.patch('/entreprise', { [champ]: valeur }),
+    mutationFn: async ({ champ, valeur }: { champ: string; valeur: boolean | string }) =>
+      api.patch('/entreprise', { [champ]: valeur }),
     onSuccess: (_, { valeur }) => {
-      setResultat({ ok: true, texte: valeur ? 'Module activé.' : 'Module désactivé.' });
+      setResultat({
+        ok: true,
+        texte: typeof valeur === 'string' ? 'Stratégie enregistrée.' : valeur ? 'Module activé.' : 'Module désactivé.',
+      });
       queryClient.invalidateQueries({ queryKey: ['entreprise'] });
       queryClient.invalidateQueries({ queryKey: ['emplacements'] });
     },
@@ -88,6 +106,20 @@ export function ModulesSection() {
           })}
         </ul>
       </Card>
+
+      {modules.strategiesSortie && (
+        <Card>
+          <PanneauEntete titre="Stratégie de sortie par défaut" meta="Chaque emplacement peut en choisir une autre." />
+          <div className="p-5">
+            <Selecteur
+              label="Ordre de sortie des lots"
+              value={modules.strategieSortie}
+              onChange={(valeur) => basculer.mutate({ champ: 'strategieSortie', valeur })}
+              options={STRATEGIES.map((s) => ({ valeur: s.valeur, libelle: s.libelle, sousTitre: s.aide }))}
+            />
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

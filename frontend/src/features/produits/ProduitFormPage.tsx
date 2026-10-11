@@ -44,6 +44,7 @@ interface ProduitDetail {
   marque: ElementReference | null;
   fournisseursAssocies: { fournisseur: ElementReference }[];
   suiviParLot: boolean;
+  suiviParSerie?: boolean;
   seuilAlertePeremption: number | null;
 }
 
@@ -65,6 +66,7 @@ const schema = z.object({
   marqueId: z.string().optional(),
   uniteMesure: z.string().optional(),
   suiviParLot: z.boolean(),
+  suiviParSerie: z.boolean(),
   seuilAlertePeremption: z
     .union([
       z.number().int('Nombre entier de jours.').min(1, 'Au moins 1 jour.').max(3650, 'Au plus 3 650 jours.'),
@@ -120,9 +122,10 @@ export function ProduitFormPage() {
 
   const { register, handleSubmit, reset, setValue, watch, control, formState } = useForm<Formulaire>({
     resolver: zodResolver(schema),
-    defaultValues: { nom: parametres.get('nom') ?? '', seuilAlerte: 0, suiviParLot: false },
+    defaultValues: { nom: parametres.get('nom') ?? '', seuilAlerte: 0, suiviParLot: false, suiviParSerie: false },
   });
   const suiviParLot = useWatch({ control, name: 'suiviParLot' });
+  const suiviParSerie = useWatch({ control, name: 'suiviParSerie' });
 
   // Pré-remplit le taux de TVA depuis le défaut de l'entreprise — en
   // création seulement, et seulement si la personne n'a encore rien
@@ -156,6 +159,7 @@ export function ProduitFormPage() {
       marqueId: produit.data.marque?.id ?? '',
       uniteMesure: produit.data.uniteMesure ?? '',
       suiviParLot: produit.data.suiviParLot,
+      suiviParSerie: produit.data.suiviParSerie ?? false,
       seuilAlertePeremption: produit.data.seuilAlertePeremption ?? undefined,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -187,6 +191,8 @@ export function ProduitFormPage() {
         ...(v.uniteMesure ? { uniteMesure: v.uniteMesure } : {}),
         ...(photoUrl ? { photoUrl } : {}),
         suiviParLot: v.suiviParLot,
+        // N'est envoyé que si le module est actif ou déjà utilisé par ce produit.
+        ...(modules.numerosSerie || produit.data?.suiviParSerie ? { suiviParSerie: v.suiviParLot && v.suiviParSerie } : {}),
       };
       // Seuil de péremption vidé : null, le seuil de l'entreprise s'applique.
       const seuilAlertePeremption = v.suiviParLot ? (nombreOuIndefini(v.seuilAlertePeremption) ?? null) : null;
@@ -511,7 +517,24 @@ export function ProduitFormPage() {
                   </p>
                   {suiviParLot && (
                     <>
-                      {enEdition && produit.data && !produit.data.suiviParLot && (
+                      {(modules.numerosSerie || suiviParSerie) && (
+                        <label className="flex items-start gap-3 rounded-md border border-rule p-3">
+                          <input
+                            type="checkbox"
+                            className="mt-1 size-4 accent-[var(--color-action)]"
+                            checked={suiviParSerie}
+                            onChange={(e) => setValue('suiviParSerie', e.target.checked, { shouldDirty: true })}
+                          />
+                          <span>
+                            <span className="block text-corps font-medium text-ink-900">Numéro de série</span>
+                            <span className="block text-meta text-steel-500">
+                              Chaque unité est reçue avec son propre numéro (IMEI, numéro de série…) et suivie jusqu’à sa
+                              vente. S’active sur un produit sans stock.
+                            </span>
+                          </span>
+                        </label>
+                      )}
+                      {enEdition && produit.data && !produit.data.suiviParLot && !suiviParSerie && (
                         <Alert variant="info">
                           Le stock déjà présent deviendra un lot « SANS-LOT », sans date de péremption : il sortira après
                           les lots datés.

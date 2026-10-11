@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, messageErreur } from '@/lib/api';
 import { dateCourte } from '@/lib/montant';
@@ -7,12 +8,15 @@ import { Badge } from '@/components/ui/Badge';
 import { ErrorState, LoadingState } from '@/components/patterns/States';
 import { TRANCHES, datePeremption, libelleJours, trancheDe } from './presentation';
 import type { LotProduit } from './types';
+import { HistoriqueLot } from './HistoriqueLot';
 
 /**
  * Bloc « Lots en stock » de la fiche produit : par emplacement, dans
- * l'ordre où les ventes les sortiront (FEFO).
+ * l'ordre où les ventes les sortiront (stratégie de l'emplacement, FEFO
+ * par défaut). Un lot ouvre son historique complet (traçabilité).
  */
 export function LotsDuProduit({ produitId }: { produitId: string }) {
+  const [historique, setHistorique] = useState<string | null>(null);
   const lots = useQuery({
     queryKey: ['lots', produitId],
     queryFn: async () => (await api.get<LotProduit[]>(`/produits/${produitId}/lots`)).data,
@@ -33,11 +37,19 @@ export function LotsDuProduit({ produitId }: { produitId: string }) {
             <li key={lot.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2.5">
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-corps text-ink-900">{lot.numero}</span>
+                  <button
+                    type="button"
+                    onClick={() => setHistorique(lot.numero)}
+                    className="font-mono text-corps text-ink-900 underline decoration-rule-strong underline-offset-2 hover:decoration-ink-900"
+                    title="Voir l’historique"
+                  >
+                    {lot.numero}
+                  </button>
                   {lot.sortiraEnPremier && <Badge variant="ok">Sortira en premier</Badge>}
                 </p>
                 <p className="text-meta text-steel-500">
                   {lot.emplacement.nom} · reçu le {dateCourte(lot.recuAt)}
+                  {lot.strategieSortie && lot.strategieSortie !== 'FEFO' && ` · sortie ${lot.strategieSortie}`}
                 </p>
               </div>
               <span className="text-corps font-semibold text-ink-900">{formatNombre(lot.quantite)}</span>
@@ -57,6 +69,7 @@ export function LotsDuProduit({ produitId }: { produitId: string }) {
           ))}
         </ul>
       )}
+      {historique && <HistoriqueLot produitId={produitId} numero={historique} onFermer={() => setHistorique(null)} />}
     </div>
   );
 }

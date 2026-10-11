@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
 import { AlerteNotificationService } from '../alertes/alerte-notification.service.js';
 import type { CreateInventaireDto } from './dto/create-inventaire.dto.js';
@@ -128,6 +128,16 @@ export class InventairesService {
       throw new ConflictException('Cet inventaire est terminé : les comptages ne sont plus modifiables.');
     }
     const ligne = await this.trouverLigneOuEchouer(inventaireId, ligneId);
+    // Un numéro de série désigne une unité : on la trouve (1) ou non (0).
+    if (ligne.lotId && dto.quantiteComptee > 1) {
+      const { suiviParSerie } = await this.prisma.produit.findUniqueOrThrow({
+        where: { id: ligne.produitId },
+        select: { suiviParSerie: true },
+      });
+      if (suiviParSerie) {
+        throw new BadRequestException('Un numéro de série se compte 0 (absent) ou 1 (présent).');
+      }
+    }
 
     return this.prisma.inventaireLigne.update({
       where: { id: ligne.id },
