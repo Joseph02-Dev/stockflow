@@ -18,6 +18,8 @@ interface Commande {
   fournisseur: { nom: string };
   emplacement: { nom: string };
   utilisateur: { nom: string };
+  /** Brouillon préparé par le réapprovisionnement automatique. */
+  automatique?: boolean;
   _count: { lignes: number };
 }
 
@@ -48,6 +50,7 @@ function LigneCommande({ commande }: { commande: Commande }) {
             {new Date(commande.createdAt).toLocaleDateString('fr-FR')}
           </span>
         </span>
+        {commande.automatique && <Badge variant="accent">Auto</Badge>}
         <Badge variant={statut.variant}>{statut.libelle}</Badge>
         <ChevronRight className="size-4 shrink-0 text-steel-400" aria-hidden="true" />
       </Link>

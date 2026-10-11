@@ -9,7 +9,15 @@ import { LoadingState } from '@/components/patterns/States';
 import { Selecteur } from '@/components/ui/Selecteur';
 import { STRATEGIES } from '@/lib/strategieSortie';
 
-type CleModule = 'lots' | 'arborescence' | 'variantes' | 'conditionnements' | 'numerosSerie' | 'strategiesSortie';
+type CleModule =
+  | 'lots'
+  | 'arborescence'
+  | 'variantes'
+  | 'conditionnements'
+  | 'numerosSerie'
+  | 'strategiesSortie'
+  | 'reapprovisionnement'
+  | 'rangement';
 
 /** Modules métier : l'administrateur n'affiche que ce dont son activité a besoin. */
 const MODULES: { cle: CleModule; champ: string; libelle: string; aide: string }[] = [
@@ -48,6 +56,18 @@ const MODULES: { cle: CleModule; champ: string; libelle: string; aide: string }[
     champ: 'moduleStrategiesSortie',
     libelle: 'Stratégies de sortie',
     aide: 'Choisir l’ordre de sortie des lots : FEFO (péremption), FIFO (ancienneté) ou LIFO, pour l’entreprise ou par emplacement.',
+  },
+  {
+    cle: 'reapprovisionnement',
+    champ: 'moduleReapprovisionnement',
+    libelle: 'Réapprovisionnement automatique',
+    aide: 'Stock minimum et maximum par produit : chaque matin, les brouillons de commande fournisseur sont préparés pour vous.',
+  },
+  {
+    cle: 'rangement',
+    champ: 'moduleRangement',
+    libelle: 'Règles de rangement',
+    aide: 'À la réception, chaque produit (ou catégorie) est dirigé vers son emplacement de rangement.',
   },
 ];
 

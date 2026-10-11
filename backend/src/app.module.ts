@@ -12,6 +12,9 @@ import { MouvementsModule } from './modules/mouvements/mouvements.module.js';
 import { StockModule } from './modules/stock/stock.module.js';
 import { ModelesModule } from './modules/modeles/modeles.module.js';
 import { ConditionnementsModule } from './modules/conditionnements/conditionnements.module.js';
+import { ReapprovisionnementModule } from './modules/reapprovisionnement/reapprovisionnement.module.js';
+import { RangementModule } from './modules/rangement/rangement.module.js';
+import { ScheduleModule } from '@nestjs/schedule';
 import { LotsModule } from './modules/lots/lots.module.js';
 import { PertesModule } from './modules/pertes/pertes.module.js';
 import { RetoursModule } from './modules/retours/retours.module.js';
@@ -70,6 +73,8 @@ import {
     EmailModule,
     LimitesModule,
     PrismaModule,
+    // Tâches planifiées (réapprovisionnement quotidien).
+    ScheduleModule.forRoot(),
     AuthModule,
     EntrepriseModule,
     EmplacementsModule,
@@ -80,6 +85,8 @@ import {
     StockModule,
     ModelesModule,
     ConditionnementsModule,
+    ReapprovisionnementModule,
+    RangementModule,
     LotsModule,
     PertesModule,
     RetoursModule,

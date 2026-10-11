@@ -63,6 +63,8 @@ Registre unique : `src/common/modules/modules-entreprise.ts`. Un module coupé d
 | Conditionnements | `module_conditionnements` | Administrateur | désactivé |
 | Numéros de série | `module_numeros_serie` | Administrateur | désactivé |
 | Stratégies de sortie | `module_strategies_sortie` | Administrateur | désactivé (FEFO) |
+| Réapprovisionnement automatique | `module_reapprovisionnement` | Administrateur | désactivé |
+| Règles de rangement | `module_rangement` | Administrateur | désactivé |
 
 Ajouter un module : une colonne booléenne sur `Entreprise`, une entrée dans le registre, puis `@ModuleRequis('cle')` sur ses routes et `useModules()` côté interface.
 
@@ -106,6 +108,32 @@ Pour un produit sans lot, il n'y a rien à choisir : son coût par couche viendr
 
 `GET /produits/:id/tracabilite?numero=` renvoie tous les mouvements d'un lot ou d'un numéro de série, à travers les emplacements. Dans l'interface, un clic sur un lot de la fiche produit ouvre son historique.
 
+## Réapprovisionnement min/max (vague 4)
+
+Une `RegleReapprovisionnement` par produit et emplacement fixe un stock minimum, un stock maximum, un multiple de commande et un fournisseur facultatif. Sans fournisseur sur la règle, on prend l'unique fournisseur associé au produit ; s'il y en a zéro ou plusieurs, la règle est ignorée avec un motif.
+
+- **Stock prévisionnel** = en stock + commandes fournisseur en cours (brouillons compris), à l'emplacement **et à ses sous-emplacements**.
+- **Sous le minimum** : un brouillon remonte le stock au maximum, arrondi au multiple supérieur. Les lignes sont groupées en un brouillon par (fournisseur, emplacement), marqué `automatique`. **Rien n'est jamais envoyé sans relecture.**
+- **Idempotent** : les brouillons comptent dans le prévisionnel, donc un second calcul ne recommande rien.
+- **Calcul quotidien** à 5 h (heure de Conakry) via `@nestjs/schedule`, au nom du plus ancien administrateur actif.
+- Le verrou consultatif `reappro:<entreprise>` laisse une seule instance calculer chaque entreprise. Une entreprise en échec ne bloque pas les suivantes.
+- `FONCTIONNALITES_DESACTIVEES=reapprovisionnement` coupe les routes et le calcul quotidien pour toutes les entreprises.
+- Routes :
+  - `GET/POST /reapprovisionnement/regles`
+  - `PATCH/DELETE /reapprovisionnement/regles/:id`
+  - `POST /reapprovisionnement/lancer`
+
+## Règles de rangement (vague 4)
+
+Une `RegleRangement` dit où ranger un **produit ou une catégorie**, éventuellement seulement quand il arrive à un emplacement donné. La règle la plus précise l'emporte : d'abord le produit avant la catégorie, ensuite une arrivée précise avant une arrivée quelconque.
+
+- **Réception de commande fournisseur** : la règle est appliquée d'office, l'entrée va directement à l'emplacement de rangement.
+- **Entrée manuelle** : la règle est proposée (« Ranger là »), jamais imposée.
+- Routes :
+  - `GET/POST /rangement/regles`
+  - `DELETE /rangement/regles/:id`
+  - `GET /rangement/proposition?produit_id=&emplacement_id=`
+
 ## Feuille de route
 
 | Vague | Contenu | État |
@@ -113,5 +141,5 @@ Pour un produit sans lot, il n'y a rien à choisir : son coût par couche viendr
 | 1 | Double entrée, moteur unique, arborescence des emplacements, modules | **Livrée** |
 | 2 | Variantes (attributs, grille, référence automatique) et conditionnements avec conversion | **Livrée** (`moduleVariantes`, `moduleConditionnements`) |
 | 3 | Numéros de série, stratégies de sortie FEFO/FIFO/LIFO, traçabilité par lot | **Livrée** (`moduleNumerosSerie`, `moduleStrategiesSortie`) |
-| 4 | Règles de réapprovisionnement min/max (tâche planifiée), rangement automatique, stratégie de retrait par entrepôt | À faire |
+| 4 | Réapprovisionnement min/max (calcul quotidien), règles de rangement ; stratégie de retrait par emplacement (livrée en vague 3) | **Livrée** (`moduleReapprovisionnement`, `moduleRangement`) |
 | 5 | Couches de valorisation (FIFO, coût moyen pondéré), rapports de rotation et de stock dormant, OpenAPI et webhooks | À faire. La valorisation se fait aujourd'hui au prix d'achat actuel. |

@@ -7,6 +7,7 @@ const LIBELLES: Record<Fonctionnalite, string> = {
   import: 'L’import de catalogue',
   rapports: 'La génération de rapports',
   uploads: 'L’envoi d’images',
+  reapprovisionnement: 'Le réapprovisionnement automatique',
 };
 
 /**

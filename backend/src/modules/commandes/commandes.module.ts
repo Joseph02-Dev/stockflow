@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { CommandesController } from './commandes.controller.js';
 import { CommandesService } from './commandes.service.js';
 import { MouvementsModule } from '../mouvements/mouvements.module.js';
+import { RangementModule } from '../rangement/rangement.module.js';
 
 @Module({
-  imports: [MouvementsModule],
+  imports: [MouvementsModule, RangementModule],
   controllers: [CommandesController],
   providers: [CommandesService],
 })

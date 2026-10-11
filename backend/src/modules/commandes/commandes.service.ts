@@ -3,6 +3,7 @@ import type { RecevoirCommandeDto } from './dto/recevoir-commande.dto.js';
 import { PrismaService } from '../../config/prisma.service.js';
 import { refusNumerosSerie } from '../lots/strategie-sortie.js';
 import { MouvementsService } from '../mouvements/mouvements.service.js';
+import { RangementService } from '../rangement/rangement.service.js';
 import type { CreateCommandeDto } from './dto/create-commande.dto.js';
 import type { UpdateCommandeDto } from './dto/update-commande.dto.js';
 
@@ -11,6 +12,7 @@ export class CommandesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mouvementsService: MouvementsService,
+    private readonly rangement: RangementService,
   ) {}
 
   /**
@@ -68,7 +70,11 @@ export class CommandesService {
     const commande = await this.trouverOuEchouer(entrepriseId, commandeId);
     const lignes = await this.prisma.commandeLigne.findMany({
       where: { commandeId },
-      include: { produit: { select: { id: true, nom: true, reference: true, uniteMesure: true, suiviParLot: true } } },
+      include: {
+        produit: {
+          select: { id: true, nom: true, reference: true, uniteMesure: true, suiviParLot: true, suiviParSerie: true },
+        },
+      },
       orderBy: { produit: { nom: 'asc' } },
     });
     const fournisseur = await this.prisma.fournisseur.findUniqueOrThrow({
@@ -154,9 +160,12 @@ export class CommandesService {
 
     for (const ligne of lignes) {
       const lot = ligne.produit.suiviParLot ? lotParProduit.get(ligne.produitId) : undefined;
+      // Règles de rangement (module « rangement ») : la marchandise va
+      // directement à son emplacement de rangement.
+      const rangement = await this.rangement.proposer(entrepriseId, ligne.produitId, commande.emplacementId);
       await this.mouvementsService.entree(entrepriseId, utilisateurId, {
         produitId: ligne.produitId,
-        emplacementId: commande.emplacementId,
+        emplacementId: rangement?.id ?? commande.emplacementId,
         quantite: ligne.quantiteCommandee,
         fournisseurId: commande.fournisseurId,
         ...(lot && ligne.produit.suiviParSerie

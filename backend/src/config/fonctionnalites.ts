@@ -9,7 +9,8 @@
  * Les modules réglés entreprise par entreprise depuis la console restent
  * gérés par ModuleRequis.
  */
-export const FONCTIONNALITES = ['import', 'rapports', 'uploads'] as const;
+// « reapprovisionnement » coupe aussi le calcul quotidien automatique.
+export const FONCTIONNALITES = ['import', 'rapports', 'uploads', 'reapprovisionnement'] as const;
 export type Fonctionnalite = (typeof FONCTIONNALITES)[number];
 
 const noms = (env: NodeJS.ProcessEnv) =>

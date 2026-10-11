@@ -12,6 +12,7 @@ import { ProduitsPage } from '@/features/produits/ProduitsPage';
 import { ProduitFormPage } from '@/features/produits/ProduitFormPage';
 import { ModelesPage } from '@/features/produits/ModelesPage';
 import { ModeleFormPage } from '@/features/produits/ModeleFormPage';
+import { ReapprovisionnementPage } from '@/features/commandes/ReapprovisionnementPage';
 import { StockPage } from '@/features/stock/StockPage';
 import { InventaireDetailPage } from '@/features/stock/InventaireDetailPage';
 import { CommandesPage } from '@/features/commandes/CommandesPage';
@@ -107,6 +108,7 @@ export function App() {
           <Route path="/produits/:id" element={<ProduitFormPage />} />
           <Route path="/stock" element={<StockPage />} />
           <Route path="/inventaires/:id" element={<InventaireDetailPage />} />
+          <Route path="/reapprovisionnement" element={<ReapprovisionnementPage />} />
           <Route path="/commandes" element={<CommandesPage />} />
           <Route path="/commandes/nouvelle" element={<CommandeFormPage />} />
           <Route path="/commandes/:id" element={<CommandeDetailPage />} />
