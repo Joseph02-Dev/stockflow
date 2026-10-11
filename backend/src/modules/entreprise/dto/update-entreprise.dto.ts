@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsIn, IsInt, IsOptional, IsString, IsUrl, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsInt, IsOptional, IsString, IsUrl, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
 
 /** Chaîne vide ou blanche → null : le champ est effacé. */
 const videVersNull = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() || null : value);
@@ -62,4 +62,14 @@ export class UpdateEntrepriseDto {
   @IsUrl({ protocols: ['https'], require_protocol: true }, { message: 'Le logo doit être une URL https.' })
   @MaxLength(500)
   logoUrl?: string | null;
+
+  // Modules métier réglés par l'administrateur (MODULES_ENTREPRISE,
+  // reglePar « entreprise ») ; les modules de l'offre restent à la console.
+  @IsOptional()
+  @IsBoolean()
+  moduleLots?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  moduleArborescence?: boolean;
 }

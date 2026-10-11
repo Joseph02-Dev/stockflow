@@ -4,6 +4,8 @@ import { LimitesService } from '../../common/limites/limites.service.js';
 import type { CreateProduitDto } from './dto/create-produit.dto.js';
 import type { UpdateProduitDto } from './dto/update-produit.dto.js';
 import { NUMERO_LOT_SANS_DATE, type TransactionPrisma } from '../mouvements/mouvements.service.js';
+import { crediterLot, obtenirLot } from '../stock/moteur-stock.js';
+import { exigerModule } from '../../common/modules/exiger-module.js';
 
 @Injectable()
 export class ProduitsService {
@@ -50,6 +52,7 @@ export class ProduitsService {
 
   async creer(entrepriseId: string, dto: CreateProduitDto) {
     await this.limites.exigerPlace(entrepriseId, 'references');
+    if (dto.suiviParLot) await exigerModule(this.prisma, entrepriseId, 'lots');
     await this.verifierReferences(entrepriseId, dto);
     // Si aucun taux n'est fourni, on reprend le défaut défini par
     // l'entreprise (renseigné à l'inscription) plutôt que de laisser le
@@ -95,6 +98,7 @@ export class ProduitsService {
     const actuel = await this.trouverOuEchouer(entrepriseId, produitId);
     await this.verifierReferences(entrepriseId, dto);
     const bascule = dto.suiviParLot !== undefined && dto.suiviParLot !== actuel.suiviParLot;
+    if (bascule && dto.suiviParLot) await exigerModule(this.prisma, entrepriseId, 'lots');
     try {
       if (!bascule) {
         return await this.prisma.produit.update({
@@ -137,13 +141,13 @@ export class ProduitsService {
       });
       const horsLot = stock.quantite - (_sum.quantite ?? 0);
       if (horsLot <= 0) continue;
-      await tx.lot.upsert({
-        where: {
-          produitId_emplacementId_numero: { produitId, emplacementId: stock.emplacementId, numero: NUMERO_LOT_SANS_DATE },
-        },
-        create: { entrepriseId, produitId, emplacementId: stock.emplacementId, numero: NUMERO_LOT_SANS_DATE, quantite: horsLot },
-        update: { quantite: { increment: horsLot } },
+      const lot = await obtenirLot(tx, {
+        entrepriseId,
+        produitId,
+        emplacementId: stock.emplacementId,
+        numero: NUMERO_LOT_SANS_DATE,
       });
+      await crediterLot(tx, lot.id, horsLot);
     }
   }
 

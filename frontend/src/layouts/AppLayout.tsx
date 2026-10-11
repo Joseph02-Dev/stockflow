@@ -371,8 +371,10 @@ export function AppLayout() {
     queryKey: ['peremptions', 'resume'],
     queryFn: async () => (await api.get<{ sousSurveillance: number }>('/peremptions')).data,
     staleTime: 5 * 60_000,
+    // Module Lots coupé : ni écran ni pastille (le serveur refuserait).
+    enabled: modules.lots,
   });
-  const nombrePeremptions = peremptions.data?.sousSurveillance ?? 0;
+  const nombrePeremptions = modules.lots ? (peremptions.data?.sousSurveillance ?? 0) : 0;
 
   // Sections réunies : une entrée de menu, des onglets en haut de chaque page.
   const groupes: { libelle: string; onglets: OngletSection[] }[] = [
@@ -380,7 +382,7 @@ export function AppLayout() {
       libelle: 'Alertes',
       onglets: [
         { to: '/alertes', libelle: 'Stock', compteur: nombreAlertes },
-        { to: '/peremptions', libelle: 'Péremptions', compteur: nombrePeremptions },
+        ...(modules.lots ? [{ to: '/peremptions', libelle: 'Péremptions', compteur: nombrePeremptions }] : []),
       ],
     },
     {

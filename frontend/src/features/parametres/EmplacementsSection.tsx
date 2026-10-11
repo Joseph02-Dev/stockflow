@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { Modal } from '@/components/ui/Modal';
+import { SelecteurChamp } from '@/components/ui/SelecteurChamp';
+import { useModules } from '@/lib/useModules';
 import { Card } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 
@@ -17,12 +19,34 @@ interface Emplacement {
   nom: string;
   adresse: string | null;
   archive: boolean;
+  parentId: string | null;
+  /** « Dépôt / Zone A / Allée 3 » (le nom seul sans arborescence). */
+  chemin: string;
 }
 
 const schema = z.object({
   nom: z.string().min(2, 'Le nom doit contenir au moins 2 caractères.'),
   adresse: z.string().optional(),
+  parentId: z.string().optional(),
 });
+
+/** L'emplacement et tous ses sous-emplacements : jamais parents possibles de lui-même. */
+function descendants(id: string, tous: Emplacement[]): Set<string> {
+  const exclus = new Set([id]);
+  let ajout = true;
+  while (ajout) {
+    ajout = false;
+    for (const e of tous) {
+      if (e.parentId && exclus.has(e.parentId) && !exclus.has(e.id)) {
+        exclus.add(e.id);
+        ajout = true;
+      }
+    }
+  }
+  return exclus;
+}
+
+const profondeur = (e: Emplacement) => e.chemin.split(' / ').length - 1;
 
 type Formulaire = z.infer<typeof schema>;
 
@@ -38,21 +62,22 @@ export function EmplacementsSection() {
     queryFn: async () => (await api.get<Emplacement[]>('/emplacements')).data,
   });
 
-  const { register, handleSubmit, reset, formState } = useForm<Formulaire>({
+  const modules = useModules();
+  const { register, handleSubmit, reset, formState, control } = useForm<Formulaire>({
     resolver: zodResolver(schema),
   });
 
   function ouvrirCreation() {
     setEnEdition(null);
     setErreur(null);
-    reset({ nom: '', adresse: '' });
+    reset({ nom: '', adresse: '', parentId: '' });
     setModaleOuverte(true);
   }
 
   function ouvrirEdition(emplacement: Emplacement) {
     setEnEdition(emplacement);
     setErreur(null);
-    reset({ nom: emplacement.nom, adresse: emplacement.adresse ?? '' });
+    reset({ nom: emplacement.nom, adresse: emplacement.adresse ?? '', parentId: emplacement.parentId ?? '' });
     setModaleOuverte(true);
   }
 
@@ -60,7 +85,12 @@ export function EmplacementsSection() {
     mutationFn: async (valeurs: Formulaire) => {
       // L'adresse est facultative : on n'envoie pas de chaîne vide, qui
       // serait stockée telle quelle au lieu de rester nulle.
-      const corps = { nom: valeurs.nom, ...(valeurs.adresse ? { adresse: valeurs.adresse } : {}) };
+      const corps = {
+        nom: valeurs.nom,
+        ...(valeurs.adresse ? { adresse: valeurs.adresse } : {}),
+        // Arborescence : '' = premier niveau. Rien n'est envoyé sans le module.
+        ...(modules.arborescence ? { parentId: valeurs.parentId || null } : {}),
+      };
       if (enEdition) {
         await api.patch(`/emplacements/${enEdition.id}`, corps);
       } else {
@@ -88,7 +118,11 @@ export function EmplacementsSection() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="min-w-0 flex-1 basis-56 text-corps text-steel-500">Dépôts, magasins et ateliers où vous stockez.</p>
+        <p className="min-w-0 flex-1 basis-56 text-corps text-steel-500">
+          {modules.arborescence
+            ? 'Dépôts, zones, allées et étagères où vous stockez.'
+            : 'Dépôts, magasins et ateliers où vous stockez.'}
+        </p>
         <Button onClick={ouvrirCreation}>
           <Plus className="size-4" aria-hidden="true" />
           Nouvel emplacement
@@ -106,8 +140,11 @@ export function EmplacementsSection() {
           <ul className="divide-y divide-rule">
             {data.map((emplacement) => (
               <li key={emplacement.id} className="flex items-center justify-between gap-4 px-4 py-3 sm:px-5">
-                <div className="min-w-0">
+                <div className="min-w-0" style={{ paddingLeft: `${Math.min(profondeur(emplacement), 4) * 1.25}rem` }}>
                   <p className="truncate text-corps font-medium text-ink-900">{emplacement.nom}</p>
+                  {emplacement.parentId && (
+                    <p className="truncate text-meta text-steel-500">{emplacement.chemin}</p>
+                  )}
                   {emplacement.adresse && (
                     <p className="truncate text-corps text-steel-500">{emplacement.adresse}</p>
                   )}
@@ -159,6 +196,20 @@ export function EmplacementsSection() {
           {erreur && <Alert variant="error">{erreur}</Alert>}
           <Input label="Nom" error={formState.errors.nom?.message} {...register('nom')} />
           <Input label="Adresse (facultatif)" {...register('adresse')} />
+          {modules.arborescence && (
+            <SelecteurChamp<Formulaire>
+              name="parentId"
+              control={control}
+              label="Rangé dans (facultatif)"
+              placeholder="Premier niveau"
+              options={[
+                { valeur: '', libelle: 'Premier niveau' },
+                ...(data ?? [])
+                  .filter((e) => !(enEdition ? descendants(enEdition.id, data ?? []) : new Set<string>()).has(e.id))
+                  .map((e) => ({ valeur: e.id, libelle: e.chemin })),
+              ]}
+            />
+          )}
 
         </form>
       </Modal>

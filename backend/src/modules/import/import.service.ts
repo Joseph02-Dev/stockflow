@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
+import { ajusterStock, debiterLot, enregistrerMouvement } from '../stock/moteur-stock.js';
 import { LimitesService } from '../../common/limites/limites.service.js';
 import { BOM_UTF8, ligneCsv } from '../../common/pagination/csv.js';
 import {
@@ -330,17 +331,15 @@ export class ImportService {
           where: { produitId: { in: ids }, quantite: { gt: 0 } },
         });
         for (const lot of lots) {
-          await tx.lot.update({ where: { id: lot.id }, data: { quantite: 0 } });
-          await tx.mouvement.create({
-            data: {
-              entrepriseId,
-              produitId: lot.produitId,
-              emplacementId: lot.emplacementId,
-              type: 'AJUSTEMENT',
-              quantite: -lot.quantite,
-              utilisateurId,
-              lotId: lot.id,
-            },
+          await debiterLot(tx, lot.id, lot.quantite);
+          await enregistrerMouvement(tx, {
+            entrepriseId,
+            produitId: lot.produitId,
+            emplacementId: lot.emplacementId,
+            type: 'AJUSTEMENT',
+            quantite: -lot.quantite,
+            utilisateurId,
+            lotId: lot.id,
           });
         }
         const stocks = await tx.stock.findMany({
@@ -356,26 +355,20 @@ export class ImportService {
             .reduce((somme, l) => somme + l.quantite, 0);
           const reste = stock.quantite - dejaRetire;
           if (reste !== 0) {
-            await tx.mouvement.create({
-              data: {
-                entrepriseId,
-                produitId: stock.produitId,
-                emplacementId: stock.emplacementId,
-                type: 'AJUSTEMENT',
-                quantite: -reste,
-                utilisateurId,
-              },
+            await enregistrerMouvement(tx, {
+              entrepriseId,
+              produitId: stock.produitId,
+              emplacementId: stock.emplacementId,
+              type: 'AJUSTEMENT',
+              quantite: -reste,
+              utilisateurId,
             });
           }
-          await tx.stock.update({
-            where: {
-              produitId_emplacementId: {
-                produitId: stock.produitId,
-                emplacementId: stock.emplacementId,
-              },
-            },
-            data: { quantite: 0 },
-          });
+          await ajusterStock(
+            tx,
+            { produitId: stock.produitId, emplacementId: stock.emplacementId },
+            -stock.quantite,
+          );
         }
 
         await tx.produit.updateMany({
@@ -527,6 +520,17 @@ export class ImportService {
             'Emplacement des quantités initiales introuvable ou archivé.',
           );
         }
+      }
+    }
+    if (aCreer.some((l) => l.valeurs.datePeremption)) {
+      const { moduleLots } = await this.prisma.entreprise.findUniqueOrThrow({
+        where: { id: entrepriseId },
+        select: { moduleLots: true },
+      });
+      if (!moduleLots) {
+        erreursGlobales.push(
+          'Le module « Lots et péremptions » est désactivé : retirez les dates de péremption du fichier, ou activez le module dans Paramètres.',
+        );
       }
     }
     const limite = await this.placeRestante(entrepriseId);
@@ -1018,6 +1022,8 @@ export class ImportService {
               }
             : {}),
         },
+        // Stock d'ouverture : il ne vient d'aucun fournisseur.
+        { origine: 'INVENTAIRE' },
       );
       mouvementDe.set(ligne.id, mouvement.id);
     }

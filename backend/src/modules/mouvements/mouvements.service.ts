@@ -16,16 +16,26 @@ import type { TransfertStockDto } from './dto/transfert-stock.dto.js';
 import { ligneCsv } from '../../common/pagination/csv.js';
 import type { MotifPerte } from '../../generated/prisma/enums.js';
 import {
+  crediterLot,
+  crediterStock,
+  creerLot,
+  debiterLot,
+  debiterStock,
+  enregistrerMouvement,
+  obtenirLot,
+  type TransactionPrisma,
+} from '../stock/moteur-stock.js';
+import {
   joursRestants,
   lireDatePeremption,
   repartirFefo,
   type LotFefo,
 } from '../lots/fefo.js';
 
-/** Client Prisma d'une transaction en cours. */
-export type TransactionPrisma = Parameters<
-  Parameters<PrismaService['$transaction']>[0]
->[0];
+export type { TransactionPrisma } from '../stock/moteur-stock.js';
+
+const TRANSFERT_INSUFFISANT =
+  'Stock insuffisant à l’emplacement source pour effectuer ce transfert.';
 
 /** Numéro du lot qui reçoit le stock antérieur au suivi par lot. */
 export const NUMERO_LOT_SANS_DATE = 'SANS-LOT';
@@ -105,6 +115,12 @@ export class MouvementsService {
       venteId?: string;
       /** ENTREE par défaut ; RETOUR_CLIENT, ou AJUSTEMENT pour l'annulation d'une casse. */
       type?: 'ENTREE' | 'RETOUR_CLIENT' | 'AJUSTEMENT';
+      /**
+       * Emplacement virtuel d'où vient la quantité, quand le type ne suffit
+       * pas à le dire : CLIENT (vente annulée), REBUT (casse annulée),
+       * INVENTAIRE (stock d'ouverture d'un import).
+       */
+      origine?: 'FOURNISSEUR' | 'CLIENT' | 'REBUT' | 'INVENTAIRE';
       donnees?: DonneesMouvement;
     } = {},
   ) {
@@ -114,38 +130,28 @@ export class MouvementsService {
         where: { id: dto.produitId },
       });
 
-      await tx.stock.upsert({
-        where: {
-          produitId_emplacementId: {
-            produitId: dto.produitId,
-            emplacementId: dto.emplacementId,
-          },
-        },
-        create: {
-          produitId: dto.produitId,
-          emplacementId: dto.emplacementId,
-          quantite: dto.quantite,
-        },
-        update: { quantite: { increment: dto.quantite } },
-      });
+      await crediterStock(
+        tx,
+        { produitId: dto.produitId, emplacementId: dto.emplacementId },
+        dto.quantite,
+      );
 
       const lotId = produit.suiviParLot
         ? await this.alimenterLot(tx, entrepriseId, dto, options.lotId)
         : this.refuserInfosLot(dto);
 
-      const mouvement = await tx.mouvement.create({
-        data: {
-          entrepriseId,
-          produitId: dto.produitId,
-          emplacementId: dto.emplacementId,
-          type: options.type ?? 'ENTREE',
-          quantite: dto.quantite,
-          fournisseurId: dto.fournisseurId,
-          utilisateurId,
-          lotId,
-          venteId: options.venteId,
-          ...this.champsDonnees(options.donnees, dto.quantite),
-        },
+      const mouvement = await enregistrerMouvement(tx, {
+        entrepriseId,
+        produitId: dto.produitId,
+        emplacementId: dto.emplacementId,
+        type: options.type ?? 'ENTREE',
+        origine: options.origine,
+        quantite: dto.quantite,
+        fournisseurId: dto.fournisseurId,
+        utilisateurId,
+        lotId,
+        venteId: options.venteId,
+        ...this.champsDonnees(options.donnees, dto.quantite),
       });
 
       const stockTotal = await this.stockTotalProduit(tx, dto.produitId);
@@ -227,20 +233,11 @@ export class MouvementsService {
   ) {
     {
       await this.verrouillerProduit(tx, dto.produitId);
-      const { count } = await tx.stock.updateMany({
-        where: {
-          produitId: dto.produitId,
-          emplacementId: dto.emplacementId,
-          quantite: { gte: dto.quantite },
-        },
-        data: { quantite: { decrement: dto.quantite } },
-      });
-
-      if (count === 0) {
-        throw new ConflictException(
-          'Stock insuffisant pour effectuer cette sortie.',
-        );
-      }
+      await debiterStock(
+        tx,
+        { produitId: dto.produitId, emplacementId: dto.emplacementId },
+        dto.quantite,
+      );
 
       const produit = await tx.produit.findUniqueOrThrow({
         where: { id: dto.produitId },
@@ -264,17 +261,15 @@ export class MouvementsService {
             donnees: options.donnees,
           })
         : [
-            await tx.mouvement.create({
-              data: {
-                entrepriseId,
-                produitId: dto.produitId,
-                emplacementId: dto.emplacementId,
-                type: options.type ?? 'SORTIE',
-                quantite: dto.quantite,
-                utilisateurId,
-                venteId: options.venteId,
-                ...this.champsDonnees(options.donnees, dto.quantite),
-              },
+            await enregistrerMouvement(tx, {
+              entrepriseId,
+              produitId: dto.produitId,
+              emplacementId: dto.emplacementId,
+              type: options.type ?? 'SORTIE',
+              quantite: dto.quantite,
+              utilisateurId,
+              venteId: options.venteId,
+              ...this.champsDonnees(options.donnees, dto.quantite),
             }),
           ];
 
@@ -326,15 +321,11 @@ export class MouvementsService {
       if (!actuel || actuel.quantite <= 0) {
         throw new ConflictException('Ce lot est déjà vide.');
       }
-      await tx.stock.update({
-        where: {
-          produitId_emplacementId: {
-            produitId: lot.produitId,
-            emplacementId: lot.emplacementId,
-          },
-        },
-        data: { quantite: { decrement: actuel.quantite } },
-      });
+      await debiterStock(
+        tx,
+        { produitId: lot.produitId, emplacementId: lot.emplacementId },
+        actuel.quantite,
+      );
       const [mouvement] = await this.sortirDesLots(tx, {
         entrepriseId,
         utilisateurId,
@@ -416,44 +407,20 @@ export class MouvementsService {
 
     const resultat = await this.prisma.$transaction(async (tx) => {
       await this.verrouillerProduit(tx, dto.produitId);
-      const stockSource = await tx.stock.findUnique({
-        where: {
-          produitId_emplacementId: {
-            produitId: dto.produitId,
-            emplacementId: dto.emplacementSourceId,
-          },
-        },
-      });
-      if (!stockSource || stockSource.quantite < dto.quantite) {
-        throw new ConflictException(
-          'Stock insuffisant à l’emplacement source pour effectuer ce transfert.',
-        );
-      }
-
-      await tx.stock.update({
-        where: {
-          produitId_emplacementId: {
-            produitId: dto.produitId,
-            emplacementId: dto.emplacementSourceId,
-          },
-        },
-        data: { quantite: { decrement: dto.quantite } },
-      });
-
-      await tx.stock.upsert({
-        where: {
-          produitId_emplacementId: {
-            produitId: dto.produitId,
-            emplacementId: dto.emplacementDestinationId,
-          },
-        },
-        create: {
+      await debiterStock(
+        tx,
+        { produitId: dto.produitId, emplacementId: dto.emplacementSourceId },
+        dto.quantite,
+        TRANSFERT_INSUFFISANT,
+      );
+      await crediterStock(
+        tx,
+        {
           produitId: dto.produitId,
           emplacementId: dto.emplacementDestinationId,
-          quantite: dto.quantite,
         },
-        update: { quantite: { increment: dto.quantite } },
-      });
+        dto.quantite,
+      );
 
       const produit = await tx.produit.findUniqueOrThrow({
         where: { id: dto.produitId },
@@ -468,16 +435,14 @@ export class MouvementsService {
       }
 
       return [
-        await tx.mouvement.create({
-          data: {
-            entrepriseId,
-            produitId: dto.produitId,
-            emplacementId: dto.emplacementSourceId,
-            emplacementDestinationId: dto.emplacementDestinationId,
-            type: 'TRANSFERT',
-            quantite: dto.quantite,
-            utilisateurId,
-          },
+        await enregistrerMouvement(tx, {
+          entrepriseId,
+          produitId: dto.produitId,
+          emplacementId: dto.emplacementSourceId,
+          emplacementDestinationId: dto.emplacementDestinationId,
+          type: 'TRANSFERT',
+          quantite: dto.quantite,
+          utilisateurId,
         }),
       ];
     });
@@ -697,22 +662,11 @@ export class MouvementsService {
       where: { id: produitId },
     });
     if (!produit.suiviParLot) return undefined;
-    const lot = await tx.lot.upsert({
-      where: {
-        produitId_emplacementId_numero: {
-          produitId,
-          emplacementId,
-          numero: NUMERO_LOT_SANS_DATE,
-        },
-      },
-      create: {
-        entrepriseId,
-        produitId,
-        emplacementId,
-        numero: NUMERO_LOT_SANS_DATE,
-        quantite: 0,
-      },
-      update: {},
+    const lot = await obtenirLot(tx, {
+      entrepriseId,
+      produitId,
+      emplacementId,
+      numero: NUMERO_LOT_SANS_DATE,
     });
     return lot.id;
   }
@@ -739,10 +693,7 @@ export class MouvementsService {
     lotIdCible?: string,
   ): Promise<string> {
     if (lotIdCible) {
-      await tx.lot.update({
-        where: { id: lotIdCible },
-        data: { quantite: { increment: dto.quantite } },
-      });
+      await crediterLot(tx, lotIdCible, dto.quantite);
       return lotIdCible;
     }
     if (!dto.numeroLot || !dto.datePeremption) {
@@ -762,21 +713,16 @@ export class MouvementsService {
     });
     if (existant) {
       this.verifierMemeDate(existant, datePeremption);
-      await tx.lot.update({
-        where: { id: existant.id },
-        data: { quantite: { increment: dto.quantite } },
-      });
+      await crediterLot(tx, existant.id, dto.quantite);
       return existant.id;
     }
-    const lot = await tx.lot.create({
-      data: {
-        entrepriseId,
-        produitId: dto.produitId,
-        emplacementId: dto.emplacementId,
-        numero: dto.numeroLot,
-        quantite: dto.quantite,
-        datePeremption,
-      },
+    const lot = await creerLot(tx, {
+      entrepriseId,
+      produitId: dto.produitId,
+      emplacementId: dto.emplacementId,
+      numero: dto.numeroLot,
+      quantite: dto.quantite,
+      datePeremption,
     });
     return lot.id;
   }
@@ -844,23 +790,18 @@ export class MouvementsService {
     }
     const mouvements = [];
     for (const part of plan) {
-      await tx.lot.update({
-        where: { id: part.lot.id },
-        data: { quantite: { decrement: part.quantite } },
-      });
+      await debiterLot(tx, part.lot.id, part.quantite);
       mouvements.push(
-        await tx.mouvement.create({
-          data: {
-            entrepriseId: p.entrepriseId,
-            produitId: p.produitId,
-            emplacementId: p.emplacementId,
-            type: p.type,
-            quantite: part.quantite,
-            utilisateurId: p.utilisateurId,
-            lotId: part.lot.id,
-            venteId: p.venteId,
-            ...this.champsDonnees(p.donnees, part.quantite),
-          },
+        await enregistrerMouvement(tx, {
+          entrepriseId: p.entrepriseId,
+          produitId: p.produitId,
+          emplacementId: p.emplacementId,
+          type: p.type,
+          quantite: part.quantite,
+          utilisateurId: p.utilisateurId,
+          lotId: part.lot.id,
+          venteId: p.venteId,
+          ...this.champsDonnees(p.donnees, part.quantite),
         }),
       );
     }
@@ -916,10 +857,7 @@ export class MouvementsService {
 
     const mouvements = [];
     for (const { lot, quantite } of plan) {
-      await tx.lot.update({
-        where: { id: lot.id },
-        data: { quantite: { decrement: quantite } },
-      });
+      await debiterLot(tx, lot.id, quantite, TRANSFERT_INSUFFISANT);
       const cle = {
         produitId: dto.produitId,
         emplacementId: dto.emplacementDestinationId,
@@ -930,33 +868,26 @@ export class MouvementsService {
       });
       if (existant) {
         this.verifierMemeDate(existant, lot.datePeremption);
-        await tx.lot.update({
-          where: { id: existant.id },
-          data: { quantite: { increment: quantite } },
-        });
+        await crediterLot(tx, existant.id, quantite);
       } else {
-        await tx.lot.create({
-          data: {
-            ...cle,
-            entrepriseId,
-            quantite,
-            datePeremption: lot.datePeremption,
-            recuAt: lot.recuAt,
-          },
+        await creerLot(tx, {
+          ...cle,
+          entrepriseId,
+          quantite,
+          datePeremption: lot.datePeremption,
+          recuAt: lot.recuAt,
         });
       }
       mouvements.push(
-        await tx.mouvement.create({
-          data: {
-            entrepriseId,
-            produitId: dto.produitId,
-            emplacementId: dto.emplacementSourceId,
-            emplacementDestinationId: dto.emplacementDestinationId,
-            type: 'TRANSFERT',
-            quantite,
-            utilisateurId,
-            lotId: lot.id,
-          },
+        await enregistrerMouvement(tx, {
+          entrepriseId,
+          produitId: dto.produitId,
+          emplacementId: dto.emplacementSourceId,
+          emplacementDestinationId: dto.emplacementDestinationId,
+          type: 'TRANSFERT',
+          quantite,
+          utilisateurId,
+          lotId: lot.id,
         }),
       );
     }

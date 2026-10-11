@@ -320,7 +320,7 @@ export class VentesService {
             emplacementId: vente.emplacementId,
             quantite: sortie.quantite,
           },
-          { lotId: sortie.lotId!, venteId },
+          { lotId: sortie.lotId!, venteId, origine: 'CLIENT' },
         );
       }
       const produitsRestitues = new Set(sortiesDeLots.map((m) => m.produitId));
@@ -343,7 +343,7 @@ export class VentesService {
             emplacementId: vente.emplacementId,
             quantite: ligne.quantite,
           },
-          { lotId, venteId },
+          { lotId, venteId, origine: 'CLIENT' },
         );
       }
       await tx.vente.update({

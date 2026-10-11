@@ -14,6 +14,7 @@ import type { RequestContext } from '../../common/context/tenant-context.service
 import { lirePagination } from '../../common/pagination/pagination.js';
 import { MouvementsService } from '../mouvements/mouvements.service.js';
 import { LotsService } from './lots.service.js';
+import { ModuleRequis } from '../../common/decorators/module-requis.decorator.js';
 
 @Controller()
 export class LotsController {
@@ -23,11 +24,13 @@ export class LotsController {
   ) {}
 
   /** Tuiles de l'écran Péremptions et nombre de lots sous surveillance. */
+  @ModuleRequis('lots')
   @Get('peremptions')
   resume(@CurrentTenant() entrepriseId: string) {
     return this.lotsService.resume(entrepriseId);
   }
 
+  @ModuleRequis('lots')
   @Get('peremptions/lots')
   lister(
     @CurrentTenant() entrepriseId: string,
@@ -43,6 +46,7 @@ export class LotsController {
   }
 
   /** Sortie d'un lot périmé : mouvement PERIME de toute sa quantité. */
+  @ModuleRequis('lots')
   @Post('peremptions/lots/:id/sortir')
   @HttpCode(HttpStatus.CREATED)
   sortirPerime(

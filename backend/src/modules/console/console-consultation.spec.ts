@@ -65,9 +65,9 @@ describe('Console — consultation des entreprises (intégration réelle)', () =
     ]);
     const base = { entrepriseId: idA, produitId: produitA.id, emplacementId: empA1.id, utilisateurId: a.utilisateur.id };
     for (let i = 0; i < 4; i++) {
-      await prisma.mouvement.create({ data: { ...base, type: 'ENTREE', quantite: 10 + i } });
+      await prisma.mouvement.create({ data: { ...base, type: 'ENTREE', origine: 'FOURNISSEUR', destination: 'INTERNE', quantite: 10 + i } });
     }
-    await prisma.mouvement.create({ data: { ...base, type: 'SORTIE', quantite: 1, createdAt: new Date(Date.now() - 40 * JOUR_MS) } });
+    await prisma.mouvement.create({ data: { ...base, type: 'SORTIE', origine: 'INTERNE', destination: 'CLIENT', quantite: 1, createdAt: new Date(Date.now() - 40 * JOUR_MS) } });
     return { a, b };
   }
 

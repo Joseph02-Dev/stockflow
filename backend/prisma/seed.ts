@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as argon2 from 'argon2';
 import { PrismaClient } from '../src/generated/prisma/client.js';
+import { sensParDefaut } from '../src/modules/stock/sens-mouvement.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -135,6 +136,7 @@ async function main() {
         produitId: produit.id,
         emplacementId,
         type,
+        ...sensParDefaut(type, quantite),
         quantite,
         fournisseurId: type === 'ENTREE' ? produit.fournisseurId : null,
         utilisateurId: admin.id,

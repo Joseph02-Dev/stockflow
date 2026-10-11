@@ -15,6 +15,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/Stat
 interface Emplacement {
   id: string;
   nom: string;
+  chemin?: string;
 }
 
 interface Inventaire {
@@ -56,7 +57,7 @@ export function InventairesTab({ emplacements }: { emplacements: Emplacement[] |
     setModaleOuverte(true);
   }
 
-  const optionsEmplacements = (emplacements ?? []).map((e) => ({ valeur: e.id, libelle: e.nom }));
+  const optionsEmplacements = (emplacements ?? []).map((e) => ({ valeur: e.id, libelle: e.chemin ?? e.nom }));
 
   return (
     <div className="flex flex-col gap-4">

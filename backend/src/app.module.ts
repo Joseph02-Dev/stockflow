@@ -9,6 +9,7 @@ import { ProduitsModule } from './modules/produits/produits.module.js';
 import { ImportModule } from './modules/import/import.module.js';
 import { FournisseursModule } from './modules/fournisseurs/fournisseurs.module.js';
 import { MouvementsModule } from './modules/mouvements/mouvements.module.js';
+import { StockModule } from './modules/stock/stock.module.js';
 import { LotsModule } from './modules/lots/lots.module.js';
 import { PertesModule } from './modules/pertes/pertes.module.js';
 import { RetoursModule } from './modules/retours/retours.module.js';
@@ -74,6 +75,7 @@ import {
     ProduitsModule,
     FournisseursModule,
     MouvementsModule,
+    StockModule,
     LotsModule,
     PertesModule,
     RetoursModule,

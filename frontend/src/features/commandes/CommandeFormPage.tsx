@@ -12,6 +12,7 @@ import { Card, PageHeader, PanneauEntete } from '@/components/patterns/Page';
 interface ElementReference {
   id: string;
   nom: string;
+  chemin?: string;
 }
 
 interface LigneFormulaire {
@@ -121,7 +122,7 @@ export function CommandeFormPage() {
             <Selecteur
               label="Emplacement de réception"
               placeholder="Sélectionner un emplacement…"
-              options={(emplacements.data ?? []).map((e) => ({ valeur: e.id, libelle: e.nom }))}
+              options={(emplacements.data ?? []).map((e) => ({ valeur: e.id, libelle: e.chemin ?? e.nom }))}
               value={emplacementId}
               onChange={setEmplacementId}
             />

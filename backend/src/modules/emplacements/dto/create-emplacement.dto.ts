@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 
 export class CreateEmplacementDto {
   @IsString()
@@ -10,4 +10,12 @@ export class CreateEmplacementDto {
   @IsString()
   @MaxLength(255)
   adresse?: string;
+
+  /**
+   * Emplacement parent (module « arborescence »). null détache
+   * l'emplacement : il redevient un emplacement de premier niveau.
+   */
+  @IsOptional()
+  @IsUUID('4', { message: 'Emplacement parent invalide.' })
+  parentId?: string | null;
 }
