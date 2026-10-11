@@ -30,14 +30,22 @@ export class EmplacementsService {
   async creer(entrepriseId: string, dto: CreateEmplacementDto) {
     await this.limites.exigerPlace(entrepriseId, 'emplacements');
     if (dto.parentId) await this.verifierParent(entrepriseId, dto.parentId);
+    if (dto.strategieSortie) await exigerModule(this.prisma, entrepriseId, 'strategiesSortie');
     return this.prisma.emplacement.create({
-      data: { entrepriseId, nom: dto.nom, adresse: dto.adresse, parentId: dto.parentId ?? null },
+      data: {
+        entrepriseId,
+        nom: dto.nom,
+        adresse: dto.adresse,
+        parentId: dto.parentId ?? null,
+        strategieSortie: dto.strategieSortie ?? null,
+      },
     });
   }
 
   async modifier(entrepriseId: string, emplacementId: string, dto: UpdateEmplacementDto) {
     await this.trouverOuEchouer(entrepriseId, emplacementId);
     if (dto.parentId) await this.verifierParent(entrepriseId, dto.parentId, emplacementId);
+    if (dto.strategieSortie) await exigerModule(this.prisma, entrepriseId, 'strategiesSortie');
     return this.prisma.emplacement.update({ where: { id: emplacementId }, data: dto });
   }
 

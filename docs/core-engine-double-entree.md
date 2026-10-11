@@ -61,6 +61,8 @@ Registre unique : `src/common/modules/modules-entreprise.ts`. Un module coupé d
 | Arborescence des emplacements | `module_arborescence` | Administrateur | désactivé |
 | Variantes de produits | `module_variantes` | Administrateur | désactivé |
 | Conditionnements | `module_conditionnements` | Administrateur | désactivé |
+| Numéros de série | `module_numeros_serie` | Administrateur | désactivé |
+| Stratégies de sortie | `module_strategies_sortie` | Administrateur | désactivé (FEFO) |
 
 Ajouter un module : une colonne booléenne sur `Entreprise`, une entrée dans le registre, puis `@ModuleRequis('cle')` sur ses routes et `useModules()` côté interface.
 
@@ -84,12 +86,32 @@ Routes : `GET/POST /produits/:produitId/conditionnements`, `PATCH /conditionneme
 
 Hors périmètre pour l'instant : la saisie en conditionnement dans les ventes et les commandes fournisseur (toujours en unités), et les unités fractionnaires (kg → g), qui demanderaient des quantités décimales.
 
+## Numéros de série (vague 3)
+
+Un produit suivi par numéro de série (`suiviParSerie`, qui implique `suiviParLot` : contrainte en base) est un produit suivi par lot dont **chaque lot vaut une unité**. Sorties, transferts, ventes, retours et inventaires réutilisent donc la mécanique des lots sans réécriture.
+
+- **Réception** : `numerosSerie` (un par unité, sans doublon) sur `/mouvements/entree`, `POST /stock/mouvements` et la réception de commande. Le système crée un lot et un mouvement par numéro. La date de péremption est facultative.
+- **Unicité** : un numéro déjà en stock (casse comprise) est refusé, quel que soit l'emplacement. Un verrou consultatif par produit sérialise les entrées simultanées.
+- **Inventaire** : un numéro se compte 0 ou 1.
+- **Activation** : seulement sur un produit **sans stock**, car le stock existant n'a pas de numéros et on ne les invente pas.
+
+## Stratégies de sortie (vague 3)
+
+`StrategieSortie` = FEFO (péremption la plus proche), FIFO (réception la plus ancienne) ou LIFO (réception la plus récente).
+L'entreprise a une stratégie par défaut, et chaque emplacement peut en avoir une propre (`strategieSortie` nul = celle de l'entreprise). Sans le module : toujours FEFO, comme avant.
+La stratégie s'applique à toute sortie automatique de lots (vente, sortie, casse, retour fournisseur, transfert) et à l'ordre affiché dans « Lots en stock ».
+Pour un produit sans lot, il n'y a rien à choisir : son coût par couche viendra avec la valorisation (vague 5).
+
+## Traçabilité
+
+`GET /produits/:id/tracabilite?numero=` renvoie tous les mouvements d'un lot ou d'un numéro de série, à travers les emplacements. Dans l'interface, un clic sur un lot de la fiche produit ouvre son historique.
+
 ## Feuille de route
 
 | Vague | Contenu | État |
 |---|---|---|
 | 1 | Double entrée, moteur unique, arborescence des emplacements, modules | **Livrée** |
 | 2 | Variantes (attributs, grille, référence automatique) et conditionnements avec conversion | **Livrée** (`moduleVariantes`, `moduleConditionnements`) |
-| 3 | Numéros de série ; FIFO/LIFO en plus du FEFO existant | Lots + FEFO déjà en place ; séries à faire |
+| 3 | Numéros de série, stratégies de sortie FEFO/FIFO/LIFO, traçabilité par lot | **Livrée** (`moduleNumerosSerie`, `moduleStrategiesSortie`) |
 | 4 | Règles de réapprovisionnement min/max (tâche planifiée), rangement automatique, stratégie de retrait par entrepôt | À faire |
 | 5 | Couches de valorisation (FIFO, coût moyen pondéré), rapports de rotation et de stock dormant, OpenAPI et webhooks | À faire. La valorisation se fait aujourd'hui au prix d'achat actuel. |

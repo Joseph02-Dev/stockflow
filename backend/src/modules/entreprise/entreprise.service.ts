@@ -1,5 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
+import { exigerModule } from '../../common/modules/exiger-module.js';
 import type { UpdateEntrepriseDto } from './dto/update-entreprise.dto.js';
 
 @Injectable()
@@ -11,7 +12,12 @@ export class EntrepriseService {
   }
 
   async updateEntreprise(entrepriseId: string, dto: UpdateEntrepriseDto) {
-    if (dto.moduleLots === false) await this.exigerAucunProduitSuiviParLot(entrepriseId);
+    if (dto.moduleLots === false) await this.exigerAucunProduitSuivi(entrepriseId, 'lot');
+    if (dto.moduleNumerosSerie === false) await this.exigerAucunProduitSuivi(entrepriseId, 'numéro de série');
+    // La stratégie peut accompagner l'activation du module dans la même requête.
+    if (dto.strategieSortie !== undefined && dto.moduleStrategiesSortie !== true) {
+      await exigerModule(this.prisma, entrepriseId, 'strategiesSortie');
+    }
     return this.prisma.entreprise.update({
       where: { id: entrepriseId },
       data: {
@@ -28,18 +34,21 @@ export class EntrepriseService {
         ...(dto.moduleArborescence !== undefined ? { moduleArborescence: dto.moduleArborescence } : {}),
         ...(dto.moduleVariantes !== undefined ? { moduleVariantes: dto.moduleVariantes } : {}),
         ...(dto.moduleConditionnements !== undefined ? { moduleConditionnements: dto.moduleConditionnements } : {}),
+        ...(dto.moduleNumerosSerie !== undefined ? { moduleNumerosSerie: dto.moduleNumerosSerie } : {}),
+        ...(dto.moduleStrategiesSortie !== undefined ? { moduleStrategiesSortie: dto.moduleStrategiesSortie } : {}),
+        ...(dto.strategieSortie !== undefined ? { strategieSortie: dto.strategieSortie } : {}),
       },
     });
   }
 
   /**
-   * Le module Lots ne se coupe pas sous un produit suivi par lot : ses
-   * sorties FEFO et ses péremptions deviendraient invisibles. On désactive
-   * d'abord le suivi produit par produit (refusé tant qu'un lot a du stock).
+   * Les modules Lots et Numéros de série ne se coupent pas sous un produit
+   * qui les utilise : ses lots et péremptions deviendraient invisibles. On
+   * désactive d'abord le suivi produit par produit.
    */
-  private async exigerAucunProduitSuiviParLot(entrepriseId: string) {
+  private async exigerAucunProduitSuivi(entrepriseId: string, suivi: 'lot' | 'numéro de série') {
     const suivis = await this.prisma.produit.findMany({
-      where: { entrepriseId, suiviParLot: true, archive: false },
+      where: { entrepriseId, archive: false, ...(suivi === 'lot' ? { suiviParLot: true } : { suiviParSerie: true }) },
       select: { nom: true },
       orderBy: { nom: 'asc' },
       take: 4,
@@ -47,7 +56,7 @@ export class EntrepriseService {
     if (suivis.length > 0) {
       const noms = suivis.slice(0, 3).map((p) => `« ${p.nom} »`).join(', ');
       throw new ConflictException(
-        `Des produits sont encore suivis par lot (${noms}${suivis.length > 3 ? '…' : ''}) : désactivez leur suivi avant de couper le module.`,
+        `Des produits sont encore suivis par ${suivi} (${noms}${suivis.length > 3 ? '…' : ''}) : désactivez leur suivi avant de couper le module.`,
       );
     }
   }

@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 
 export class UpdateEmplacementDto {
   @IsOptional()
@@ -19,4 +19,9 @@ export class UpdateEmplacementDto {
   @IsOptional()
   @IsUUID('4', { message: 'Emplacement parent invalide.' })
   parentId?: string | null;
+
+  /** Stratégie de sortie propre à l'emplacement (module « strategiesSortie ») ; null = celle de l'entreprise. */
+  @IsOptional()
+  @IsIn(['FEFO', 'FIFO', 'LIFO'], { message: 'La stratégie de sortie doit valoir FEFO, FIFO ou LIFO.' })
+  strategieSortie?: 'FEFO' | 'FIFO' | 'LIFO' | null;
 }

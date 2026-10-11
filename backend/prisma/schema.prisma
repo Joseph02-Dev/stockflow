@@ -53,6 +53,15 @@ enum NatureEmplacement {
   TRANSIT
 }
 
+/// Ordre de prélèvement des lots lors d'une sortie automatique.
+/// FEFO : péremption la plus proche ; FIFO : plus ancienne réception ;
+/// LIFO : plus récente réception.
+enum StrategieSortie {
+  FEFO
+  FIFO
+  LIFO
+}
+
 enum StatutAvoir {
   ATTENDU
   RECU
@@ -169,10 +178,15 @@ model Entreprise {
   // Modules métier, activés par l'administrateur de l'entreprise selon
   // son activité (Paramètres) : un module désactivé disparaît de
   // l'interface et ses routes sont refusées côté serveur.
-  moduleLots             Boolean @default(true) @map("module_lots")
-  moduleArborescence     Boolean @default(false) @map("module_arborescence")
-  moduleVariantes        Boolean @default(false) @map("module_variantes")
-  moduleConditionnements Boolean @default(false) @map("module_conditionnements")
+  moduleLots             Boolean         @default(true) @map("module_lots")
+  moduleArborescence     Boolean         @default(false) @map("module_arborescence")
+  moduleVariantes        Boolean         @default(false) @map("module_variantes")
+  moduleConditionnements Boolean         @default(false) @map("module_conditionnements")
+  moduleNumerosSerie     Boolean         @default(false) @map("module_numeros_serie")
+  moduleStrategiesSortie Boolean         @default(false) @map("module_strategies_sortie")
+  // Stratégie de sortie par défaut (module « strategiesSortie ») ; sans le
+  // module, toujours FEFO.
+  strategieSortie        StrategieSortie @default(FEFO) @map("strategie_sortie")
 
   // Nombre de jours avant péremption à partir duquel un lot est « sous
   // surveillance », sauf seuil propre au produit.
@@ -346,9 +360,11 @@ model Emplacement {
   // Arborescence facultative (module « arborescence ») : Dépôt > Zone >
   // Allée > Étagère. Un emplacement de n'importe quel niveau peut porter
   // du stock ; même entreprise que son parent, jamais de cycle.
-  parentId String?       @map("parent_id")
-  parent   Emplacement?  @relation("EmplacementParent", fields: [parentId], references: [id])
-  enfants  Emplacement[] @relation("EmplacementParent")
+  parentId        String?          @map("parent_id")
+  // Stratégie propre à cet emplacement ; nulle = celle de l'entreprise.
+  strategieSortie StrategieSortie? @map("strategie_sortie")
+  parent          Emplacement?     @relation("EmplacementParent", fields: [parentId], references: [id])
+  enfants         Emplacement[]    @relation("EmplacementParent")
 
   entreprise      Entreprise            @relation(fields: [entrepriseId], references: [id])
   stocks          Stock[]
@@ -404,6 +420,9 @@ model Produit {
   // Suivi par lot et date de péremption — facultatif, produit par produit.
   // Désactivé : le produit fonctionne exactement comme avant (aucun lot).
   suiviParLot           Boolean @default(false) @map("suivi_par_lot")
+  // Numéros de série (module « numerosSerie ») : un lot par unité,
+  // de quantité 0 ou 1. Implique suiviParLot (contrainte en base).
+  suiviParSerie         Boolean @default(false) @map("suivi_par_serie")
   // Seuil propre au produit, en jours ; null = seuil de l'entreprise.
   seuilAlertePeremption Int?    @map("seuil_alerte_peremption")
   // Import de catalogue qui a créé ce produit : permet d'annuler l'import

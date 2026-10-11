@@ -54,7 +54,8 @@ export class ProduitsService {
 
   async creer(entrepriseId: string, dto: CreateProduitDto) {
     await this.limites.exigerPlace(entrepriseId, 'references');
-    if (dto.suiviParLot) await exigerModule(this.prisma, entrepriseId, 'lots');
+    if (dto.suiviParSerie) await exigerModule(this.prisma, entrepriseId, 'numerosSerie');
+    if (dto.suiviParLot || dto.suiviParSerie) await exigerModule(this.prisma, entrepriseId, 'lots');
     await this.verifierReferences(entrepriseId, dto);
     // Si aucun taux n'est fourni, on reprend le défaut défini par
     // l'entreprise (renseigné à l'inscription) plutôt que de laisser le
@@ -86,7 +87,9 @@ export class ProduitsService {
           description: dto.description,
           categorieId: dto.categorieId,
           marqueId: dto.marqueId,
-          suiviParLot: dto.suiviParLot,
+          // Un numéro de série est un lot d'une unité.
+          suiviParLot: dto.suiviParLot || dto.suiviParSerie,
+          suiviParSerie: dto.suiviParSerie,
           seuilAlertePeremption: dto.seuilAlertePeremption,
         },
         include: { categorie: true, marque: true },
@@ -99,13 +102,19 @@ export class ProduitsService {
   async modifier(entrepriseId: string, produitId: string, dto: UpdateProduitDto) {
     const actuel = await this.trouverOuEchouer(entrepriseId, produitId);
     await this.verifierReferences(entrepriseId, dto);
-    const bascule = dto.suiviParLot !== undefined && dto.suiviParLot !== actuel.suiviParLot;
-    if (bascule && dto.suiviParLot) await exigerModule(this.prisma, entrepriseId, 'lots');
+    // Série ⇒ lot ; couper le suivi par lot coupe aussi les séries.
+    const suiviParSerie = dto.suiviParLot === false ? false : (dto.suiviParSerie ?? actuel.suiviParSerie);
+    const suiviParLot = suiviParSerie || (dto.suiviParLot ?? actuel.suiviParLot);
+    const data = { ...dto, suiviParLot, suiviParSerie };
+    const bascule = suiviParLot !== actuel.suiviParLot;
+    const activationSerie = suiviParSerie && !actuel.suiviParSerie;
+    if (bascule && suiviParLot) await exigerModule(this.prisma, entrepriseId, 'lots');
+    if (activationSerie) await exigerModule(this.prisma, entrepriseId, 'numerosSerie');
     try {
-      if (!bascule) {
+      if (!bascule && !activationSerie) {
         return await this.prisma.produit.update({
           where: { id: produitId },
-          data: dto,
+          data,
           include: { categorie: true, marque: true },
         });
       }
@@ -115,11 +124,12 @@ export class ProduitsService {
       return await this.prisma.$transaction(async (tx) => {
         const produit = await tx.produit.update({
           where: { id: produitId },
-          data: dto,
+          data,
           include: { categorie: true, marque: true },
         });
-        if (dto.suiviParLot) await this.activerSuiviParLot(tx, entrepriseId, produitId);
-        else await this.exigerAucunLotEnStock(tx, produitId);
+        if (activationSerie) await this.exigerAucunStock(tx, produitId);
+        if (bascule && suiviParLot) await this.activerSuiviParLot(tx, entrepriseId, produitId);
+        else if (bascule) await this.exigerAucunLotEnStock(tx, produitId);
         return produit;
       });
     } catch (erreur) {
@@ -150,6 +160,19 @@ export class ProduitsService {
         numero: NUMERO_LOT_SANS_DATE,
       });
       await crediterLot(tx, lot.id, horsLot);
+    }
+  }
+
+  /**
+   * Numéros de série : chaque unité doit entrer avec le sien. Un stock
+   * déjà présent n'en a pas — on ne les invente pas : activation refusée.
+   */
+  private async exigerAucunStock(tx: TransactionPrisma, produitId: string) {
+    const { _sum } = await tx.stock.aggregate({ where: { produitId }, _sum: { quantite: true } });
+    if ((_sum.quantite ?? 0) > 0) {
+      throw new ConflictException(
+        `Ce produit a encore ${_sum.quantite} unité${(_sum.quantite ?? 0) > 1 ? 's' : ''} en stock sans numéro de série : le suivi par numéro de série s’active sur un produit sans stock (sortez-le ou ajustez-le par inventaire, puis recevez chaque unité avec son numéro).`,
+      );
     }
   }
 

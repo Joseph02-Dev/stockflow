@@ -7,6 +7,7 @@ const videVersNull = ({ value }: { value: unknown }) => (typeof value === 'strin
 const renseigne = (_: object, valeur: unknown) => valeur !== null && valeur !== undefined;
 
 const SECTEURS = ['MATERIAUX', 'COMMERCE', 'ARTISANAT', 'AUTRE'] as const;
+const STRATEGIES = ['FEFO', 'FIFO', 'LIFO'] as const;
 
 export class UpdateEntrepriseDto {
   @IsOptional()
@@ -80,4 +81,17 @@ export class UpdateEntrepriseDto {
   @IsOptional()
   @IsBoolean()
   moduleConditionnements?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  moduleNumerosSerie?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  moduleStrategiesSortie?: boolean;
+
+  /** Stratégie de sortie par défaut (module « strategiesSortie »). */
+  @IsOptional()
+  @IsIn(STRATEGIES, { message: 'La stratégie de sortie doit valoir FEFO, FIFO ou LIFO.' })
+  strategieSortie?: (typeof STRATEGIES)[number];
 }
