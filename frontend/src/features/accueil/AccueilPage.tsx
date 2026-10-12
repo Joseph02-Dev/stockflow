@@ -22,6 +22,7 @@ import {
   X,
 } from 'lucide-react';
 import { Logo } from '@/components/patterns/Logo';
+import { FondEntrepot3D } from '@/components/patterns/FondEntrepot3D';
 import { cn } from '@/lib/cn';
 import { ADRESSE_AIDE } from '@/lib/contact';
 import { DUREE_ESSAI_JOURS, OFFRES, faq, type Offre } from './contenu';
@@ -473,6 +474,11 @@ export function AccueilPage() {
         {/* ——— Hero ——— */}
         <section aria-labelledby="titre-accueil" className="bandeau-action text-white">
           <div className="accueil-grille pointer-events-none absolute inset-0 -z-10" aria-hidden="true" />
+          <FondEntrepot3D
+            ton="sombre"
+            className="-z-10"
+            masque="linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.55) 38%, #000 68%)"
+          />
           <div className="accueil-halo pointer-events-none absolute -bottom-40 -left-32 -z-10 size-[520px]" aria-hidden="true" />
           <div
             className={cn(
@@ -639,6 +645,7 @@ export function AccueilPage() {
         {/* ——— Sur mobile ——— */}
         <section id="mobile" aria-labelledby="titre-mobile" className="bandeau-action scroll-mt-16 text-white">
           <div className="accueil-grille pointer-events-none absolute inset-0 -z-10" aria-hidden="true" />
+          <FondEntrepot3D ton="sombre" className="-z-10" />
           <div className={cn(conteneur, 'grid items-center gap-12 py-20 md:py-28 lg:grid-cols-[1.1fr_1fr]')}>
             <div className="flex flex-col items-start gap-5" data-apparition="">
               <Etiquette sombre>Sur téléphone</Etiquette>
@@ -874,6 +881,7 @@ export function AccueilPage() {
         <section aria-labelledby="titre-final" className="px-4 py-20 sm:px-6 md:py-24">
           <div className="bandeau-action mx-auto max-w-6xl rounded-3xl px-6 py-14 text-center text-white md:px-12 md:py-20" data-apparition="">
             <div className="accueil-grille pointer-events-none absolute inset-0 -z-10" aria-hidden="true" />
+            <FondEntrepot3D ton="sombre" className="-z-10" />
             <h2
               id="titre-final"
               className="mx-auto max-w-2xl text-[1.875rem] leading-[1.15] font-semibold tracking-[-0.02em] md:text-[2.75rem]"
