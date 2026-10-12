@@ -38,6 +38,7 @@ import { ProfilModal } from '@/features/profil/ProfilModal';
 import { useSynchronisation } from '@/lib/useSynchronisation';
 import { BarreProgression } from '@/components/patterns/BarreProgression';
 import { useModules } from '@/lib/useModules';
+import { ADRESSE_AIDE } from '@/lib/contact';
 import { SelecteurTheme } from '@/components/patterns/SelecteurTheme';
 import { AssistantPanel } from '@/features/assistant/AssistantPanel';
 import { OngletsSection, type OngletSection } from '@/components/patterns/OngletsSection';
@@ -92,9 +93,6 @@ const sectionsNav: { titre: string; liens: Lien[] }[] = [
     ],
   },
 ];
-
-/** Adresse d'assistance : celle des réponses aux emails de StockFlow. */
-const ADRESSE_AIDE = 'contact@stockflowgn.com';
 
 // Les 4 destinations les plus fréquentes uniquement : la barre mobile
 // n'a la place que pour ça sans devenir illisible. La vente au comptoir

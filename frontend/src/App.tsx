@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { AppLayout } from '@/layouts/AppLayout';
 import { ConnexionPage } from '@/features/auth/ConnexionPage';
 import { InscriptionPage } from '@/features/auth/InscriptionPage';
@@ -43,13 +43,27 @@ import { LoadingState } from '@/components/patterns/States';
 // Console opérateur : chargée à la demande, jamais embarquée dans le
 // bundle de l'application cliente.
 const ConsoleApp = lazy(() => import('@/features/console/ConsoleApp'));
+const AccueilPage = lazy(() => import('@/features/accueil/AccueilPage'));
 // Écran d'import : lui seul embarque la lecture des CSV et des fichiers Excel.
 const ImportPage = lazy(() => import('@/features/import/ImportPage').then((m) => ({ default: m.ImportPage })));
 
-/** Redirige vers la connexion si aucune session valide n'est présente. */
+/**
+ * Redirige vers la connexion si aucune session valide n'est présente.
+ * Exception : la racine du site affiche la page d'accueil publique au
+ * visiteur ; un utilisateur connecté y voit toujours son tableau de bord.
+ */
 function RouteProtegee() {
   const session = useSession();
-  return session ? <Outlet /> : <Navigate to="/connexion" replace />;
+  const { pathname } = useLocation();
+  if (session) return <Outlet />;
+  if (pathname === '/') {
+    return (
+      <Suspense fallback={<LoadingState variante="page" />}>
+        <AccueilPage />
+      </Suspense>
+    );
+  }
+  return <Navigate to="/connexion" replace />;
 }
 
 /** Empêche un utilisateur déjà connecté de revoir les écrans d'auth. */
