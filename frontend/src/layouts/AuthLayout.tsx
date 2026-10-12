@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Logo } from '@/components/patterns/Logo';
+import { FondEntrepot3D } from '@/components/patterns/FondEntrepot3D';
 
 export function AuthLayout({
   panneauGauche,
@@ -19,7 +20,9 @@ export function AuthLayout({
   pied?: ReactNode;
 }) {
   return (
-    <main className="flex min-h-full items-center justify-center bg-paper px-4 py-8 md:px-6">
+    <main className="relative isolate flex min-h-full items-center justify-center overflow-hidden bg-paper px-4 py-8 md:px-6">
+      {/* Fond animé décoratif : derrière la carte, jamais devant. */}
+      <FondEntrepot3D className="-z-10" />
       <div className="grid w-full max-w-4xl grid-cols-1 overflow-hidden rounded-xl border border-rule shadow-pop md:grid-cols-2">
         {/* Panneau d'encre, même dégradé que le bandeau d'action du tableau
             de bord — masqué sur mobile au profit d'un bandeau compact. */}
