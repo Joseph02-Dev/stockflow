@@ -1,0 +1,144 @@
+/*
+ * Page d'accueil publique — styles propres à la page, chargés avec elle
+ * (chunk séparé) : rien ici n'affecte l'application connectée.
+ *
+ * Même grammaire de mouvement que l'application : un fondu court avec un
+ * léger glissement, joué une seule fois, jamais en boucle. Tout est
+ * désactivé sous prefers-reduced-motion, et le contenu reste visible sans
+ * JavaScript : seul le script d'apparition masque ce qui est hors écran.
+ */
+
+/* Fond quadrillé du hero, estompé vers les bords. */
+.accueil-grille {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 70% 60% at 30% 25%, #000 25%, transparent 75%);
+}
+
+/* Halo secondaire, en bas à gauche du hero. */
+.accueil-halo {
+  background: radial-gradient(closest-side, rgba(91, 134, 239, 0.28), rgba(91, 134, 239, 0));
+}
+
+/* Mot clé du titre : outremer éclairci, lisible sur l'encre (AA). */
+.accueil-surligne {
+  background: linear-gradient(100deg, #b8c5ff 0%, var(--color-action-clair) 55%, #7fd6c0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ——— Apparition au défilement ——— */
+[data-apparition] {
+  transition:
+    opacity 600ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 600ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: var(--delai, 0ms);
+}
+
+[data-apparition][data-etat='cache'] {
+  opacity: 0;
+  transform: translateY(16px);
+}
+
+/* ——— Cadres d'aperçu produit ——— */
+.cadre-navigateur {
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow:
+    0 40px 80px -24px rgba(11, 15, 23, 0.5),
+    0 0 0 1px rgba(11, 15, 23, 0.08);
+}
+
+.cadre-telephone {
+  border-radius: 34px;
+  padding: 7px;
+  background: #0b0f17;
+  box-shadow:
+    0 30px 60px -18px rgba(11, 15, 23, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+}
+
+.cadre-telephone img {
+  border-radius: 27px;
+}
+
+/* Carte qui se soulève légèrement au survol ou au focus clavier. */
+.carte-vivante {
+  transition:
+    transform 200ms ease,
+    box-shadow 200ms ease,
+    border-color 200ms ease;
+}
+
+.carte-vivante:hover,
+.carte-vivante:focus-within {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-pop);
+}
+
+/* Aperçu qui s'avance d'un cran au survol de sa rangée. */
+.apercu-vivant {
+  transition: transform 400ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.groupe-apercu:hover .apercu-vivant {
+  transform: translateY(-6px);
+}
+
+/* ——— Menu mobile : dépliage en hauteur, sans saut de mise en page ——— */
+.menu-repli {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 280ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.menu-repli[data-ouvert='true'] {
+  grid-template-rows: 1fr;
+}
+
+.menu-repli > div {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Réponse de FAQ : fondu à l'ouverture. */
+.faq-question[open] .faq-reponse {
+  animation: apparition 260ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.faq-question summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Bordure dégradée de l'offre d'essai. */
+.offre-phare {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--color-surface), var(--color-surface)) padding-box,
+    linear-gradient(135deg, var(--color-action), #7fd6c0) border-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-apparition],
+  .carte-vivante,
+  .apercu-vivant,
+  .menu-repli {
+    transition: none;
+  }
+  [data-apparition][data-etat='cache'] {
+    opacity: 1;
+    transform: none;
+  }
+  .carte-vivante:hover,
+  .carte-vivante:focus-within,
+  .groupe-apercu:hover .apercu-vivant {
+    transform: none;
+  }
+  .faq-question[open] .faq-reponse {
+    animation: none;
+  }
+}
