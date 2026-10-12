@@ -37,6 +37,27 @@ export function motifErreur(erreur: unknown): string {
 }
 
 /**
+ * Explication du fournisseur, pour les journaux du serveur (jamais pour le
+ * client) : statut, type et message de l'erreur Anthropic (« invalid
+ * x-api-key », « credit balance is too low »…), identifiant de requête.
+ * Les messages d'erreur de l'API citent des paramètres, pas le contenu des
+ * conversations ; tronqués par prudence.
+ */
+export function detailErreur(erreur: unknown): string {
+  const tronquer = (texte: string) => (texte.length > 300 ? `${texte.slice(0, 300)}…` : texte);
+  if (erreur instanceof Anthropic.APIError && erreur.status !== undefined) {
+    const corps = (erreur.error as { error?: { type?: string; message?: string } } | undefined)?.error;
+    const requete = erreur.requestID ? ` (request-id ${erreur.requestID})` : '';
+    return tronquer(`HTTP ${erreur.status} ${corps?.type ?? ''} : ${corps?.message ?? erreur.message}`) + requete;
+  }
+  if (erreur instanceof Error) {
+    const cause = erreur.cause instanceof Error ? ` — ${erreur.cause.message}` : '';
+    return tronquer(`${erreur.message}${cause}`);
+  }
+  return 'erreur inconnue';
+}
+
+/**
  * Fournisseur Anthropic (API Messages, appel d'outils). Une session garde
  * l'historique complet renvoyé par l'API (blocs de réflexion compris, à
  * renvoyer tels quels) ; le navigateur ne voit et ne renvoie que du texte.
@@ -105,7 +126,7 @@ export class FournisseurAnthropic implements FournisseurIA {
             messages,
           });
         } catch (erreur) {
-          throw new ErreurFournisseurIA(motifErreur(erreur), { cause: erreur });
+          throw new ErreurFournisseurIA(motifErreur(erreur), { cause: erreur, detail: detailErreur(erreur) });
         }
         // Historique intégral (réflexion comprise) : exigé pour poursuivre la boucle d'outils.
         messages.push({ role: 'assistant', content: reponse.content as Anthropic.Beta.BetaContentBlockParam[] });

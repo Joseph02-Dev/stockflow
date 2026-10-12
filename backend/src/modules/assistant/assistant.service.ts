@@ -88,7 +88,12 @@ export class AssistantService {
       }
     } catch (erreur) {
       if (!(erreur instanceof ErreurFournisseurIA)) throw erreur;
-      this.journal.warn(`Fournisseur IA indisponible (${erreur.motif}) pour l'entreprise ${contexte.entrepriseId}, après ${tours} tour(s) d'outils.`);
+      // Niveau erreur et Sentry : une clé invalide ou un compte sans crédit
+      // bloque toutes les questions, il faut le voir sans chercher.
+      this.journal.error(
+        `Fournisseur IA indisponible (${erreur.motif}) pour l'entreprise ${contexte.entrepriseId}, après ${tours} tour(s) d'outils : ${erreur.detail}`,
+      );
+      Sentry.captureException(erreur);
       throw new ServiceUnavailableException({
         code: 'ASSISTANT_INDISPONIBLE',
         message: 'L’assistant est momentanément indisponible. Le reste de StockFlow fonctionne normalement : réessayez dans quelques minutes.',

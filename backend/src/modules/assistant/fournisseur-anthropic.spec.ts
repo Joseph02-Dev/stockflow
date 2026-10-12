@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { describe, expect, it, vi } from 'vitest';
-import { FournisseurAnthropic, MODELE_PAR_DEFAUT, motifErreur, type ClientMessages } from './fournisseur-anthropic.js';
+import { FournisseurAnthropic, MODELE_PAR_DEFAUT, detailErreur, motifErreur, type ClientMessages } from './fournisseur-anthropic.js';
 import { ErreurFournisseurIA } from './fournisseur-ia.js';
 import { OUTILS, outilsDisponibles } from './outils-assistant.js';
 
@@ -93,6 +93,21 @@ describe('FournisseurAnthropic (client simulé, sans réseau)', () => {
     await expect(session.tour()).rejects.toMatchObject({ motif: 'reseau' });
 
     expect(motifErreur(new Anthropic.APIConnectionTimeoutError())).toBe('delai_depasse');
+
+    // Détail pour les journaux : ce qu'Anthropic reproche (clé, crédit, modèle…).
+    const sansCredit = Anthropic.APIError.generate(
+      400,
+      { type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low to access the Anthropic API.' } },
+      undefined,
+      new Headers({ 'request-id': 'req_42' }),
+    );
+    expect(motifErreur(sansCredit)).toBe('requete_invalide');
+    expect(detailErreur(sansCredit)).toBe(
+      'HTTP 400 invalid_request_error : Your credit balance is too low to access the Anthropic API. (request-id req_42)',
+    );
+    const cleInvalide = Anthropic.APIError.generate(401, { type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } }, undefined, new Headers());
+    expect(detailErreur(cleInvalide)).toBe('HTTP 401 authentication_error : invalid x-api-key');
+    await expect(session.tour()).rejects.toMatchObject({ detail: expect.stringContaining('socket hang up') });
     expect(motifErreur(new Error('autre'))).toBe('inconnu');
   });
 });
