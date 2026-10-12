@@ -61,12 +61,16 @@ export interface FournisseurIA {
 
 /** Panne du fournisseur (réseau, délai, quota, erreur 5xx) : jamais l'erreur brute au client. */
 export class ErreurFournisseurIA extends Error {
+  /** Explication du fournisseur, pour les journaux du serveur uniquement. */
+  readonly detail: string;
+
   constructor(
     readonly motif: string,
-    options?: { cause?: unknown },
+    options: { cause?: unknown; detail?: string } = {},
   ) {
-    super(`Fournisseur IA indisponible : ${motif}`, options);
+    super(`Fournisseur IA indisponible : ${motif}`, { cause: options.cause });
     this.name = 'ErreurFournisseurIA';
+    this.detail = options.detail ?? motif;
   }
 }
 
