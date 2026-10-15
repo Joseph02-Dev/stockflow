@@ -6,11 +6,13 @@ import { App } from './App';
 import { estTropDeRequetes } from './lib/api';
 import { gestionnaireErreursReact, initialiserSurveillance } from './lib/surveillance';
 import { initialiserTheme } from './lib/theme';
+import { installerRepriseApresDeploiement } from './lib/miseAJour';
 import './index.css';
 
 // Avant le premier rendu : une erreur au démarrage doit aussi remonter.
 const surveillanceActive = initialiserSurveillance();
 initialiserTheme();
+installerRepriseApresDeploiement();
 
 const queryClient = new QueryClient({
   defaultOptions: {
