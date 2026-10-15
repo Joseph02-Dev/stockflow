@@ -241,6 +241,7 @@ model Entreprise {
   couchesValorisation CoucheValorisation[]
   abonnementsWebhook  AbonnementWebhook[]
   evenementsWebhook   EvenementWebhook[]
+  notificationsLues   NotificationLue[]
 
   @@map("entreprise")
 }
@@ -293,6 +294,7 @@ model Utilisateur {
   mouvementsAnnules  Mouvement[]         @relation("MouvementAnnulePar")
   retoursFournisseur RetourFournisseur[]
   retoursClient      RetourClient[]
+  notificationsLues  NotificationLue[]
 
   @@index([entrepriseId])
   @@map("utilisateur")
@@ -708,6 +710,28 @@ model Alerte {
 
   @@index([entrepriseId, statut])
   @@map("alerte")
+}
+
+/**
+ * Notification lue par un utilisateur (panneau de la cloche). Les
+ * notifications elles-mêmes sont calculées à la volée (alertes actives,
+ * lots à surveiller) ; seule la lecture est conservée, par clé stable :
+ * « alerte:<id>:<type> » ou « lot:<id>:<tranche> », pour qu'une
+ * aggravation (rupture, lot périmé) redevienne non lue.
+ */
+model NotificationLue {
+  id            String   @id @default(uuid())
+  entrepriseId  String   @map("entreprise_id")
+  utilisateurId String   @map("utilisateur_id")
+  cle           String   @db.VarChar(120)
+  lueLe         DateTime @default(now()) @map("lue_le")
+
+  entreprise  Entreprise  @relation(fields: [entrepriseId], references: [id])
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  @@unique([utilisateurId, cle])
+  @@index([entrepriseId])
+  @@map("notification_lue")
 }
 
 /**

@@ -41,6 +41,7 @@ import { useModules } from '@/lib/useModules';
 import { ADRESSE_AIDE } from '@/lib/contact';
 import { SelecteurTheme } from '@/components/patterns/SelecteurTheme';
 import { AssistantPanel } from '@/features/assistant/AssistantPanel';
+import { ClocheNotifications } from '@/features/notifications/ClocheNotifications';
 import { OngletsSection, type OngletSection } from '@/components/patterns/OngletsSection';
 
 // Navigation en quatre sections : piloter, gérer le stock, s'approvisionner,
@@ -763,24 +764,7 @@ export function AppLayout() {
             >
               <CircleHelp className="size-[18px]" aria-hidden="true" />
             </a>
-            <Link
-              to="/alertes"
-              aria-label={
-                nombreAlertes > 0
-                  ? `Alertes : ${nombreAlertes} active${nombreAlertes > 1 ? 's' : ''}`
-                  : 'Alertes : aucune active'
-              }
-              title="Alertes"
-              className="relative inline-flex size-9 items-center justify-center rounded-md text-steel-700 transition-colors hover:bg-survol hover:text-ink-900"
-            >
-              <Bell className="size-[18px]" aria-hidden="true" />
-              {nombreAlertes > 0 && (
-                <span
-                  className="absolute top-1.5 right-1.5 size-2 rounded-full bg-rupture ring-2 ring-surface"
-                  aria-hidden="true"
-                />
-              )}
-            </Link>
+            <ClocheNotifications />
             <button
               type="button"
               onClick={() => setPlusOuvert(true)}
