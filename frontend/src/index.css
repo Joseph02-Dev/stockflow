@@ -121,7 +121,7 @@
   --radius-xl: 14px;
 
   /* Élévation — deux niveaux seulement : posé (card) et flottant (pop). */
-  --shadow-card: 0 1px 2px rgba(22, 23, 27, 0.05), 0 1px 3px rgba(22, 23, 27, 0.06);
+  --shadow-card: 0 1px 2px rgba(22, 23, 27, 0.04), 0 4px 14px -8px rgba(22, 23, 27, 0.1);
   --shadow-pop: 0 12px 32px -10px rgba(22, 23, 27, 0.22), 0 2px 6px rgba(22, 23, 27, 0.06);
 
   /* Texte courant et interface. */
@@ -135,12 +135,12 @@
   --ease-sortie: cubic-bezier(0.2, 0.8, 0.2, 1);
 
   /* Échelle typographique — interlignage en px, interlettrage en em. */
-  --text-titre: 25px;
-  --text-titre--line-height: 32px;
+  --text-titre: 27px;
+  --text-titre--line-height: 34px;
   --text-titre--letter-spacing: -0.022em;
   --text-titre--font-weight: 600;
 
-  --text-panneau: 14.5px;
+  --text-panneau: 15px;
   --text-panneau--line-height: 20px;
   --text-panneau--letter-spacing: -0.002em;
   --text-panneau--font-weight: 600;
@@ -476,7 +476,69 @@ body {
   animation: feuille-montee 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* Fenêtres : voile qui se fond, modale qui s'approche, tiroir qui glisse. */
+@keyframes voile-entree {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fenetre-entree {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
+@keyframes tiroir-entree {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+.voile-entree {
+  animation: voile-entree 0.2s ease-out;
+}
+.fenetre-entree {
+  animation: fenetre-entree 0.24s var(--ease-sortie);
+}
+.tiroir-entree {
+  animation: tiroir-entree 0.28s var(--ease-sortie);
+}
+
+/*
+ * Champ de saisie (texte, nombre, liste) : bordure et halo cuivre au focus.
+ * Le halo suffit à signaler le focus : pas de contour en plus.
+ */
+.champ {
+  border-radius: var(--radius-md);
+  transition:
+    border-color 150ms ease,
+    box-shadow 200ms var(--ease-sortie),
+    background-color 150ms ease;
+}
+.champ:focus,
+.champ:focus-visible,
+.champ[aria-expanded='true'] {
+  outline: none;
+  border-color: var(--color-action);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-action) 16%, transparent);
+}
+.champ[aria-invalid='true'] {
+  border-color: var(--color-rupture);
+}
+.champ[aria-invalid='true']:focus {
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-rupture) 16%, transparent);
+}
+
+/* Cases à cocher et boutons radio natifs : couleur de la marque. */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--color-action);
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .voile-entree,
+  .fenetre-entree,
+  .tiroir-entree,
   .feuille-montee,
   .entree-page > * > *,
   .entree-page table,

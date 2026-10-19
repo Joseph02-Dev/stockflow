@@ -120,7 +120,7 @@ export function AssistantPanel({ ouvert, onFermer }: { ouvert: boolean; onFermer
             rows={2}
             maxLength={LONGUEUR_MAX}
             placeholder="Ex. combien reste-t-il de sacs de riz ?"
-            className="min-w-0 flex-1 resize-none rounded-md border border-rule-strong bg-surface-elevee px-3 py-2 text-corps text-ink-900 placeholder:text-steel-400"
+            className="min-w-0 flex-1 resize-none champ rounded-md border border-rule-strong bg-surface-elevee px-3 py-2 text-corps text-ink-900 placeholder:text-steel-400"
           />
           <Button type="submit" loading={envoyer.isPending} disabled={!saisie.trim()}>
             Envoyer

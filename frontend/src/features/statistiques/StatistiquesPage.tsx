@@ -269,7 +269,7 @@ export function StatistiquesPage() {
                           setProduitId(e.target.value);
                           setSemaine(null);
                         }}
-                        className="h-9 max-w-[220px] rounded-md border border-rule-strong bg-surface-elevee px-2 text-corps text-ink-900"
+                        className="h-9 max-w-[220px] champ rounded-md border border-rule-strong bg-surface-elevee px-2 text-corps text-ink-900"
                       >
                         {h.produits.map((p) => (
                           <option key={p.id} value={p.id}>

@@ -108,7 +108,9 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
-      <Inbox className="size-8 text-steel-400" aria-hidden="true" />
+      <span className="mb-1 flex size-12 items-center justify-center rounded-xl bg-action-wash text-action ring-1 ring-action/15 ring-inset" aria-hidden="true">
+        <Inbox className="size-6" />
+      </span>
       <p className="text-panneau text-ink-900">{titre}</p>
       {description && <p className="max-w-sm text-corps text-steel-500">{description}</p>}
       {action && <div className="mt-2">{action}</div>}
@@ -119,7 +121,9 @@ export function EmptyState({
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-12 text-center" role="alert">
-      <TriangleAlert className="size-8 text-rupture" aria-hidden="true" />
+      <span className="flex size-12 items-center justify-center rounded-xl bg-rupture-wash text-rupture ring-1 ring-rupture/15 ring-inset" aria-hidden="true">
+        <TriangleAlert className="size-6" />
+      </span>
       <p className="max-w-sm text-corps text-steel-500">{message}</p>
       {onRetry && (
         <Button variant="secondary" onClick={onRetry}>

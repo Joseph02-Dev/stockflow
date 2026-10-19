@@ -159,7 +159,7 @@ export function Fenetre({
   // sinon le repère du position: fixed, et le fond ne couvrirait pas l'écran.
   return createPortal(
     <div className={cn('fixed inset-0 z-50 flex', mobile ? 'items-end' : tiroir ? 'justify-end' : 'items-center justify-center p-4')}>
-      <div className="absolute inset-0 bg-voile/50" onClick={demanderFermeture} aria-hidden="true" />
+      <div className="voile-entree absolute inset-0 bg-voile/50 backdrop-blur-[2px]" onClick={demanderFermeture} aria-hidden="true" />
 
       <div
         ref={dialogueRef}
@@ -172,7 +172,11 @@ export function Fenetre({
         style={mobile ? balayage.style : undefined}
         className={cn(
           'relative flex w-full flex-col bg-surface shadow-pop outline-none',
-          mobile ? 'feuille-montee max-h-[86dvh] rounded-t-xl' : tiroir ? `h-dvh ${largeur}` : `max-h-[86dvh] rounded-xl ${largeur}`,
+          mobile
+            ? 'feuille-montee max-h-[86dvh] rounded-t-xl'
+            : tiroir
+              ? `tiroir-entree h-dvh ${largeur}`
+              : `fenetre-entree max-h-[86dvh] rounded-xl ${largeur}`,
         )}
       >
         {/* En-tête — fixe */}

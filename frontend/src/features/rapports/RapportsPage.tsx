@@ -293,7 +293,7 @@ export function RapportsPage() {
                             value={p[borne]}
                             max={jourIso()}
                             onChange={(e) => maj({ [borne]: e.target.value })}
-                            className="h-10 rounded-[9px] border border-rule-strong bg-surface-elevee px-3 text-corps text-ink-900"
+                            className="h-10 champ rounded-md border border-rule-strong bg-surface-elevee px-3 text-corps text-ink-900"
                           />
                         </label>
                       ))}

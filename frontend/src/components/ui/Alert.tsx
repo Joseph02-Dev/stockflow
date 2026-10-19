@@ -16,10 +16,12 @@ export function Alert({ variant = 'info', children }: { variant?: AlertVariant; 
   return (
     <div
       role={variant === 'error' ? 'alert' : 'status'}
-      className={cn('flex items-start gap-2 rounded-md border px-3 py-2.5 text-corps', classes)}
+      className={cn('apparition flex items-start gap-3 rounded-lg border px-3.5 py-3 text-corps', classes)}
     >
-      <Icon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-      <div>{children}</div>
+      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-current/10" aria-hidden="true">
+        <Icon className="size-4" />
+      </span>
+      <div className="min-w-0 pt-0.5">{children}</div>
     </div>
   );
 }

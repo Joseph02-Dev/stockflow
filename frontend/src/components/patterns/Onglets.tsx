@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { cn } from '@/lib/cn';
+import { PASTILLE, PISTE, SEGMENT, useIndicateurGlissant } from './useIndicateurGlissant';
 
 /**
- * Contrôle segmenté : bascule entre des vues d'un même écran. Segment
- * actif sur l'encre, pour se distinguer des boutons d'action (cuivre).
+ * Contrôle segmenté : bascule entre des vues d'un même écran. Une pastille
+ * claire glisse sous le segment actif ; le cuivre reste aux boutons d'action.
  */
 export function Onglets<C extends string>({
   onglets,
@@ -17,6 +18,8 @@ export function Onglets<C extends string>({
   libelle: string;
 }) {
   const conteneurRef = useRef<HTMLDivElement>(null);
+  const pastilleRef = useRef<HTMLSpanElement>(null);
+  useIndicateurGlissant(conteneurRef, pastilleRef, '[aria-selected="true"]', actif);
 
   // Sur écran étroit le contrôle défile horizontalement : on amène le
   // segment actif dans la zone visible (sans faire défiler la page).
@@ -33,10 +36,11 @@ export function Onglets<C extends string>({
   return (
     <div
       ref={conteneurRef}
-      className="inline-flex max-w-full self-start overflow-x-auto rounded-md border border-rule bg-surface p-0.5"
+      className={cn(PISTE, 'self-start')}
       role="tablist"
       aria-label={libelle}
     >
+      <span ref={pastilleRef} className={PASTILLE} aria-hidden="true" />
       {onglets.map((onglet) => (
         <button
           key={onglet.cle}
@@ -47,8 +51,8 @@ export function Onglets<C extends string>({
           disabled={onglet.desactive}
           title={onglet.desactive ? onglet.raison : undefined}
           className={cn(
-            'h-8 shrink-0 rounded-sm px-3 text-corps font-medium whitespace-nowrap transition-colors',
-            actif === onglet.cle ? 'bg-inverse text-sur-inverse' : 'text-steel-500 hover:text-ink-900',
+            SEGMENT,
+            actif === onglet.cle ? 'font-semibold text-ink-900' : 'font-medium text-steel-500 hover:text-ink-900',
             'disabled:cursor-not-allowed disabled:text-steel-400 disabled:hover:text-steel-400',
           )}
         >

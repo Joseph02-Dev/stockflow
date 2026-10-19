@@ -1,5 +1,7 @@
-import { NavLink } from 'react-router-dom';
+import { useRef } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/cn';
+import { PASTILLE, PISTE, SEGMENT, useIndicateurGlissant } from './useIndicateurGlissant';
 
 export interface OngletSection {
   to: string;
@@ -14,9 +16,14 @@ export interface OngletSection {
  * mais le menu n'a qu'une entrée. Même apparence que le contrôle segmenté.
  */
 export function OngletsSection({ onglets, libelle }: { onglets: OngletSection[]; libelle: string }) {
+  const { pathname } = useLocation();
+  const conteneurRef = useRef<HTMLDivElement>(null);
+  const pastilleRef = useRef<HTMLSpanElement>(null);
+  useIndicateurGlissant(conteneurRef, pastilleRef, '[aria-current="page"]', pathname);
   return (
     <nav aria-label={libelle} className="mb-5">
-      <div className="inline-flex max-w-full overflow-x-auto rounded-md border border-rule bg-surface p-0.5">
+      <div ref={conteneurRef} className={PISTE}>
+        <span ref={pastilleRef} className={PASTILLE} aria-hidden="true" />
         {onglets.map((onglet) => (
           <NavLink
             key={onglet.to}
@@ -24,8 +31,9 @@ export function OngletsSection({ onglets, libelle }: { onglets: OngletSection[];
             end
             className={({ isActive }) =>
               cn(
-                'inline-flex h-8 shrink-0 items-center gap-2 rounded-sm px-3 text-corps font-medium whitespace-nowrap transition-colors',
-                isActive ? 'bg-inverse text-sur-inverse' : 'text-steel-500 hover:text-ink-900',
+                SEGMENT,
+                'inline-flex items-center gap-2',
+                isActive ? 'font-semibold text-ink-900' : 'font-medium text-steel-500 hover:text-ink-900',
               )
             }
           >

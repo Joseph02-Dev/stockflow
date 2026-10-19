@@ -63,7 +63,7 @@ function OptionCarte({
   return (
     <div
       className={cn(
-        'rounded-[9px] border transition-colors',
+        'rounded-md border transition-colors',
         actif ? 'border-action bg-action-wash/40' : 'border-rule-strong',
         desactive && 'opacity-60',
       )}
@@ -229,7 +229,7 @@ export function FormulaireRetourClient({
 
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1.5 text-corps font-medium text-ink-900">Marchandise rapportée</legend>
-          <ul className="divide-y divide-rule rounded-[9px] border border-rule">
+          <ul className="divide-y divide-rule rounded-md border border-rule">
             {vente.lignes.map((l, i) => {
               const q = quantites[i] ?? 0;
               const max = retournables[i];
@@ -269,7 +269,7 @@ export function FormulaireRetourClient({
                           shouldValidate: formState.isSubmitted,
                         });
                       }}
-                      className="h-10 w-16 rounded-[9px] border border-rule-strong bg-surface text-center text-corps font-semibold text-ink-900"
+                      className="champ h-10 w-16 rounded-md border border-rule-strong bg-surface text-center text-corps font-semibold text-ink-900"
                     />
                     <Button
                       type="button"
