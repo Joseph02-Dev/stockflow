@@ -216,7 +216,7 @@ describe("Flux d'invitation AUTH-003 (intégration réelle, base PostgreSQL)", (
       .send({ token, nom: 'Fatoumata Camara', password: 'motdepasse-solide-123' });
 
     const notification = devEmail.getSentEmails().find((e) => e.to === emailAdmin);
-    expect(notification?.subject).toBe('Fatoumata Camara a rejoint votre entreprise sur StockFlow');
+    expect(notification?.subject).toBe('Fatoumata Camara a rejoint votre entreprise sur NimbaFlow');
     expect(notification?.body).toContain(emailInvite);
     expect(notification?.body).toContain('gestionnaire de stock');
   });

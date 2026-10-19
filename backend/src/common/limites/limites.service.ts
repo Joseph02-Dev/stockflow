@@ -69,7 +69,7 @@ export class LimitesService {
         statusCode: 403,
         error: 'Forbidden',
         code: CODE_LIMITE_ATTEINTE,
-        message: `Limite atteinte : votre formule autorise ${limite} ${limite > 1 ? pluriel : singulier}. ${nombre > 1 ? ` Il en reste ${Math.max(0, limite - utilise)}, il en faudrait ${nombre}.` : ''} Contactez StockFlow pour l'augmenter.`,
+        message: `Limite atteinte : votre formule autorise ${limite} ${limite > 1 ? pluriel : singulier}. ${nombre > 1 ? ` Il en reste ${Math.max(0, limite - utilise)}, il en faudrait ${nombre}.` : ''} Contactez NimbaFlow pour l'augmenter.`,
       });
     }
   }

@@ -20,7 +20,7 @@ export type PreferenceTheme = 'light' | 'dark' | 'auto';
 export const CLE_THEME = 'stockflow.theme';
 
 /** Couleur de la barre d'adresse mobile : celle de la barre supérieure. */
-const COULEUR_BARRE = { light: '#ffffff', dark: '#141b28' } as const;
+const COULEUR_BARRE = { light: '#ffffff', dark: '#15161a' } as const;
 
 const DUREE_TRANSITION_MS = 200;
 const EVENEMENT = 'stockflow:theme';

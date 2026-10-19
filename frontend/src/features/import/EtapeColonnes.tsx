@@ -14,7 +14,7 @@ const LIBELLES_SEPARATEUR = { ';': 'point-virgule', ',': 'virgule', '\t': 'tabul
 
 /**
  * Étape 2 — la pièce maîtresse : chaque colonne du fichier, un extrait de
- * sa première valeur, et le champ StockFlow qu'elle alimente.
+ * sa première valeur, et le champ NimbaFlow qu'elle alimente.
  */
 export function EtapeColonnes({
   fichier,
@@ -62,7 +62,7 @@ export function EtapeColonnes({
         <div className="hidden grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_112px] gap-4 border-b border-rule bg-entete-tableau px-5 py-2 text-meta font-medium text-steel-500 md:grid">
           <span>Colonne du fichier</span>
           <span>Première valeur</span>
-          <span>Champ StockFlow</span>
+          <span>Champ NimbaFlow</span>
           <span>État</span>
         </div>
         <ul className="divide-y divide-rule">
@@ -87,7 +87,7 @@ export function EtapeColonnes({
                 </span>
                 <Selecteur
                   id={id}
-                  aria-label={`Champ StockFlow de la colonne ${entete || i + 1}`}
+                  aria-label={`Champ NimbaFlow de la colonne ${entete || i + 1}`}
                   placeholder="Choisir un champ…"
                   attention={etat === 'choisir'}
                   options={[

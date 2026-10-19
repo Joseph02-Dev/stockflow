@@ -220,7 +220,7 @@ export function ImportPage() {
     <div className="flex flex-col gap-5">
       <PageHeader
         titre="Importer un catalogue"
-        description="Votre fichier tel qu’il est : StockFlow s’adapte à ses colonnes. Seul le nom du produit est obligatoire."
+        description="Votre fichier tel qu’il est : NimbaFlow s’adapte à ses colonnes. Seul le nom du produit est obligatoire."
       />
       <FilEtapes etape={etape} />
       {erreur && <Alert variant="error">{erreur}</Alert>}

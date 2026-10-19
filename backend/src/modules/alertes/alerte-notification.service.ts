@@ -47,8 +47,8 @@ export class AlerteNotificationService {
           : `Stock faible : ${produitNom}`;
       const corps =
         type === 'RUPTURE'
-          ? `Le produit "${produitNom}" est en rupture de stock (quantité restante : ${quantite}).\n\nConnectez-vous à StockFlow pour enregistrer un réapprovisionnement.`
-          : `Le stock du produit "${produitNom}" est passé sous son seuil d'alerte (quantité restante : ${quantite}).\n\nConnectez-vous à StockFlow pour enregistrer un réapprovisionnement.`;
+          ? `Le produit "${produitNom}" est en rupture de stock (quantité restante : ${quantite}).\n\nConnectez-vous à NimbaFlow pour enregistrer un réapprovisionnement.`
+          : `Le stock du produit "${produitNom}" est passé sous son seuil d'alerte (quantité restante : ${quantite}).\n\nConnectez-vous à NimbaFlow pour enregistrer un réapprovisionnement.`;
 
       await Promise.all(
         destinataires.map((destinataire) =>

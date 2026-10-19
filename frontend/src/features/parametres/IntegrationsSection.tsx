@@ -105,7 +105,7 @@ export function IntegrationsSection() {
   return (
     <div className="flex max-w-[820px] flex-col gap-4">
       <Card>
-        <PanneauEntete titre="API" meta="Pour relier StockFlow à un autre logiciel" />
+        <PanneauEntete titre="API" meta="Pour relier NimbaFlow à un autre logiciel" />
         <div className="flex flex-col gap-2 p-5 text-corps text-steel-700">
           <p>
             La documentation interactive de l’API (OpenAPI) décrit toutes les routes, leurs paramètres et leurs réponses.

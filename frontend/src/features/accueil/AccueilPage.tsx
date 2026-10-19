@@ -29,7 +29,7 @@ import { DUREE_ESSAI_JOURS, OFFRES, faq, type Offre } from './contenu';
 import { useApparitionAuDefilement } from './useApparition';
 import './accueil.css';
 
-const TITRE_PAGE = 'StockFlow — gestion de stock et de ventes pour commerçants et grossistes';
+const TITRE_PAGE = 'NimbaFlow — gestion de stock et de ventes pour commerçants et grossistes';
 
 const LIENS = [
   { href: '#fonctionnalites', libelle: 'Fonctionnalités' },
@@ -39,7 +39,7 @@ const LIENS = [
 ];
 
 const MAILTO_AIDE = `mailto:${ADRESSE_AIDE}`;
-const MAILTO_OFFRES = `mailto:${ADRESSE_AIDE}?subject=${encodeURIComponent('Offres StockFlow')}`;
+const MAILTO_OFFRES = `mailto:${ADRESSE_AIDE}?subject=${encodeURIComponent('Offres NimbaFlow')}`;
 
 /** Atouts vérifiés dans l'application, affichés sous le titre. */
 const ATOUTS = ['Prix de détail, demi-gros et gros', 'Plusieurs emplacements', 'Mouvements saisis même hors ligne'];
@@ -94,7 +94,7 @@ const VITRINES: Vitrine[] = [
     ],
     image: {
       src: '/accueil/vente.webp',
-      alt: 'Écran « Nouvelle vente » de StockFlow : trois articles au panier, total de 295 000 GNF et choix du mode de paiement.',
+      alt: 'Écran « Nouvelle vente » de NimbaFlow : trois articles au panier, total de 295 000 GNF et choix du mode de paiement.',
       largeur: 1360,
       hauteur: 860,
     },
@@ -112,7 +112,7 @@ const VITRINES: Vitrine[] = [
     ],
     image: {
       src: '/accueil/mobile.webp',
-      alt: 'Liste des produits de StockFlow sur téléphone, avec la quantité en stock et le seuil de chaque produit.',
+      alt: 'Liste des produits de NimbaFlow sur téléphone, avec la quantité en stock et le seuil de chaque produit.',
       largeur: 390,
       hauteur: 844,
       telephone: true,
@@ -131,7 +131,7 @@ const VITRINES: Vitrine[] = [
     ],
     image: {
       src: '/accueil/statistiques.webp',
-      alt: 'Écran « Statistiques » de StockFlow : chiffre d’affaires, ventes et panier moyen sur 30 jours, avec la courbe du chiffre d’affaires.',
+      alt: 'Écran « Statistiques » de NimbaFlow : chiffre d’affaires, ventes et panier moyen sur 30 jours, avec la courbe du chiffre d’affaires.',
       largeur: 1360,
       hauteur: 860,
     },
@@ -393,9 +393,9 @@ export function AccueilPage() {
       {/* ——— Navigation ——— */}
       <header className="sticky top-0 z-40 border-b border-rule/70 bg-surface/85 backdrop-blur-xl backdrop-saturate-150">
         <div className={cn(conteneur, 'flex h-16 items-center justify-between gap-3')}>
-          <Link to="/" className={cn('flex items-center gap-2.5 rounded-md', focusClair)} aria-label="StockFlow, accueil">
+          <Link to="/" className={cn('flex items-center gap-2.5 rounded-md', focusClair)} aria-label="NimbaFlow, accueil">
             <Logo taille={30} />
-            <span className="text-[1.0625rem] font-semibold tracking-[-0.01em] text-ink-900">StockFlow</span>
+            <span className="text-[1.0625rem] font-semibold tracking-[-0.01em] text-ink-900">NimbaFlow</span>
           </Link>
 
           <nav aria-label="Navigation principale" className="hidden items-center gap-0.5 lg:flex">
@@ -527,7 +527,7 @@ export function AccueilPage() {
               <div className="apparition" style={{ animationDelay: '120ms' }}>
                 <CadreNavigateur
                   src="/accueil/tableau-de-bord.webp"
-                  alt="Tableau de bord de StockFlow : deux références sous le seuil, valeur du stock, mouvements de la semaine et produits à réapprovisionner."
+                  alt="Tableau de bord de NimbaFlow : deux références sous le seuil, valeur du stock, mouvements de la semaine et produits à réapprovisionner."
                   largeur={1360}
                   hauteur={860}
                   prioritaire
@@ -535,7 +535,7 @@ export function AccueilPage() {
               </div>
               <CadreTelephone
                 src="/accueil/mobile-vente.webp"
-                alt="Écran de vente de StockFlow sur téléphone, avec le panier et le total."
+                alt="Écran de vente de NimbaFlow sur téléphone, avec le panier et le total."
                 className="apparition absolute -right-1 -bottom-12 hidden w-[150px] sm:block lg:-right-2 lg:w-[176px]"
                 prioritaire
               />
@@ -555,7 +555,7 @@ export function AccueilPage() {
               id="titre-benefices"
               etiquette="Au quotidien"
               titre="Moins de temps à compter, plus de temps pour vos clients."
-              texte="Ce que StockFlow vous évite de chercher dans un cahier ou un tableur."
+              texte="Ce que NimbaFlow vous évite de chercher dans un cahier ou un tableur."
             />
             <ul className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {BENEFICES.map(({ Icone, teinte, titre, texte }, index) => (
@@ -673,12 +673,12 @@ export function AccueilPage() {
             <div className="flex items-end justify-center gap-5" data-apparition="" style={delai(120)}>
               <CadreTelephone
                 src="/accueil/mobile.webp"
-                alt="Liste des produits de StockFlow sur téléphone."
+                alt="Liste des produits de NimbaFlow sur téléphone."
                 className="w-[44%] max-w-[230px] translate-y-6"
               />
               <CadreTelephone
                 src="/accueil/mobile-vente.webp"
-                alt="Nouvelle vente dans StockFlow sur téléphone, avec le total à encaisser."
+                alt="Nouvelle vente dans NimbaFlow sur téléphone, avec le total à encaisser."
                 className="w-[44%] max-w-[230px]"
               />
             </div>
@@ -766,7 +766,7 @@ export function AccueilPage() {
               id="titre-tarifs"
               etiquette="Tarifs"
               titre="Commencez gratuitement."
-              texte="Essayez StockFlow avec vos propres produits. Les offres Standard et Premium seront détaillées prochainement."
+              texte="Essayez NimbaFlow avec vos propres produits. Les offres Standard et Premium seront détaillées prochainement."
               centre
             />
             <ul className="mt-14 grid items-stretch gap-6 md:grid-cols-3">
@@ -889,7 +889,7 @@ export function AccueilPage() {
               Prêt à suivre votre stock sereinement ?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-[1.0625rem] text-white/75">
-              Créez votre espace et essayez StockFlow gratuitement pendant {DUREE_ESSAI_JOURS} jours.
+              Créez votre espace et essayez NimbaFlow gratuitement pendant {DUREE_ESSAI_JOURS} jours.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <Link to="/inscription" className={boutonBlanc}>
@@ -910,7 +910,7 @@ export function AccueilPage() {
           <div className="flex flex-col gap-3 sm:col-span-3 md:col-span-1">
             <span className="flex items-center gap-2.5">
               <Logo taille={28} />
-              <span className="text-[1.0625rem] font-semibold text-ink-900">StockFlow</span>
+              <span className="text-[1.0625rem] font-semibold text-ink-900">NimbaFlow</span>
             </span>
             <p className="max-w-xs text-corps text-steel-700">Gestion de stock et de ventes pour commerçants, grossistes et vendeurs.</p>
           </div>
@@ -932,7 +932,7 @@ export function AccueilPage() {
           ))}
         </div>
         <div className="border-t border-rule">
-          <p className={cn(conteneur, 'py-5 text-meta text-steel-500')}>© {new Date().getFullYear()} StockFlow</p>
+          <p className={cn(conteneur, 'py-5 text-meta text-steel-500')}>© {new Date().getFullYear()} NimbaFlow</p>
         </div>
       </footer>
     </div>

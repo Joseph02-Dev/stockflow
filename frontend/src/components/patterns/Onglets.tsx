@@ -3,7 +3,7 @@ import { cn } from '@/lib/cn';
 
 /**
  * Contrôle segmenté : bascule entre des vues d'un même écran. Segment
- * actif sur l'encre, pour se distinguer des boutons d'action (ultramarine).
+ * actif sur l'encre, pour se distinguer des boutons d'action (cuivre).
  */
 export function Onglets<C extends string>({
   onglets,

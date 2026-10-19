@@ -6,7 +6,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { TenantContextService, type RequestContext } from '../context/tenant-context.service.js';
 
 /**
- * Payload attendu à l'intérieur d'un access token JWT StockFlow.
+ * Payload attendu à l'intérieur d'un access token JWT NimbaFlow.
  * Émis par le module Auth lors de la connexion (AUTH-002, ticket suivant).
  */
 interface JwtPayload {

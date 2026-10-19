@@ -40,7 +40,7 @@ export function ConsoleLayout() {
         <div className="flex h-[60px] items-center justify-center gap-2.5 border-b border-white/[0.06] px-3 xl:justify-start xl:px-4">
           <Logo taille={28} />
           <div className="hidden min-w-0 leading-tight xl:block">
-            <p className="text-panneau text-white">StockFlow</p>
+            <p className="text-panneau text-white">NimbaFlow</p>
             <p className="text-meta text-console-clair">Console opérateur</p>
           </div>
         </div>

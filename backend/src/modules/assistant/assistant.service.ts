@@ -96,7 +96,7 @@ export class AssistantService {
       Sentry.captureException(erreur);
       throw new ServiceUnavailableException({
         code: 'ASSISTANT_INDISPONIBLE',
-        message: 'L’assistant est momentanément indisponible. Le reste de StockFlow fonctionne normalement : réessayez dans quelques minutes.',
+        message: 'L’assistant est momentanément indisponible. Le reste de NimbaFlow fonctionne normalement : réessayez dans quelques minutes.',
       });
     }
 

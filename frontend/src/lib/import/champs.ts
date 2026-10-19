@@ -1,5 +1,5 @@
 /**
- * Champs StockFlow qu'une colonne importée peut alimenter (mêmes clés que
+ * Champs NimbaFlow qu'une colonne importée peut alimenter (mêmes clés que
  * le serveur : backend/src/modules/import/normalisation.ts) et
  * reconnaissance automatique des en-têtes réels.
  */

@@ -3,7 +3,7 @@ import { montantTexte, texteRecu, type VentePourRecu } from './recu';
 /**
  * WhatsApp sans API : un lien https://wa.me/<numéro>?text=<texte>, ouvert
  * dans un nouvel onglet — l'application sur mobile, WhatsApp Web sur
- * ordinateur. Aucun message n'est envoyé par StockFlow lui-même.
+ * ordinateur. Aucun message n'est envoyé par NimbaFlow lui-même.
  */
 
 /** « +224 622-45 18 03 » → « 224622451803 » : chiffres seuls, indicatif compris. */

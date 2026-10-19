@@ -102,6 +102,7 @@ export class LivreurWebhooks {
           signal: AbortSignal.timeout(DELAI_REPONSE_MS),
           headers: {
             'Content-Type': 'application/json',
+            // En-têtes gardés au nom d'origine : les intégrations existantes les vérifient.
             'User-Agent': 'StockFlow-Webhooks/1.0',
             'X-StockFlow-Evenement': evenement.type,
             'X-StockFlow-Livraison': livraison.id,

@@ -4,7 +4,7 @@
  * serveur, que chaque valeur est interprétée et validée.
  */
 
-/** Champs StockFlow qu'une colonne du fichier peut alimenter. */
+/** Champs NimbaFlow qu'une colonne du fichier peut alimenter. */
 export const CHAMPS_IMPORT = [
   'nom',
   'reference',

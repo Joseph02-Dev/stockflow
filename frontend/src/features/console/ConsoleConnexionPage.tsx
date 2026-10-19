@@ -53,7 +53,7 @@ export function ConsoleConnexionPage() {
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center justify-center gap-2.5">
           <Logo taille={32} />
-          <span className="text-panneau text-white">StockFlow</span>
+          <span className="text-panneau text-white">NimbaFlow</span>
           <span className="rounded-full bg-console px-2 py-0.5 text-meta font-medium text-sur-couleur">Console</span>
         </div>
 

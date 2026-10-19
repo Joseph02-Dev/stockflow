@@ -41,7 +41,7 @@ export class ResendEmailService implements EmailService {
       throw new Error('RESEND_API_KEY est requis quand EMAIL_PROVIDER=resend.');
     }
     this.client = client ?? new Resend(apiKey);
-    this.expediteur = process.env.EMAIL_FROM ?? 'StockFlow <onboarding@resend.dev>';
+    this.expediteur = process.env.EMAIL_FROM ?? 'NimbaFlow <onboarding@resend.dev>';
     this.adresseReponse = process.env.EMAIL_REPLY_TO || undefined;
   }
 

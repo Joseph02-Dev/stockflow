@@ -1,6 +1,6 @@
 /**
  * Mise en forme des emails transactionnels : une version HTML (charte
- * StockFlow) et une version texte équivalente, envoyées ensemble. La version
+ * NimbaFlow) et une version texte équivalente, envoyées ensemble. La version
  * texte sert aux messageries qui n'affichent pas le HTML et améliore la
  * délivrabilité.
  *
@@ -19,13 +19,13 @@ export interface ContenuEmail {
 }
 
 const COULEURS = {
-  fond: '#f2f4f7',
+  fond: '#f4f5f2',
   surface: '#ffffff',
-  bordure: '#e4e7ec',
-  encre: '#0b0f17',
-  texte: '#344054',
-  secondaire: '#5a6678',
-  action: '#2242c7',
+  bordure: '#e3e4df',
+  encre: '#15161a',
+  texte: '#3a3d45',
+  secondaire: '#5d616b',
+  action: '#c2440b',
 } as const;
 
 const POLICE = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
@@ -65,7 +65,7 @@ function enTete(site: string): string {
     : '';
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
     ${logo ? `<td style="padding-right:10px;vertical-align:middle;">${logo}</td>` : ''}
-    <td style="vertical-align:middle;font-family:${POLICE};font-size:18px;font-weight:700;color:${COULEURS.encre};">StockFlow</td>
+    <td style="vertical-align:middle;font-family:${POLICE};font-size:18px;font-weight:700;color:${COULEURS.encre};">NimbaFlow</td>
   </tr></table>`;
 }
 
@@ -114,7 +114,7 @@ function html(contenu: ContenuEmail, site: string): string {
         </p>
       </td></tr>
       <tr><td align="center" style="padding:24px 16px 0;font-family:${POLICE};font-size:12px;line-height:18px;color:${COULEURS.secondaire};">
-        StockFlow — gestion de stock${domaine ? ` · <a href="${echapperHtml(site)}" target="_blank" style="color:${COULEURS.secondaire};">${echapperHtml(domaine)}</a>` : ''}<br>
+        NimbaFlow — gestion de stock${domaine ? ` · <a href="${echapperHtml(site)}" target="_blank" style="color:${COULEURS.secondaire};">${echapperHtml(domaine)}</a>` : ''}<br>
         ${pied(process.env.EMAIL_REPLY_TO)}
       </td></tr>
     </table>

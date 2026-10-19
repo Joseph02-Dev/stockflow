@@ -353,7 +353,7 @@ export class AuthService {
 
     const role = LIBELLE_ROLE[membre.role].toLowerCase();
     const contenu = composerEmail({
-      apercu: `${membre.nom} a rejoint votre entreprise sur StockFlow.`,
+      apercu: `${membre.nom} a rejoint votre entreprise sur NimbaFlow.`,
       titre: `${membre.nom} a rejoint votre équipe`,
       paragraphes: [
         `${membre.nom} (${membre.email}) a accepté votre invitation et rejoint votre entreprise en tant que ${role}.`,
@@ -364,7 +364,7 @@ export class AuthService {
     });
     await Promise.all(
       destinataires.map((admin) =>
-        this.emailService.send({ to: admin.email, subject: `${membre.nom} a rejoint votre entreprise sur StockFlow`, ...contenu }),
+        this.emailService.send({ to: admin.email, subject: `${membre.nom} a rejoint votre entreprise sur NimbaFlow`, ...contenu }),
       ),
     );
   }
@@ -403,7 +403,7 @@ export class AuthService {
       const lienBase = process.env.FRONTEND_URL ?? '';
       await this.emailService.send({
         to: utilisateur.email,
-        subject: 'Réinitialisation de votre mot de passe StockFlow',
+        subject: 'Réinitialisation de votre mot de passe NimbaFlow',
         body: `Une réinitialisation de mot de passe a été demandée pour ce compte.\n\nLien : ${lienBase}/reinitialiser-mot-de-passe?token=${token}\n\nCe lien expire dans 30 minutes. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email — votre mot de passe reste inchangé.`,
       });
     }
@@ -503,13 +503,13 @@ export class AuthService {
     const lienBase = process.env.FRONTEND_URL ?? '';
     await this.emailService.send({
       to: email,
-      subject: 'Confirmez votre adresse email StockFlow',
+      subject: 'Confirmez votre adresse email NimbaFlow',
       ...composerEmail({
         apercu: 'Un clic pour activer votre compte et terminer la création de votre espace.',
-        titre: 'Bienvenue sur StockFlow',
+        titre: 'Bienvenue sur NimbaFlow',
         paragraphes: [
           'Merci pour votre inscription. Confirmez votre adresse email pour activer votre compte.',
-          'Vous serez ensuite redirigé vers StockFlow pour terminer la configuration de votre entreprise.',
+          'Vous serez ensuite redirigé vers NimbaFlow pour terminer la configuration de votre entreprise.',
         ],
         bouton: { libelle: 'Confirmer mon adresse email', url: `${lienBase}/verifier-email?token=${token}` },
         mentions: [

@@ -354,8 +354,8 @@ export function documentRapport(
     info: {
       title: `${meta.titre} — ${entreprise.nom}`,
       author: entreprise.nom,
-      creator: 'StockFlow',
-      producer: 'StockFlow',
+      creator: 'NimbaFlow',
+      producer: 'NimbaFlow',
     },
     // Construit dans le fil de rendu (pagination) : rendu.worker.mjs.
     piedDePage: `${meta.titre} — ${entreprise.nom}`,

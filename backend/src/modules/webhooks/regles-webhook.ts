@@ -30,7 +30,7 @@ export function delaiAvantNouvelleTentative(tentatives: number): number {
 }
 
 /**
- * Adresse vers laquelle StockFlow ne doit jamais envoyer de requête :
+ * Adresse vers laquelle NimbaFlow ne doit jamais envoyer de requête :
  * boucle locale, réseaux privés, lien local (métadonnées des clouds),
  * CGNAT, adresses non routables — sans quoi un webhook servirait à
  * sonder le réseau interne de l'hébergeur (SSRF).

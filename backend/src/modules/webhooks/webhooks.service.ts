@@ -76,7 +76,7 @@ export class WebhooksService {
       data: {
         entrepriseId,
         type: EVENEMENT_TEST,
-        charge: { message: 'Test depuis StockFlow' },
+        charge: { message: 'Test depuis NimbaFlow' },
         livraisons: { create: [{ abonnementId: id }] },
       },
       select: { id: true },

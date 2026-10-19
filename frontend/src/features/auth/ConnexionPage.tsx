@@ -89,7 +89,7 @@ export function ConnexionPage() {
   return (
     <AuthLayout
       titre="Connexion"
-      description="Accédez à votre espace StockFlow."
+      description="Accédez à votre espace NimbaFlow."
       panneauGauche={
         <div className="flex flex-col gap-8">
           <div>
