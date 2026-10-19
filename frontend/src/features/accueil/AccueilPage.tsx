@@ -224,22 +224,34 @@ const delai = (ms: number) => ({ '--delai': `${ms}ms` }) as CSSProperties;
 const conteneur = 'mx-auto w-full max-w-6xl px-4 sm:px-6';
 const focusClair = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action';
 const focusSombre = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
+// Même grammaire que les boutons de l'application : relief, soulèvement au
+// survol, enfoncement à l'appui, flèche qui avance (groupe).
+const geste =
+  'group transition-[color,background-color,box-shadow,transform] duration-150 ease-sortie hover:-translate-y-px active:translate-y-0 active:scale-[0.98] motion-reduce:transform-none';
 const boutonPrincipal = cn(
-  'inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-action px-5 text-[0.9375rem] font-semibold text-sur-couleur transition-colors hover:bg-action-dark',
+  'bouton-relief inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-action px-5 text-[0.9375rem] font-semibold text-sur-couleur hover:bg-action-dark',
+  geste,
   focusClair,
 );
 const boutonSecondaire = cn(
-  'inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-rule-strong bg-surface px-5 text-[0.9375rem] font-semibold text-ink-900 transition-colors hover:bg-survol',
+  'inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-rule-strong bg-surface px-5 text-[0.9375rem] font-semibold text-ink-900 shadow-card hover:border-steel-400 hover:bg-survol',
+  geste,
   focusClair,
 );
+/** Bouton principal posé sur l'encre : cuivre en relief, la couleur de l'action. */
 const boutonBlanc = cn(
-  'inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-white px-6 text-[0.9375rem] font-semibold whitespace-nowrap text-voile transition-colors hover:bg-craie',
+  'bouton-relief inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-action px-6 text-[0.9375rem] font-semibold whitespace-nowrap text-sur-couleur hover:bg-action-dark',
+  geste,
   focusSombre,
 );
+/** Bouton secondaire posé sur l'encre : verre dépoli. */
 const boutonContour = cn(
-  'inline-flex h-12 items-center justify-center rounded-lg px-6 text-[0.9375rem] font-semibold whitespace-nowrap text-white ring-1 ring-white/25 transition-colors hover:bg-white/10',
+  'inline-flex h-12 items-center justify-center rounded-lg bg-white/[0.06] px-6 text-[0.9375rem] font-semibold whitespace-nowrap text-white ring-1 ring-white/20 backdrop-blur-sm hover:bg-white/[0.12]',
+  geste,
   focusSombre,
 );
+/** Flèche des boutons : avance au survol. */
+const fleche = 'size-4 transition-transform duration-200 ease-sortie group-hover:translate-x-0.5';
 const lienNav = cn(
   'rounded-md px-3 py-2 text-corps font-medium text-steel-700 transition-colors hover:bg-survol hover:text-ink-900',
   focusClair,
@@ -254,7 +266,7 @@ function Etiquette({ children, sombre = false }: { children: ReactNode; sombre?:
         sombre ? 'bg-white/10 text-white/85 ring-1 ring-white/15' : 'bg-action-wash text-action',
       )}
     >
-      <span className={cn('size-1.5 rounded-full', sombre ? 'bg-[#7fd6c0]' : 'bg-action')} aria-hidden="true" />
+      <span className={cn('size-1.5 rounded-full', sombre ? 'bg-action-clair' : 'bg-action')} aria-hidden="true" />
       {children}
     </p>
   );
@@ -335,12 +347,38 @@ function CadreTelephone({ src, alt, className, prioritaire = false }: { src: str
 }
 
 /** Étiquette flottante du hero : purement décorative, masquée aux lecteurs d'écran. */
+/** Mots du titre : ce que chaque commerçant gère, au fil des secondes. */
+const MOTS_HERO = ['stock,', 'dépôt,', 'magasin,', 'caisse,'] as const;
+
+/**
+ * Mot qui glisse vers le haut et cède la place au suivant toutes les
+ * 2,6 s. Décoratif : le titre complet est lu une seule fois par les
+ * lecteurs d'écran. Immobile sous prefers-reduced-motion.
+ */
+function MotTournant({ mots }: { mots: readonly string[] }) {
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const minuterie = window.setInterval(() => setIndex((i) => (i + 1) % mots.length), 2600);
+    return () => window.clearInterval(minuterie);
+  }, [mots.length]);
+  return (
+    <span className="mot-tournant">
+      {mots.map((mot, i) => (
+        <span key={mot} data-etat={i === index ? 'actif' : i === (index - 1 + mots.length) % mots.length ? 'sortant' : 'attente'}>
+          {mot}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function Pastille({ Icone, texte, teinte, className }: { Icone: typeof Bell; texte: string; teinte: string; className: string }) {
   return (
     <div
       aria-hidden="true"
       className={cn(
-        'absolute hidden items-center gap-2 rounded-full bg-surface px-3 py-2 text-meta font-semibold text-ink-900 shadow-pop ring-1 ring-rule lg:flex',
+        'pastille-flottante absolute hidden items-center gap-2 rounded-full bg-surface px-3 py-2 text-meta font-semibold text-ink-900 shadow-pop ring-1 ring-rule lg:flex',
         className,
       )}
     >
@@ -421,7 +459,7 @@ export function AccueilPage() {
               )}
             >
               Essai gratuit
-              <ArrowRight className="size-4" aria-hidden="true" />
+              <ArrowRight className={fleche} aria-hidden="true" />
             </Link>
             <button
               type="button"
@@ -492,7 +530,12 @@ export function AccueilPage() {
                 id="titre-accueil"
                 className="text-[2.5rem] leading-[1.04] font-semibold tracking-[-0.035em] text-white sm:text-[3.25rem] lg:text-[3.75rem]"
               >
-                Votre stock, <span className="accueil-surligne">toujours sous contrôle.</span>
+                <span className="sr-only">Votre stock, toujours sous contrôle.</span>
+                <span aria-hidden="true">
+                  Votre <MotTournant mots={MOTS_HERO} />
+                  <br />
+                  <span className="accueil-surligne">toujours sous contrôle.</span>
+                </span>
               </h1>
               <p className="max-w-xl text-[1.125rem] leading-relaxed text-white/75">
                 Produits, entrées, sorties et ventes dans un espace unique, sur ordinateur ou sur téléphone. Le stock se met à
@@ -501,7 +544,7 @@ export function AccueilPage() {
               <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap">
                 <Link to="/inscription" className={boutonBlanc}>
                   Commencer l’essai gratuit
-                  <ArrowRight className="size-4" aria-hidden="true" />
+                  <ArrowRight className={fleche} aria-hidden="true" />
                 </Link>
                 <a href="#fonctionnalites" className={boutonContour}>
                   Voir les fonctionnalités
@@ -516,7 +559,7 @@ export function AccueilPage() {
               <ul className="mt-2 flex w-full flex-col gap-2.5 border-t border-white/10 pt-6 sm:flex-row sm:flex-wrap sm:gap-x-6">
                 {ATOUTS.map((atout) => (
                   <li key={atout} className="flex items-center gap-2 text-corps text-white/80">
-                    <Check className="size-4 shrink-0 text-[#7fd6c0]" aria-hidden="true" />
+                    <Check className="size-4 shrink-0 text-action-clair" aria-hidden="true" />
                     {atout}
                   </li>
                 ))}
@@ -563,7 +606,7 @@ export function AccueilPage() {
                   key={titre}
                   data-apparition=""
                   style={delai(index * 70)}
-                  className="carte-vivante flex flex-col gap-4 rounded-2xl border border-rule bg-surface p-6"
+                  className="carte-vivante flex flex-col gap-4 rounded-xl border border-rule bg-surface p-6"
                 >
                   <span className={cn('flex size-11 items-center justify-center rounded-xl', teinte)}>
                     <Icone className="size-5" aria-hidden="true" />
@@ -663,7 +706,7 @@ export function AccueilPage() {
                 {MOBILE.map(({ Icone, texte }) => (
                   <li key={texte} className="flex items-start gap-3 text-corps text-white/85">
                     <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/15">
-                      <Icone className="size-4 text-[#7fd6c0]" aria-hidden="true" />
+                      <Icone className="size-4 text-action-clair" aria-hidden="true" />
                     </span>
                     {texte}
                   </li>
@@ -695,7 +738,7 @@ export function AccueilPage() {
                   key={titre}
                   data-apparition=""
                   style={delai((index % 3) * 60)}
-                  className="carte-vivante flex gap-4 rounded-2xl border border-rule bg-surface p-5"
+                  className="carte-vivante flex gap-4 rounded-xl border border-rule bg-surface p-5"
                 >
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-paper text-action ring-1 ring-rule">
                     <Icone className="size-5" aria-hidden="true" />
@@ -708,7 +751,7 @@ export function AccueilPage() {
               ))}
             </ul>
 
-            <div className="mt-10 rounded-2xl border border-dashed border-rule-strong bg-surface p-6 md:p-8" data-apparition="">
+            <div className="mt-10 rounded-xl border border-dashed border-rule-strong bg-surface p-6 md:p-8" data-apparition="">
               <div className="flex flex-col gap-1 md:flex-row md:items-baseline md:justify-between md:gap-6">
                 <h3 className="text-[1.0625rem] font-semibold text-ink-900">Modules à activer selon votre métier</h3>
                 <p className="text-meta text-steel-500">L’administrateur les active dans Paramètres › Modules.</p>
@@ -742,7 +785,7 @@ export function AccueilPage() {
                     style={delai(index * 90)}
                   >
                     <span
-                      className="flex size-12 items-center justify-center rounded-2xl bg-action text-[1.125rem] font-semibold text-sur-couleur shadow-pop ring-4 ring-surface"
+                      className="flex size-12 items-center justify-center rounded-xl bg-action text-[1.125rem] font-semibold text-sur-couleur shadow-pop ring-4 ring-surface"
                       aria-hidden="true"
                     >
                       {index + 1}
@@ -779,7 +822,7 @@ export function AccueilPage() {
                     data-apparition=""
                     style={delai(index * 80)}
                     className={cn(
-                      'carte-vivante relative flex flex-col rounded-2xl p-7',
+                      'carte-vivante relative flex flex-col rounded-xl p-7',
                       essai ? 'offre-phare shadow-pop' : 'border border-rule bg-surface',
                     )}
                   >
@@ -820,7 +863,7 @@ export function AccueilPage() {
                       {essai ? (
                         <Link to="/inscription" className={cn(boutonPrincipal, 'w-full')}>
                           Commencer l’essai
-                          <ArrowRight className="size-4" aria-hidden="true" />
+                          <ArrowRight className={fleche} aria-hidden="true" />
                         </Link>
                       ) : (
                         <a href={MAILTO_OFFRES} className={cn(boutonSecondaire, 'w-full')}>
@@ -841,7 +884,7 @@ export function AccueilPage() {
           <div className={cn(conteneur, 'grid gap-12 lg:grid-cols-[0.9fr_1.4fr] lg:gap-16')}>
             <div className="flex flex-col gap-6">
               <TitreSection id="titre-faq" etiquette="Questions fréquentes" titre="Vos questions, nos réponses." />
-              <div className="rounded-2xl bg-paper p-6 ring-1 ring-rule" data-apparition="">
+              <div className="rounded-xl bg-paper p-6 ring-1 ring-rule" data-apparition="">
                 <p className="text-[1rem] font-semibold text-ink-900">Une autre question ?</p>
                 <p className="mt-1 text-corps text-steel-700">Écrivez-nous, nous vous répondrons par email.</p>
                 <a
@@ -894,7 +937,7 @@ export function AccueilPage() {
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <Link to="/inscription" className={boutonBlanc}>
                 Créer mon compte
-                <ArrowRight className="size-4" aria-hidden="true" />
+                <ArrowRight className={fleche} aria-hidden="true" />
               </Link>
               <Link to="/connexion" className={boutonContour}>
                 J’ai déjà un compte
