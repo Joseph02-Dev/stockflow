@@ -11,6 +11,7 @@ export function useIndicateurGlissant(
   indicateurRef: RefObject<HTMLElement | null>,
   selecteurActif: string,
   cle: unknown,
+  axe: 'x' | 'y' = 'x',
 ) {
   useLayoutEffect(() => {
     const conteneur = conteneurRef.current;
@@ -20,18 +21,32 @@ export function useIndicateurGlissant(
       const actif = conteneur.querySelector<HTMLElement>(selecteurActif);
       indicateur.style.opacity = actif ? '1' : '0';
       if (!actif) return;
-      indicateur.style.width = `${actif.offsetWidth}px`;
-      indicateur.style.transform = `translateX(${actif.offsetLeft}px)`;
+      if (axe === 'x') {
+        indicateur.style.width = `${actif.offsetWidth}px`;
+        indicateur.style.transform = `translateX(${actif.offsetLeft}px)`;
+      } else {
+        indicateur.style.height = `${actif.offsetHeight}px`;
+        indicateur.style.transform = `translateY(${actif.offsetTop}px)`;
+      }
     };
     placer();
     const image = requestAnimationFrame(() => indicateur.setAttribute('data-pret', ''));
-    const observateur = new ResizeObserver(placer);
-    observateur.observe(conteneur);
+    const taille = new ResizeObserver(placer);
+    taille.observe(conteneur);
+    // Entrées ajoutées ou retirées (modules chargés), ou entrée active changée.
+    const contenu = new MutationObserver(placer);
+    contenu.observe(conteneur, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['aria-current', 'aria-selected'],
+    });
     return () => {
       cancelAnimationFrame(image);
-      observateur.disconnect();
+      taille.disconnect();
+      contenu.disconnect();
     };
-  }, [conteneurRef, indicateurRef, selecteurActif, cle]);
+  }, [conteneurRef, indicateurRef, selecteurActif, cle, axe]);
 }
 
 /** Classes communes : piste, pastille, segment. */

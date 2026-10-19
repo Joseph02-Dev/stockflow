@@ -5,6 +5,7 @@ import { api, messageErreur } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { formatCompact, formatNombre } from '@/lib/format';
 import { Card, PageHeader, PanneauEntete } from '@/components/patterns/Page';
+import { Compteur } from '@/components/patterns/Compteur';
 import { Onglets } from '@/components/patterns/Onglets';
 import { EmptyState, ErrorState, Squelette } from '@/components/patterns/States';
 import { Anneau, Chandeliers, CourbeTendance, Sparkline, type PartAnneau } from './graphiques';
@@ -117,6 +118,9 @@ function BadgeVariation({ valeur, fond = true }: { valeur: number | null; fond?:
  * période précédente (façon cours de bourse), chandeliers du stock d'un
  * produit, plus fortes hausses et baisses, répartitions en anneaux.
  */
+
+const formatDecimal = (n: number) => n.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+
 export function StatistiquesPage() {
   const [periode, setPeriode] = useState<Periode>('30j');
   const [produitId, setProduitId] = useState<string | undefined>();
@@ -214,14 +218,15 @@ export function StatistiquesPage() {
                       </div>
                       <div className="flex items-end justify-between gap-2">
                         <p className="flex flex-wrap items-baseline gap-1.5">
-                          <span className="font-mono text-[22px] font-medium tracking-tight text-ink-900">
-                            {k.c.valeur === null
-                              ? '—'
-                              : k.decimales
-                                ? k.c.valeur.toLocaleString('fr-FR', {
-                                    maximumFractionDigits: 2,
-                                  })
-                                : formatNombre(k.c.valeur)}
+                          <span className="text-chiffre text-ink-900">
+                            {k.c.valeur === null ? (
+                              '—'
+                            ) : (
+                              <Compteur
+                                valeur={k.c.valeur}
+                                format={k.decimales ? formatDecimal : formatNombre}
+                              />
+                            )}
                           </span>
                           {k.c.valeur !== null && <span className="text-meta text-steel-500">{k.unite}</span>}
                         </p>
