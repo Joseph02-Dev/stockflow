@@ -43,6 +43,7 @@ import { SelecteurTheme } from '@/components/patterns/SelecteurTheme';
 import { AssistantPanel } from '@/features/assistant/AssistantPanel';
 import { ClocheNotifications } from '@/features/notifications/ClocheNotifications';
 import { OngletsSection, type OngletSection } from '@/components/patterns/OngletsSection';
+import { useIndicateurGlissant } from '@/components/patterns/useIndicateurGlissant';
 
 // Navigation en quatre sections : piloter, gérer le stock, s'approvisionner,
 // organiser. Les liens réservés à l'Admin (Paramètres et ses onglets) et
@@ -265,7 +266,8 @@ function LienNav({
       'relative flex h-9 shrink-0 items-center rounded-lg text-corps font-medium transition-colors',
       'focus-visible:outline-white/70',
       replie ? 'justify-center' : 'gap-2.5 px-2.5',
-      actif ? 'bg-white/10 text-white' : 'text-white/65 hover:bg-white/5 hover:text-white',
+      // Le fond de l'entrée active est la pastille glissante de la barre (voir AppLayout).
+      actif ? 'text-white' : 'text-white/65 hover:bg-white/5 hover:text-white',
     );
 
   const contenu = (actif: boolean) => (
@@ -347,6 +349,9 @@ export function AppLayout() {
   const [bulle, setBulle] = useState<Bulle | null>(null);
   const [menuProfilOuvert, setMenuProfilOuvert] = useState(false);
   const menuProfilRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const pastilleNavRef = useRef<HTMLSpanElement>(null);
+  useIndicateurGlissant(navRef, pastilleNavRef, 'a[aria-current="page"]', `${location.pathname}|${replie}`, 'y');
 
   function basculerBarre() {
     setBulle(null);
@@ -556,13 +561,23 @@ export function AppLayout() {
 
           {/* Groupes séparés par un filet : les icônes suffisent à les distinguer, sans intitulés. */}
           <nav
+            ref={navRef}
             className={cn(
-              'flex flex-1 flex-col overflow-x-hidden overflow-y-auto pb-3 [scrollbar-color:rgb(255_255_255/0.2)_transparent] [scrollbar-width:thin]',
+              'relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto pb-3 [scrollbar-color:rgb(255_255_255/0.2)_transparent] [scrollbar-width:thin]',
               replie ? 'px-2' : 'px-3',
             )}
             aria-label="Navigation principale"
             onScroll={() => setBulle(null)}
           >
+            {/* Pastille de l'entrée active : glisse d'une entrée à l'autre. */}
+            <span
+              ref={pastilleNavRef}
+              aria-hidden="true"
+              className={cn(
+                'pointer-events-none absolute top-0 rounded-lg bg-white/10 shadow-[inset_2px_0_0_var(--color-action-clair)] data-[pret]:transition-[transform,height] data-[pret]:duration-300 data-[pret]:ease-sortie motion-reduce:transition-none',
+                replie ? 'inset-x-2' : 'inset-x-3',
+              )}
+            />
             {sectionsNav.map((section) => {
               const liens = section.liens.filter(
                 (lien) =>

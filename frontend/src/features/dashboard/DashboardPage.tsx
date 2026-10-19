@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -15,6 +15,7 @@ import { cn } from '@/lib/cn';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, PanneauEntete } from '@/components/patterns/Page';
+import { Compteur } from '@/components/patterns/Compteur';
 import { ErrorState, LoadingState, Squelette } from '@/components/patterns/States';
 import { NiveauStock } from '@/components/patterns/NiveauStock';
 import { Vignette } from '@/components/patterns/Vignette';
@@ -181,7 +182,9 @@ export function DashboardPage() {
             ].map((mesure) => (
               <div key={mesure.libelle} className={cn('flex flex-col-reverse border-l-2 pl-3', mesure.filet)}>
                 <dt className="text-meta text-white/65">{mesure.libelle}</dt>
-                <dd className="text-chiffre">{mesure.valeur}</dd>
+                <dd className="text-chiffre">
+                  <Compteur valeur={mesure.valeur} format={formatNombre} />
+                </dd>
               </div>
             ))}
           </dl>
@@ -205,7 +208,8 @@ export function DashboardPage() {
           <div className="min-w-0">
             <p className="text-meta text-steel-500">Valeur immobilisée</p>
             <p className="mt-1 text-chiffre text-ink-900">
-              {formatNombre(calculs.valeur)} <span className="text-corps font-medium text-steel-400">GNF</span>
+              <Compteur valeur={calculs.valeur} format={formatNombre} />{' '}
+              <span className="text-corps font-medium text-steel-400">GNF</span>
             </p>
             <p className="mt-1 text-meta text-steel-400">
               {calculs.sansPrix > 0
@@ -217,8 +221,8 @@ export function DashboardPage() {
             {calculs.serie.map((v, i) => (
               <span
                 key={i}
-                className={cn('w-[6px] rounded-[2px]', i === NB_BARRES - 1 ? 'bg-action' : 'bg-action/25')}
-                style={{ height: `${Math.max(12, (v / maxSerie) * 100)}%` }}
+                className={cn('barre-croissance w-[6px] rounded-[2px]', i === NB_BARRES - 1 ? 'bg-action' : 'bg-action/25')}
+                style={{ height: `${Math.max(12, (v / maxSerie) * 100)}%`, '--i': i } as CSSProperties}
               />
             ))}
           </div>
@@ -226,7 +230,9 @@ export function DashboardPage() {
 
         <div className="bg-surface px-4 py-4 sm:px-5">
           <p className="text-meta text-steel-500">Mouvements 7 jours</p>
-          <p className="mt-1 text-chiffre text-ink-900">{formatNombre(kpi.mouvements7Jours)}</p>
+          <p className="mt-1 text-chiffre text-ink-900">
+            <Compteur valeur={kpi.mouvements7Jours} format={formatNombre} />
+          </p>
           <p
             className={cn(
               'mt-1 flex items-center gap-1 text-meta',
@@ -245,7 +251,9 @@ export function DashboardPage() {
 
         <div className="bg-surface px-4 py-4 sm:px-5">
           <p className="text-meta text-steel-500">Références actives</p>
-          <p className="mt-1 text-chiffre text-ink-900">{formatNombre(kpi.produitsActifs)}</p>
+          <p className="mt-1 text-chiffre text-ink-900">
+            <Compteur valeur={kpi.produitsActifs} format={formatNombre} />
+          </p>
           <p className="mt-1 text-meta text-steel-400">
             {formatNombre(kpi.quantiteTotaleEnStock)} {pluriel('unité', kpi.quantiteTotaleEnStock)} en stock
           </p>

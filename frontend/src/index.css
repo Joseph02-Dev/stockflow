@@ -403,7 +403,6 @@ body {
 .entree-page > * > :nth-child(n + 6) { animation-delay: 240ms; }
 
 /* Contenu qui remplace un squelette dans un bloc déjà affiché. */
-.entree-page table,
 .apparition {
   animation: apparition 260ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
@@ -476,6 +475,42 @@ body {
   animation: feuille-montee 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/*
+ * Listes : les lignes d'un tableau ou d'une liste à filets apparaissent
+ * l'une après l'autre à l'arrivée sur la page (délai plafonné), puis
+ * chaque nouvelle ligne fait de même quand les données arrivent.
+ */
+.entree-page tbody > tr,
+.entree-page .divide-y > * {
+  animation: apparition 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.entree-page tbody > tr:nth-child(2),
+.entree-page .divide-y > :nth-child(2) { animation-delay: 30ms; }
+.entree-page tbody > tr:nth-child(3),
+.entree-page .divide-y > :nth-child(3) { animation-delay: 60ms; }
+.entree-page tbody > tr:nth-child(4),
+.entree-page .divide-y > :nth-child(4) { animation-delay: 90ms; }
+.entree-page tbody > tr:nth-child(5),
+.entree-page .divide-y > :nth-child(5) { animation-delay: 120ms; }
+.entree-page tbody > tr:nth-child(6),
+.entree-page .divide-y > :nth-child(6) { animation-delay: 150ms; }
+.entree-page tbody > tr:nth-child(7),
+.entree-page .divide-y > :nth-child(7) { animation-delay: 180ms; }
+.entree-page tbody > tr:nth-child(n + 8),
+.entree-page .divide-y > :nth-child(n + 8) { animation-delay: 210ms; }
+
+/* Mini-histogramme : les barres poussent de gauche à droite. */
+@keyframes croissance {
+  from {
+    transform: scaleY(0);
+  }
+}
+.barre-croissance {
+  transform-origin: bottom;
+  animation: croissance 600ms var(--ease-sortie) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
 /* Fenêtres : voile qui se fond, modale qui s'approche, tiroir qui glisse. */
 @keyframes voile-entree {
   from {
@@ -536,6 +571,9 @@ input[type='radio'] {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .entree-page tbody > tr,
+  .entree-page .divide-y > *,
+  .barre-croissance,
   .voile-entree,
   .fenetre-entree,
   .tiroir-entree,
