@@ -179,7 +179,7 @@ export function VenteDetailPage() {
                       value={montant}
                       onChange={(e) => setMontant(e.target.value)}
                       placeholder={String(vente.resteDu)}
-                      className="h-10 min-w-0 flex-1 rounded-md border border-rule-strong bg-surface-elevee px-3 text-corps text-ink-900"
+                      className="h-10 min-w-0 flex-1 champ rounded-md border border-rule-strong bg-surface-elevee px-3 text-corps text-ink-900"
                     />
                     <Button variant="secondary" onClick={() => setMontant(String(vente.resteDu))}>
                       Tout
@@ -293,7 +293,7 @@ export function VenteDetailPage() {
               onChange={(e) => setMotif(e.target.value)}
               rows={3}
               placeholder="Ex. erreur de quantité, client revenu sur sa commande…"
-              className="rounded-md border border-rule-strong bg-surface-elevee px-3 py-2 text-corps text-ink-900"
+              className="champ rounded-md border border-rule-strong bg-surface-elevee px-3 py-2 text-corps text-ink-900"
             />
           </label>
           {erreur && annulationOuverte && <Alert variant="error">{erreur}</Alert>}

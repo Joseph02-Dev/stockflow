@@ -502,11 +502,11 @@ export function Selecteur(props: SelecteurProps) {
         onKeyDown={surTouche}
         onBlur={props.onBlur}
         className={cn(
-          'flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-[9px] border bg-surface-elevee px-3 text-left text-corps text-ink-900 transition-[border-color,box-shadow,background-color] outline-none',
+          'flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md border bg-surface-elevee px-3 text-left text-corps text-ink-900 transition-[border-color,box-shadow,background-color] outline-none',
           taille === 'md' ? 'min-h-10' : 'min-h-8',
           mobile && 'min-h-11',
-          'hover:border-steel-400 hover:bg-champ-survol focus-visible:border-action focus-visible:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-action)_12%,transparent)]',
-          ouvert && 'border-action shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-action)_12%,transparent)]',
+          'hover:border-steel-400 hover:bg-champ-survol focus-visible:border-action focus-visible:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-action)_16%,transparent)]',
+          ouvert && 'border-action shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-action)_16%,transparent)]',
           error ? 'border-rupture' : !ouvert && (attention ? 'border-faible' : 'border-rule-strong'),
           disabled && 'pointer-events-none cursor-not-allowed opacity-50',
         )}

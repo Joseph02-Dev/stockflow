@@ -261,7 +261,7 @@ export function NouvelleVentePage() {
                       value={rechercheClient}
                       onChange={(e) => setRechercheClient(e.target.value)}
                       placeholder="Nom, commerce ou téléphone du client…"
-                      className="h-11 w-full rounded-md border border-rule-strong bg-surface-elevee pr-3 pl-9 text-corps text-ink-900 placeholder:text-steel-400 focus:border-action"
+                      className="h-11 w-full champ rounded-md border border-rule-strong bg-surface-elevee pr-3 pl-9 text-corps text-ink-900 placeholder:text-steel-400 focus:border-action"
                     />
                   </label>
                   {rechercheClientRetardee && (
@@ -326,7 +326,7 @@ export function NouvelleVentePage() {
                   value={rechercheProduit}
                   onChange={(e) => setRechercheProduit(e.target.value)}
                   placeholder="Ajouter un produit en stock…"
-                  className="h-11 w-full rounded-md border border-rule-strong bg-surface-elevee pr-3 pl-9 text-corps text-ink-900 placeholder:text-steel-400 focus:border-action"
+                  className="h-11 w-full champ rounded-md border border-rule-strong bg-surface-elevee pr-3 pl-9 text-corps text-ink-900 placeholder:text-steel-400 focus:border-action"
                 />
               </label>
               {produitsProposes.length > 0 && (
@@ -499,7 +499,7 @@ export function NouvelleVentePage() {
                     type="date"
                     value={echeance}
                     onChange={(e) => setEcheance(e.target.value)}
-                    className="h-10 rounded-md border border-rule-strong bg-surface-elevee px-3 text-corps text-ink-900"
+                    className="h-10 champ rounded-md border border-rule-strong bg-surface-elevee px-3 text-corps text-ink-900"
                   />
                 </label>
                 <div className="flex items-baseline justify-between">

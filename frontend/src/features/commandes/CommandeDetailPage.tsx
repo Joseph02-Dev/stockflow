@@ -320,7 +320,7 @@ export function CommandeDetailPage() {
                       id={`series-${ligne.id}`}
                       rows={3}
                       placeholder="Un par ligne"
-                      className="rounded-md border border-rule-strong bg-surface-elevee px-3 py-2 font-mono text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-action"
+                      className="champ rounded-md border border-rule-strong bg-surface-elevee px-3 py-2 font-mono text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-action"
                       value={lotsRecus[ligne.produitId]?.numerosSerie ?? ''}
                       onChange={(e) => saisirLot(ligne.produitId, 'numerosSerie', e.target.value)}
                     />
