@@ -156,7 +156,7 @@ function filAriane(chemin: string): { libelle: string; to?: string }[] {
     rotation: { libelle: 'Statistiques', to: '/statistiques' },
   };
   if (parents[racine] && !detail) return [parents[racine], { libelle: sections[racine] }];
-  const section = sections[racine] ?? 'StockFlow';
+  const section = sections[racine] ?? 'NimbaFlow';
   if (!detail) return [{ libelle: section }];
 
   const parent = racine === 'inventaires' ? '/stock' : `/${racine}`;
@@ -495,10 +495,10 @@ export function AppLayout() {
             <Link
               to="/"
               className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-1 text-white focus-visible:outline-white/70"
-              aria-label={replie ? 'StockFlow : tableau de bord' : undefined}
+              aria-label={replie ? 'NimbaFlow : tableau de bord' : undefined}
             >
               <Logo taille={30} />
-              {!replie && <span className="truncate text-panneau">StockFlow</span>}
+              {!replie && <span className="truncate text-panneau">NimbaFlow</span>}
             </Link>
             <button
               type="button"

@@ -122,8 +122,8 @@ export function InvitationPage() {
         </h2>
         <p className="mt-3 text-corps text-white/65">
           {details
-            ? `${details.invitePar} vous a ouvert un accès à l’espace StockFlow de ${details.entreprise}. Créez votre compte pour rejoindre l’équipe.`
-            : 'Un administrateur vous a ouvert un accès à son espace StockFlow.'}
+            ? `${details.invitePar} vous a ouvert un accès à l’espace NimbaFlow de ${details.entreprise}. Créez votre compte pour rejoindre l’équipe.`
+            : 'Un administrateur vous a ouvert un accès à son espace NimbaFlow.'}
         </p>
       </div>
       <div className="flex items-start gap-3 rounded-md border border-white/10 bg-white/[0.05] p-3">

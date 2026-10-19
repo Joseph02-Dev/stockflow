@@ -3,7 +3,7 @@
  * Un module désactivé disparaît de l'interface ET ses routes sont refusées
  * par EntrepriseActiveGuard (403 MODULE_DESACTIVE) — masquer ne suffit pas.
  *
- * - console : réglé par un opérateur StockFlow (offre commerciale) ;
+ * - console : réglé par un opérateur NimbaFlow (offre commerciale) ;
  * - entreprise : réglé par l'administrateur selon son activité (Paramètres),
  *   pour ne montrer que ce dont son métier a besoin.
  *

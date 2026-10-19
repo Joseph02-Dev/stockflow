@@ -51,7 +51,7 @@ pdfmake.addTableLayouts({
 const piedDePage = (intitule) => (page, pages) => ({
   columns: [
     { text: intitule, style: 'pied' },
-    { text: `Document généré par StockFlow · page ${page} sur ${pages}`, style: 'pied', alignment: 'right', width: 'auto' },
+    { text: `Document généré par NimbaFlow · page ${page} sur ${pages}`, style: 'pied', alignment: 'right', width: 'auto' },
   ],
   margin: [marge, 14, marge, 0],
 });

@@ -16,7 +16,7 @@ export function documentationActive(env: NodeJS.ProcessEnv = process.env): boole
 
 export function construireDocumentation(app: INestApplication): OpenAPIObject {
   const configuration = new DocumentBuilder()
-    .setTitle('StockFlow API')
+    .setTitle('NimbaFlow API')
     .setDescription(
       [
         'API de gestion de stock multi-entreprise.',
@@ -62,7 +62,7 @@ export function configurerDocumentation(app: INestApplication, env: NodeJS.Proce
   });
   SwaggerModule.setup('docs', app, () => construireDocumentation(app), {
     jsonDocumentUrl: 'docs/openapi.json',
-    customSiteTitle: 'StockFlow API',
+    customSiteTitle: 'NimbaFlow API',
   });
   return true;
 }

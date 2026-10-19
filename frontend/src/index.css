@@ -1,39 +1,39 @@
 @import 'tailwindcss';
 
 /*
- * Design tokens StockFlow — direction « Atelier ».
- * Encre profonde pour les surfaces de pilotage, neutres froids pour le
- * travail, une seule couleur d'action (ultramarine) et un vocabulaire de
+ * Design tokens NimbaFlow — direction « Cuivre ».
+ * Graphite pour les surfaces de pilotage, neutres légèrement chauds pour
+ * le travail, une seule couleur d'action (cuivre) et un vocabulaire de
  * statuts emprunté à la signalétique (rupture / faible / ok). Toute
  * l'application consomme ces tokens, jamais des valeurs arbitraires.
  */
 @theme {
   /* Encre — surfaces profondes, texte principal */
-  --color-ink-900: #0b0f17;
-  --color-ink-800: #11161f; /* sidebar, panneaux sombres */
-  --color-ink-700: #1a212d;
-  --color-ink-600: #242d3b;
-  --color-ink-500: #313b4b;
+  --color-ink-900: #15161a;
+  --color-ink-800: #16171b; /* sidebar, panneaux sombres */
+  --color-ink-700: #202227;
+  --color-ink-600: #2b2d33;
+  --color-ink-500: #383b42;
 
-  /* Neutres froids légèrement désaturés */
-  --color-paper: #f2f4f7; /* fond d'application */
+  /* Neutres à peine chauds, accordés au cuivre */
+  --color-paper: #f4f5f2; /* fond d'application */
   --color-surface: #ffffff;
-  --color-rule: #e4e7ec; /* bordures */
-  --color-rule-strong: #d0d5dd;
-  --color-steel-700: #344054;
-  --color-steel-500: #5a6678; /* texte secondaire */
-  --color-steel-400: #8a94a6; /* texte tertiaire */
+  --color-rule: #e3e4df; /* bordures */
+  --color-rule-strong: #d0d2cb;
+  --color-steel-700: #3a3d45;
+  --color-steel-500: #5d616b; /* texte secondaire */
+  --color-steel-400: #8b8f98; /* texte tertiaire */
 
-  /* Action — ultramarine, délibérément plus profond que le bleu SaaS */
-  --color-action: #2242c7;
-  --color-action-dark: #1a33a0;
-  --color-action-wash: #edf0fd;
+  /* Action — cuivre profond (texte blanc lisible : contraste AA) */
+  --color-action: #c2440b;
+  --color-action-dark: #a3380a;
+  --color-action-wash: #fcefe7;
 
   /* Statuts — vocabulaire de signalétique, pas de palette startup */
   --color-rupture: #c32b1e;
   --color-rupture-wash: #fdf0ee;
-  --color-faible: #b4690e;
-  --color-faible-wash: #fdf5e9;
+  --color-faible: #9a6500;
+  --color-faible-wash: #fdf6df;
   --color-ok: #12705c;
   --color-ok-wash: #ebf5f2;
 
@@ -45,34 +45,34 @@
    * la valeur utilisée jusqu'ici : le rendu clair ne change pas.
    */
   --color-surface-elevee: #ffffff; /* champs de saisie */
-  --color-survol: #f2f4f7; /* survol des boutons et lignes (= paper en clair) */
-  --color-champ-survol: #fcfcfd; /* survol d'un champ */
+  --color-survol: #f1f2ee; /* survol des boutons et lignes */
+  --color-champ-survol: #fcfcfb; /* survol d'un champ */
   --color-sur-couleur: #ffffff; /* texte posé sur un aplat de statut ou d'action */
-  --color-voile: #0b0f17; /* fond assombri derrière les fenêtres ; texte sur bouton blanc */
+  --color-voile: #15161a; /* fond assombri derrière les fenêtres ; texte sur bouton blanc */
   /* Aplat « inversé » (onglet actif, bouton sombre, avatar) : encre en clair, clair en sombre. */
-  --color-inverse: #11161f;
-  --color-inverse-survol: #1a212d;
+  --color-inverse: #16171b;
+  --color-inverse-survol: #202227;
   --color-sur-inverse: #ffffff;
-  --color-craie: #f2f4f7; /* survol d'un bouton blanc posé sur l'encre (fixe) */
-  --color-faible-voile: #fffcf6; /* ligne « à traiter » d'un import */
+  --color-craie: #f4f5f2; /* survol d'un bouton blanc posé sur l'encre (fixe) */
+  --color-faible-voile: #fffcf0; /* ligne « à traiter » d'un import */
 
   /* En-têtes de groupe et de tableau : à peine décollés du blanc. */
-  --color-entete-groupe: #fbfcfd;
-  --color-entete-tableau: #fafbfc;
+  --color-entete-groupe: #fbfbfa;
+  --color-entete-tableau: #fafaf8;
 
   /* Variantes lumineuses des statuts, lisibles sur fond d'encre. */
   --color-rupture-vif: #e05a4b;
-  --color-faible-vif: #d9922b;
-  --color-nuit: #1e2b4d; /* fin du dégradé du bandeau d'action */
+  --color-faible-vif: #e0a82e;
+  --color-nuit: #3b1c0e; /* fin du dégradé du bandeau d'action (cuivre très sombre) */
 
   /* Voyant « en ligne » de la sidebar — vert lumineux lisible sur l'encre. */
   --color-reseau: #2cc48a;
-  /* Ultramarine éclaircie : icônes d’action posées sur l’encre (contraste AA). */
-  --color-action-clair: #9aabf5;
+  /* Cuivre éclairci : icônes d’action posées sur l’encre (contraste AA). */
+  --color-action-clair: #f6a46f;
 
   /*
    * Console opérateur — le violet signale partout le contexte privilégié.
-   * Jamais le bleu de l'espace client : c'est un garde-fou, pas un goût.
+   * Jamais le cuivre de l'espace client : c'est un garde-fou, pas un goût.
    */
   --color-console: #6d4fc4;
   --color-console-dark: #5a3dae;
@@ -114,23 +114,30 @@
   --color-serie-4: #eda100;
   --color-serie-5: #e87ba4;
 
-  --radius-sm: 6px;
-  --radius-md: 9px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
+  /* Angles plus nets que la direction précédente : un outil précis. */
+  --radius-sm: 5px;
+  --radius-md: 7px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
 
   /* Élévation — deux niveaux seulement : posé (card) et flottant (pop). */
-  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
-  --shadow-pop: 0 8px 24px -6px rgba(16, 24, 40, 0.14), 0 2px 6px rgba(16, 24, 40, 0.06);
+  --shadow-card: 0 1px 2px rgba(22, 23, 27, 0.05), 0 1px 3px rgba(22, 23, 27, 0.06);
+  --shadow-pop: 0 12px 32px -10px rgba(22, 23, 27, 0.22), 0 2px 6px rgba(22, 23, 27, 0.06);
 
-  --font-sans: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Texte courant et interface. */
+  --font-sans: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Titres, chiffres clés et nom de marque : du caractère, avec retenue. */
+  --font-display: 'Bricolage Grotesque', 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   /* Réservée aux références produit et codes-barres, nulle part ailleurs. */
-  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Mouvement — trois vitesses pour toute l'application. */
+  --ease-sortie: cubic-bezier(0.2, 0.8, 0.2, 1);
 
   /* Échelle typographique — interlignage en px, interlettrage en em. */
   --text-titre: 25px;
   --text-titre--line-height: 32px;
-  --text-titre--letter-spacing: -0.008em;
+  --text-titre--letter-spacing: -0.022em;
   --text-titre--font-weight: 600;
 
   --text-panneau: 14.5px;
@@ -140,7 +147,7 @@
 
   --text-chiffre: 27px;
   --text-chiffre--line-height: 30px;
-  --text-chiffre--letter-spacing: -0.011em;
+  --text-chiffre--letter-spacing: -0.024em;
   --text-chiffre--font-weight: 600;
 
   --text-corps: 13.5px;
@@ -170,34 +177,34 @@ body,
   [data-theme='dark'] {
     color-scheme: dark;
 
-    --color-paper: #0b0f17;
-    --color-surface: #141b28;
-    --color-surface-elevee: #1b2433;
-    --color-survol: #1b2433;
-    --color-champ-survol: #212b3b;
-    --color-rule: #232d3c;
-    --color-rule-strong: #2f3b4d;
+    --color-paper: #0c0d10;
+    --color-surface: #15161a;
+    --color-surface-elevee: #1c1d22;
+    --color-survol: #1c1d22;
+    --color-champ-survol: #23252b;
+    --color-rule: #26282e;
+    --color-rule-strong: #34373f;
 
     /* Texte : jamais de blanc pur (halo, fatigue oculaire). */
-    --color-ink-900: #e8ecf2;
-    --color-steel-700: #b8c2d1;
-    --color-steel-500: #94a1b5;
-    --color-steel-400: #6e7a8c;
+    --color-ink-900: #f1f1ef;
+    --color-steel-700: #c5c7cc;
+    --color-steel-500: #a0a3ab;
+    --color-steel-400: #767a83;
 
     /* Barre latérale : plus sombre que les cartes, filet à droite. */
-    --color-ink-800: #070b12;
+    --color-ink-800: #08090b;
 
-    --color-action: #5b86ef;
-    --color-action-dark: #7397f2; /* survol : on éclaircit en sombre */
-    --color-action-wash: #1a2744;
-    --color-sur-couleur: #0b0f17;
-    --color-inverse: #e8ecf2;
-    --color-inverse-survol: #cfd6e0;
-    --color-sur-inverse: #0b0f17;
+    --color-action: #f27a35;
+    --color-action-dark: #f69559; /* survol : on éclaircit en sombre */
+    --color-action-wash: #2e1b11;
+    --color-sur-couleur: #15161a;
+    --color-inverse: #f1f1ef;
+    --color-inverse-survol: #d6d7d3;
+    --color-sur-inverse: #15161a;
 
     --color-rupture: #f0705f;
     --color-rupture-wash: #2e1a1b;
-    --color-faible: #e0a33c;
+    --color-faible: #e8b33c;
     --color-faible-wash: #2b2318;
     --color-faible-voile: #241e16;
     --color-ok: #3ebe94;
@@ -205,8 +212,8 @@ body,
     --color-accent: #9b7bd4;
     --color-accent-wash: #221d33;
 
-    --color-entete-groupe: #172030;
-    --color-entete-tableau: #192231;
+    --color-entete-groupe: #1a1b20;
+    --color-entete-tableau: #1b1c21;
     --color-peremption-proche-texte: #e3b512;
 
     /* Console : le violet reste la signalétique du contexte privilégié. */
@@ -220,12 +227,12 @@ body,
   }
 
   [data-theme='dark'] .bandeau-action {
-    background: linear-gradient(118deg, #141b28 0%, #18243a 55%, #1c2b4d 100%);
+    background: linear-gradient(118deg, #15161a 0%, #1d1b1a 55%, #3b1c0e 100%);
   }
 
   /* Panneau flottant : un filet sur tout le contour le détache du fond sombre. */
   [data-theme='dark'] .barre-laterale {
-    box-shadow: inset 0 0 0 1px #1a2230;
+    box-shadow: inset 0 0 0 1px #202227;
   }
 }
 
@@ -250,8 +257,25 @@ body {
   font-size: var(--text-corps);
   line-height: var(--text-corps--line-height);
   /* Montants GNF longs : les chiffres doivent s'aligner colonne par colonne. */
+  font-optical-sizing: auto;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Police d'affichage : titres, chiffres clés, titres de panneaux et nom de
+ * marque. En couche « base » : une classe utilitaire (font-mono…) posée sur
+ * le même élément reste prioritaire.
+ */
+@layer base {
+  h1,
+  h2,
+  h3,
+  .text-titre,
+  .text-chiffre,
+  .text-panneau {
+    font-family: var(--font-display);
+  }
 }
 
 /* Focus visible cohérent sur toute l'application (accessibilité). */
@@ -286,8 +310,54 @@ body {
   width: 460px;
   height: 460px;
   border-radius: 9999px;
-  background: radial-gradient(closest-side, rgba(34, 66, 199, 0.42), rgba(34, 66, 199, 0));
+  background: radial-gradient(closest-side, rgba(194, 68, 11, 0.42), rgba(194, 68, 11, 0));
   pointer-events: none;
+}
+
+/*
+ * Bouton en relief (principal, danger) : reflet en haut, ombre interne en
+ * bas, halo de la couleur du bouton, et un éclat qui balaie la surface au
+ * survol. Rien ne bouge sous prefers-reduced-motion.
+ */
+.bouton-relief {
+  --halo: var(--color-action);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 70%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.14),
+    0 6px 16px -8px var(--halo),
+    0 1px 2px rgba(22, 23, 27, 0.12);
+}
+.bouton-relief-danger {
+  --halo: var(--color-rupture);
+}
+.bouton-relief:hover:not(:disabled) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.14),
+    0 12px 24px -10px var(--halo),
+    0 2px 4px rgba(22, 23, 27, 0.12);
+}
+.bouton-relief::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.28) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 700ms var(--ease-sortie);
+  pointer-events: none;
+}
+.bouton-relief:hover:not(:disabled)::after {
+  transform: translateX(120%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .bouton-relief::after {
+    display: none;
+  }
 }
 
 /*

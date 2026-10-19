@@ -3,7 +3,7 @@ import { composerEmail, dureeEnClair } from './gabarit-email.js';
 
 const CONTENU = {
   apercu: 'Aperçu',
-  titre: 'Bienvenue sur StockFlow',
+  titre: 'Bienvenue sur NimbaFlow',
   paragraphes: ['Confirmez votre adresse.'],
   bouton: { libelle: 'Confirmer', url: 'https://stockflowgn.com/verifier-email?token=abc123&x=1' },
   mentions: ['Ce lien expire dans 24 heures.'],

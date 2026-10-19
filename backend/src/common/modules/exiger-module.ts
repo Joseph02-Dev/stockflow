@@ -11,7 +11,7 @@ export function erreurModuleDesactive(module: ModuleOptionnel) {
     code: 'MODULE_DESACTIVE',
     message:
       reglePar === 'console'
-        ? `Le module « ${nom} » n’est pas activé pour votre entreprise. Contactez StockFlow.`
+        ? `Le module « ${nom} » n’est pas activé pour votre entreprise. Contactez NimbaFlow.`
         : `Le module « ${nom} » est désactivé : un administrateur peut l’activer dans Paramètres.`,
   });
 }

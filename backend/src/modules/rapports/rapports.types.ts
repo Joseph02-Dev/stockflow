@@ -9,8 +9,8 @@ export interface RapportGenere {
   csv: () => string;
 }
 
-/** Séries de répartition (emplacements) : encre, bleu action, puis neutres. */
-export const COULEURS_SERIES = ['#2242C7', '#0E9384', '#D9922B', '#9B7BD4', '#6A91C9', '#E05A4B', '#8A94A6', '#344054'];
+/** Séries de répartition (emplacements) : cuivre action, puis teintes distinctes. */
+export const COULEURS_SERIES = ['#C2440B', '#0E9384', '#D9922B', '#9B7BD4', '#6A91C9', '#E05A4B', '#8A94A6', '#344054'];
 
 /** Nombre de pages d'un PDF produit par pdfkit (objets /Type /Page). */
 export function compterPages(pdf: Buffer): number {

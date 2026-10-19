@@ -35,10 +35,10 @@ export const OFFRES: Offre[] = [
   {
     cle: 'essai',
     nom: 'Essai gratuit',
-    positionnement: 'Découvrir StockFlow avec vos propres produits.',
+    positionnement: 'Découvrir NimbaFlow avec vos propres produits.',
     prix: null,
     inclus: [
-      `${DUREE_ESSAI_JOURS} jours pour essayer StockFlow`,
+      `${DUREE_ESSAI_JOURS} jours pour essayer NimbaFlow`,
       'Inscription en ligne, sans installation',
       'Ordinateur, tablette et téléphone',
     ],
@@ -68,12 +68,12 @@ export interface QuestionFaq {
 export function faq(adresseAide: string): QuestionFaq[] {
   return [
     {
-      question: 'Qu’est-ce que StockFlow ?',
+      question: 'Qu’est-ce que NimbaFlow ?',
       reponse:
         'Une application web de gestion de stock et de ventes : produits, entrées, sorties, transferts, inventaires, ventes au comptoir, alertes et rapports, dans un seul espace.',
     },
     {
-      question: 'À qui s’adresse StockFlow ?',
+      question: 'À qui s’adresse NimbaFlow ?',
       reponse:
         'Aux commerçants, grossistes et vendeurs qui veulent suivre leur stock, leurs ventes et leurs clients, sur un ou plusieurs emplacements (boutique, dépôt, magasin).',
     },
@@ -83,7 +83,7 @@ export function faq(adresseAide: string): QuestionFaq[] {
         'Créez votre compte depuis la page d’inscription : votre entreprise, puis votre premier emplacement. Confirmez ensuite votre adresse email pour vous connecter.',
     },
     {
-      question: 'Puis-je utiliser StockFlow sur mon téléphone ?',
+      question: 'Puis-je utiliser NimbaFlow sur mon téléphone ?',
       reponse:
         'Oui, depuis le navigateur du téléphone : l’interface s’adapte à l’écran. Sans réseau, les mouvements de stock sont mis en attente puis envoyés dès le retour de la connexion.',
     },

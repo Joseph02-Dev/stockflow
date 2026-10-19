@@ -173,12 +173,12 @@ export class UsersService {
     ]);
     await this.emailService.send({
       to: dto.email,
-      subject: `${invitant.nom} vous invite à rejoindre ${entreprise.nom} sur StockFlow`,
+      subject: `${invitant.nom} vous invite à rejoindre ${entreprise.nom} sur NimbaFlow`,
       ...composerEmail({
         apercu: `Créez votre compte pour rejoindre ${entreprise.nom}.`,
-        titre: `Rejoignez ${entreprise.nom} sur StockFlow`,
+        titre: `Rejoignez ${entreprise.nom} sur NimbaFlow`,
         paragraphes: [
-          `${invitant.nom} vous invite à rejoindre l'espace StockFlow de ${entreprise.nom} en tant que ${LIBELLE_ROLE[dto.role]}.`,
+          `${invitant.nom} vous invite à rejoindre l'espace NimbaFlow de ${entreprise.nom} en tant que ${LIBELLE_ROLE[dto.role]}.`,
           'Cliquez sur le bouton ci-dessous pour créer votre compte : il ne vous faut que votre nom et un mot de passe.',
         ],
         bouton: { libelle: "Rejoindre l'entreprise", url: `${adresseSite()}/invitation?token=${token}` },

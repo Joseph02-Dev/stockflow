@@ -29,7 +29,7 @@ export class OuvrirImportDto {
 }
 
 /**
- * Valeurs brutes d'une ligne, déjà associées aux champs StockFlow. Toutes
+ * Valeurs brutes d'une ligne, déjà associées aux champs NimbaFlow. Toutes
  * facultatives et textuelles : le serveur les interprète lui-même.
  */
 export class ValeursLigneDto {

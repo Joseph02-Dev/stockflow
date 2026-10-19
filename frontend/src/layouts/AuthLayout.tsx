@@ -29,7 +29,7 @@ export function AuthLayout({
         <div className="bandeau-action hidden flex-col justify-between gap-10 p-8 text-white md:flex">
           <div className="flex items-center gap-2.5">
             <Logo taille={34} />
-            <span className="text-panneau text-white">StockFlow</span>
+            <span className="text-panneau text-white">NimbaFlow</span>
           </div>
           {panneauGauche}
         </div>
@@ -37,7 +37,7 @@ export function AuthLayout({
         {/* Bandeau compact mobile */}
         <div className="bandeau-action flex items-center gap-2.5 px-5 py-4 text-white md:hidden">
           <Logo taille={28} />
-          <span className="text-panneau text-white">StockFlow</span>
+          <span className="text-panneau text-white">NimbaFlow</span>
         </div>
 
         {/* Formulaire */}
