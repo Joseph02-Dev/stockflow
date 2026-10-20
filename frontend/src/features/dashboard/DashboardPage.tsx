@@ -1,19 +1,26 @@
-import { useMemo, type CSSProperties } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import {
+  ArrowLeftRight,
   CheckCircle2,
   MapPin,
+  Package,
+  Plus,
   ShoppingCart,
   TrendingDown,
   TrendingUp,
   Truck,
+  Wallet,
+  type LucideIcon,
 } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { formatNombre, pluriel, tempsRelatif } from '@/lib/format';
 import { cn } from '@/lib/cn';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { boutonClasses } from '@/components/ui/boutonClasses';
+import { useSession } from '@/lib/useSession';
 import { Card, PanneauEntete } from '@/components/patterns/Page';
 import { Compteur } from '@/components/patterns/Compteur';
 import { ErrorState, LoadingState, Squelette } from '@/components/patterns/States';
@@ -72,8 +79,28 @@ interface Mouvement {
 
 const NB_BARRES = 9;
 
+/** Carte d'indicateur : posée, elle se soulève au survol. */
+const CARTE_MESURE =
+  'rounded-lg border border-rule bg-surface px-4 py-4 shadow-card transition-[transform,box-shadow] duration-200 ease-sortie hover:-translate-y-0.5 hover:shadow-pop motion-reduce:transform-none sm:px-5';
+
+function EnteteMesure({ Icone, children }: { Icone: LucideIcon; children: string }) {
+  return (
+    <p className="flex items-center gap-2 text-meta font-medium text-steel-500">
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-action-wash text-action ring-1 ring-action/10 ring-inset" aria-hidden="true">
+        <Icone className="size-3.5" />
+      </span>
+      {children}
+    </p>
+  );
+}
+
+const jourLong = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
 export function DashboardPage() {
   const navigate = useNavigate();
+  const session = useSession();
+  const [aujourdhui] = useState(() => jourLong.format(new Date()));
+  const prenom = session?.utilisateur.nom.split(' ')[0];
 
   const overview = useQuery({
     queryKey: ['dashboard'],
@@ -153,13 +180,31 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="sr-only">Tableau de bord</h1>
+      {/* Accueil : à qui l'on parle, où, quel jour ; les deux gestes les plus fréquents. */}
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <h1 className="text-titre text-ink-900">{prenom ? `Bonjour, ${prenom}` : 'Tableau de bord'}</h1>
+          <p className="mt-1 text-corps text-steel-500 first-letter:uppercase">
+            {[aujourdhui, session?.entreprise.nom].filter(Boolean).join(' · ')}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/statistiques" className={boutonClasses('secondary')}>
+            Statistiques
+          </Link>
+          <Link to="/ventes/nouvelle" className={boutonClasses('primary')}>
+            <Plus className="size-4" aria-hidden="true" />
+            Nouvelle vente
+          </Link>
+        </div>
+      </header>
 
       {/* a) Bandeau d'action — répond à « qu'est-ce qui va me manquer aujourd'hui ? » */}
       <section
         className="bandeau-action flex flex-col gap-6 rounded-lg px-5 py-6 text-white sm:px-[26px] sm:py-6 lg:flex-row lg:items-end lg:justify-between"
         aria-labelledby="titre-bandeau"
       >
+        <span className="trame-grille pointer-events-none absolute inset-0 -z-10" aria-hidden="true" />
         <div className="flex min-w-0 flex-col gap-5">
           <div>
             <h2 id="titre-bandeau" className="text-[24px] leading-[30px] font-semibold tracking-[-0.01em]">
@@ -192,22 +237,22 @@ export function DashboardPage() {
 
         <Link
           to="/commandes/nouvelle"
-          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 self-start rounded-md bg-white px-4 text-corps font-semibold text-voile transition-colors hover:bg-craie focus-visible:outline-white lg:self-end"
+          className={cn(boutonClasses('primary'), 'self-start focus-visible:outline-white lg:self-end')}
         >
           <ShoppingCart className="size-4" aria-hidden="true" />
           Préparer les commandes
         </Link>
       </section>
 
-      {/* b) Bande de mesures — filets de 1px, pas des cartes distinctes. */}
+      {/* b) Mesures — une carte par indicateur, qui se soulève au survol. */}
       <section
         aria-label="Mesures"
-        className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rule bg-rule shadow-card lg:grid-cols-[1.5fr_1fr_1fr_1fr]"
+        className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-[1.5fr_1fr_1fr_1fr]"
       >
-        <div className="flex items-end justify-between gap-4 bg-surface px-5 py-4 col-span-2 lg:col-span-1">
+        <div className={cn(CARTE_MESURE, 'col-span-2 flex items-end justify-between gap-4 lg:col-span-1')}>
           <div className="min-w-0">
-            <p className="text-meta text-steel-500">Valeur immobilisée</p>
-            <p className="mt-1 text-chiffre text-ink-900">
+            <EnteteMesure Icone={Wallet}>Valeur immobilisée</EnteteMesure>
+            <p className="mt-2.5 text-chiffre text-ink-900">
               <Compteur valeur={calculs.valeur} format={formatNombre} />{' '}
               <span className="text-corps font-medium text-steel-400">GNF</span>
             </p>
@@ -228,9 +273,9 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-surface px-4 py-4 sm:px-5">
-          <p className="text-meta text-steel-500">Mouvements 7 jours</p>
-          <p className="mt-1 text-chiffre text-ink-900">
+        <div className={CARTE_MESURE}>
+          <EnteteMesure Icone={ArrowLeftRight}>Mouvements 7 jours</EnteteMesure>
+          <p className="mt-2.5 text-chiffre text-ink-900">
             <Compteur valeur={kpi.mouvements7Jours} format={formatNombre} />
           </p>
           <p
@@ -249,9 +294,9 @@ export function DashboardPage() {
           </p>
         </div>
 
-        <div className="bg-surface px-4 py-4 sm:px-5">
-          <p className="text-meta text-steel-500">Références actives</p>
-          <p className="mt-1 text-chiffre text-ink-900">
+        <div className={CARTE_MESURE}>
+          <EnteteMesure Icone={Package}>Références actives</EnteteMesure>
+          <p className="mt-2.5 text-chiffre text-ink-900">
             <Compteur valeur={kpi.produitsActifs} format={formatNombre} />
           </p>
           <p className="mt-1 text-meta text-steel-400">
@@ -259,9 +304,9 @@ export function DashboardPage() {
           </p>
         </div>
 
-        <div className="col-span-2 bg-surface px-4 py-4 sm:px-5 lg:col-span-1">
-          <p className="text-meta text-steel-500">Délai fournisseur moyen</p>
-          <p className="mt-1 text-chiffre text-ink-900">
+        <div className={cn(CARTE_MESURE, 'col-span-2 lg:col-span-1')}>
+          <EnteteMesure Icone={Truck}>Délai fournisseur moyen</EnteteMesure>
+          <p className="mt-2.5 text-chiffre text-ink-900">
             {calculs.delaiMoyen == null ? (
               '—'
             ) : (
@@ -432,9 +477,9 @@ function SqueletteTableauDeBord() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rule bg-rule shadow-card lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className={i === 0 ? 'col-span-2 bg-surface px-5 py-4 lg:col-span-1' : 'bg-surface px-5 py-4'}>
+          <div key={i} className={cn('rounded-lg border border-rule bg-surface px-5 py-4 shadow-card', i === 0 && 'col-span-2 lg:col-span-1')}>
             <Squelette className="h-2.5 w-24" />
             <Squelette className="mt-3 h-6 w-28" />
             <Squelette className="mt-3 h-2.5 w-32" />

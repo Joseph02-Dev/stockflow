@@ -19,12 +19,12 @@ type Formulaire = z.infer<typeof schema>;
 const panneauGauche = (
   <div className="flex flex-col gap-8">
     <div>
-      <h2 className="text-titre text-white">Ça arrive à tout le monde.</h2>
+      <h2 className="text-[1.875rem] leading-[1.15] font-semibold tracking-[-0.03em] text-balance text-white">Ça arrive à tout le monde.</h2>
       <p className="mt-3 text-corps text-white/65">
         Indiquez votre adresse email : si un compte existe, un lien de réinitialisation vous sera envoyé.
       </p>
     </div>
-    <div className="flex items-start gap-3 rounded-md border border-white/10 bg-white/[0.05] p-3">
+    <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/[0.05] backdrop-blur-sm transition-colors hover:bg-white/[0.08] p-3">
       <ShieldCheck className="mt-0.5 size-4 shrink-0 text-action-clair" aria-hidden="true" />
       <p className="text-meta text-white/65">
         Par sécurité, nous ne confirmons jamais si une adresse est associée à un compte — le message reste le

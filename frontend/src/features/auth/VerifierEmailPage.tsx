@@ -12,7 +12,7 @@ import { PointsChargement } from '@/components/ui/PointsChargement';
 const panneauGauche = (
   <div className="flex flex-col gap-8">
     <div>
-      <h2 className="text-titre text-white">Dernière étape.</h2>
+      <h2 className="text-[1.875rem] leading-[1.15] font-semibold tracking-[-0.03em] text-balance text-white">Dernière étape.</h2>
       <p className="mt-3 text-corps text-white/65">
         Un instant pendant que nous confirmons votre adresse email et activons votre compte.
       </p>

@@ -93,7 +93,7 @@ export function ConnexionPage() {
       panneauGauche={
         <div className="flex flex-col gap-8">
           <div>
-            <h2 className="text-titre text-white">
+            <h2 className="text-[1.875rem] leading-[1.15] font-semibold tracking-[-0.03em] text-balance text-white">
               Votre stock, à jour à chaque ouverture de boutique.
             </h2>
             <p className="mt-3 text-corps text-white/65">
@@ -103,8 +103,10 @@ export function ConnexionPage() {
           </div>
           <ul className="flex flex-col gap-2">
             {REPERES.map(({ Icone, titre, description }) => (
-              <li key={titre} className="flex items-start gap-3 rounded-md border border-white/10 bg-white/[0.05] p-3">
-                <Icone className="mt-0.5 size-4 shrink-0 text-action-clair" aria-hidden="true" />
+              <li key={titre} className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/[0.05] backdrop-blur-sm transition-colors hover:bg-white/[0.08] p-3">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-action/20 ring-1 ring-action-clair/25" aria-hidden="true">
+                  <Icone className="size-4 text-action-clair" />
+                </span>
                 <div>
                   <p className="text-corps font-medium text-white">{titre}</p>
                   <p className="text-meta text-white/65">{description}</p>
