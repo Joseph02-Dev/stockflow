@@ -314,6 +314,15 @@ body {
   pointer-events: none;
 }
 
+/* Trame quadrillée des panneaux d'encre, estompée vers les bords. */
+.trame-grille {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse 80% 70% at 25% 20%, #000 20%, transparent 75%);
+}
+
 /*
  * Bouton en relief (principal, danger) : reflet en haut, ombre interne en
  * bas, halo de la couleur du bouton, et un éclat qui balaie la surface au

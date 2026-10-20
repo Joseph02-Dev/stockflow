@@ -174,7 +174,7 @@ export function InscriptionPage() {
   const panneauGauche = (
     <div className="flex flex-col gap-8">
       <div>
-        <h2 className="text-titre text-white">
+        <h2 className="text-[1.875rem] leading-[1.15] font-semibold tracking-[-0.03em] text-balance text-white">
           {etapeEffective === 1
             ? 'Deux étapes, et votre inventaire est prêt.'
             : etapeEffective === 'attente'
@@ -213,7 +213,7 @@ export function InscriptionPage() {
           </li>
         ))}
       </ul>
-      <div className="flex items-start gap-2 rounded-md border border-white/10 bg-white/[0.05] p-3 text-meta text-white/65">
+      <div className="flex items-start gap-2 rounded-lg border border-white/10 bg-white/[0.05] backdrop-blur-sm transition-colors hover:bg-white/[0.08] p-3 text-meta text-white/65">
         <ShieldCheck className="mt-0.5 size-4 shrink-0 text-action-clair" aria-hidden="true" />
         Vos données restent hébergées sur votre espace, exportables à tout moment.
       </div>
