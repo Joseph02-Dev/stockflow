@@ -7,7 +7,6 @@ import {
   Check,
   ChevronDown,
   ClipboardCheck,
-  ClipboardList,
   FileText,
   Mail,
   Menu,
@@ -17,7 +16,6 @@ import {
   Tags,
   Truck,
   Users,
-  Warehouse,
   WifiOff,
   X,
 } from 'lucide-react';
@@ -27,6 +25,7 @@ import { cn } from '@/lib/cn';
 import { ADRESSE_AIDE } from '@/lib/contact';
 import { DUREE_ESSAI_JOURS, OFFRES, faq, type Offre } from './contenu';
 import { useApparitionAuDefilement } from './useApparition';
+import { SceneEmplacements, SceneHorsLigne, SceneJournal, SceneSeuil } from './ScenesQuotidien';
 import './accueil.css';
 
 const TITRE_PAGE = 'NimbaFlow — gestion de stock et de ventes pour commerçants et grossistes';
@@ -46,26 +45,22 @@ const ATOUTS = ['Prix de détail, demi-gros et gros', 'Plusieurs emplacements', 
 
 const BENEFICES = [
   {
-    Icone: Warehouse,
-    teinte: 'bg-action-wash text-action',
+    Scene: SceneEmplacements,
     titre: 'Les quantités, emplacement par emplacement',
     texte: 'Boutique, dépôt ou magasin : chaque produit affiche son stock réel, là où il se trouve.',
   },
   {
-    Icone: Bell,
-    teinte: 'bg-faible-wash text-faible',
+    Scene: SceneSeuil,
     titre: 'Les produits à recommander, signalés',
     texte: 'Une alerte apparaît dès qu’un produit passe sous le seuil que vous avez fixé.',
   },
   {
-    Icone: ClipboardList,
-    teinte: 'bg-ok-wash text-ok',
+    Scene: SceneJournal,
     titre: 'Chaque mouvement tracé',
     texte: 'Entrées, sorties, transferts, ventes et inventaires : qui, quand, combien.',
   },
   {
-    Icone: WifiOff,
-    teinte: 'bg-accent-wash text-accent',
+    Scene: SceneHorsLigne,
     titre: 'Une coupure de réseau n’arrête pas la saisie',
     texte: 'Les mouvements de stock saisis hors connexion partent dès le retour du réseau.',
   },
@@ -601,18 +596,16 @@ export function AccueilPage() {
               texte="Ce que NimbaFlow vous évite de chercher dans un cahier ou un tableur."
             />
             <ul className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {BENEFICES.map(({ Icone, teinte, titre, texte }, index) => (
+              {BENEFICES.map(({ Scene, titre, texte }, index) => (
                 <li
                   key={titre}
                   data-apparition=""
                   style={delai(index * 70)}
-                  className="carte-vivante flex flex-col gap-4 rounded-xl border border-rule bg-surface p-6"
+                  className="carte-vivante flex flex-col gap-4 rounded-xl border border-rule bg-surface p-3.5 pb-6"
                 >
-                  <span className={cn('flex size-11 items-center justify-center rounded-xl', teinte)}>
-                    <Icone className="size-5" aria-hidden="true" />
-                  </span>
-                  <h3 className="text-[1.0625rem] leading-snug font-semibold text-ink-900">{titre}</h3>
-                  <p className="text-corps leading-relaxed text-steel-700">{texte}</p>
+                  <Scene />
+                  <h3 className="px-2 text-[1.0625rem] leading-snug font-semibold text-balance text-ink-900">{titre}</h3>
+                  <p className="px-2 text-corps leading-relaxed text-steel-700">{texte}</p>
                 </li>
               ))}
             </ul>
