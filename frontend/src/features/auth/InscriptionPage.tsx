@@ -7,13 +7,14 @@ import { z } from 'zod';
 import {
   Briefcase,
   Building2,
-  CheckCircle2,
+  Check,
   Hammer,
   Mail,
   MailCheck,
   MapPin,
   Plus,
-  ShieldCheck,
+  ArrowRight,
+  Banknote,
   ShoppingBag,
   User,
   X,
@@ -24,6 +25,7 @@ import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { ChampMotDePasse } from './ChampMotDePasse';
 import { IndicateurForceMotDePasse } from './IndicateurForceMotDePasse';
+import { ApercuEspace } from './ApercuEspace';
 import { api, messageErreur } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { cn } from '@/lib/cn';
@@ -46,10 +48,10 @@ const SECTEURS = [
 
 type Secteur = (typeof SECTEURS)[number]['valeur'];
 
-const ETAPES = [
-  { numero: 1, titre: 'Compte administrateur', description: 'Nom de l’entreprise, votre identité et vos accès.' },
-  { numero: 2, titre: 'Votre activité', description: 'Secteur, emplacements et TVA par défaut.' },
-];
+const ETAPES = ['Votre compte', 'Email', 'Activité'];
+
+/** Emplacements proposés en un clic à l'étape « Activité ». */
+const SUGGESTIONS_EMPLACEMENTS = ['Boutique', 'Dépôt', 'Magasin'];
 
 export function InscriptionPage() {
   const navigate = useNavigate();
@@ -74,6 +76,9 @@ export function InscriptionPage() {
 
   const formCompte = useForm<FormulaireCompte>({ resolver: zodResolver(schemaCompte) });
   const motDePasseSaisi = useWatch({ control: formCompte.control, name: 'password' }) ?? '';
+  const nomEntrepriseSaisi = useWatch({ control: formCompte.control, name: 'nomEntreprise' }) ?? '';
+  const nomAdminSaisi = useWatch({ control: formCompte.control, name: 'nomAdmin' }) ?? '';
+  const emailSaisi = useWatch({ control: formCompte.control, name: 'email' }) ?? '';
 
   // Étape 2 : pas un formulaire react-hook-form classique — une sélection
   // de puces et une liste dynamique s'y prêtent mieux qu'un schéma de
@@ -109,15 +114,10 @@ export function InscriptionPage() {
     }
   }
 
-  function ajouterEmplacement() {
-    const nom = nouvelEmplacement.trim();
-    if (!nom) return;
-    if (emplacements.includes(nom)) {
-      setNouvelEmplacement('');
-      return;
-    }
-    setEmplacements((liste) => [...liste, nom]);
-    setNouvelEmplacement('');
+  function ajouterEmplacement(saisi: string = nouvelEmplacement) {
+    const nom = saisi.trim();
+    if (nom && !emplacements.includes(nom)) setEmplacements((liste) => [...liste, nom]);
+    if (saisi === nouvelEmplacement) setNouvelEmplacement('');
   }
 
   function retirerEmplacement(nom: string) {
@@ -166,77 +166,69 @@ export function InscriptionPage() {
   // Valeur dérivée plutôt qu'un setState en cours de rendu : la reprise
   // après confirmation d'email saute directement à l'étape 2.
   const etapeEffective = sessionAuMontage && emplacementsExistants.data ? 2 : etape;
-  // Pour la liste de repères du panneau gauche : "attente" doit afficher
-  // l'étape 1 comme terminée et l'étape 2 comme pas encore commencée,
-  // sans complexifier la comparaison numérique existante.
-  const etapeNumero = etapeEffective === 'attente' ? 1.5 : etapeEffective;
+
+  // Après le lien de confirmation, la page est rechargée : le formulaire de
+  // l'étape 1 est vide, l'aperçu reprend alors les noms de la session.
+  const session = sessionAuMontage ? getSession() : null;
+  const libelleSecteur = SECTEURS.find((s) => s.valeur === secteurActivite)?.libelle ?? null;
 
   const panneauGauche = (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h2 className="text-[1.875rem] leading-[1.15] font-semibold tracking-[-0.03em] text-balance text-white">
-          {etapeEffective === 1
-            ? 'Deux étapes, et votre inventaire est prêt.'
-            : etapeEffective === 'attente'
-              ? 'Vérifiez votre boîte mail.'
-              : 'Presque terminé.'}
-        </h2>
-        <p className="mt-3 text-corps text-white/65">
-          {etapeEffective === 1
-            ? 'Vous créez d’abord votre compte administrateur, puis vous décrivez votre activité et vos emplacements.'
-            : etapeEffective === 'attente'
-              ? 'Un lien de confirmation vient de partir — cliquez dessus pour activer votre compte et continuer.'
-              : 'Ces réglages définissent vos catégories et vos alertes par défaut.'}
-        </p>
-      </div>
-      <ul className="flex flex-col gap-1">
-        {ETAPES.map((e) => (
-          <li key={e.numero} className="flex items-start gap-3 py-2">
-            <span
-              className={
-                'mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-meta font-semibold ' +
-                (e.numero < etapeNumero
-                  ? 'bg-ok text-sur-couleur'
-                  : e.numero === etapeNumero
-                    ? 'bg-action text-sur-couleur'
-                    : 'bg-white/10 text-white/65')
-              }
-            >
-              {e.numero < etapeNumero ? <CheckCircle2 className="size-4" aria-hidden="true" /> : e.numero}
-            </span>
-            <div>
-              <p className={'text-corps font-medium ' + (e.numero <= etapeNumero ? 'text-white' : 'text-white/65')}>
-                {e.titre}
-              </p>
-              <p className="text-meta text-white/65">{e.description}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
-      <div className="flex items-start gap-2 rounded-lg border border-white/10 bg-white/[0.05] backdrop-blur-sm transition-colors hover:bg-white/[0.08] p-3 text-meta text-white/65">
-        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-action-clair" aria-hidden="true" />
-        Vos données restent hébergées sur votre espace, exportables à tout moment.
-      </div>
+    <div>
+      <h2 className="max-w-[18ch] font-display text-[2.375rem] leading-[1.1] font-semibold tracking-[-0.03em] text-balance text-white">
+        {etapeEffective === 1
+          ? 'Votre espace prend forme.'
+          : etapeEffective === 'attente'
+            ? 'Vérifiez votre boîte mail.'
+            : 'Presque terminé.'}
+      </h2>
+      <p className="mt-3 max-w-[44ch] text-[1rem] text-white/65">
+        {etapeEffective === 1
+          ? 'À mesure que vous remplissez le formulaire, voici à quoi ressemblera votre espace NimbaFlow.'
+          : etapeEffective === 'attente'
+            ? 'Un lien de confirmation vient de partir : cliquez dessus pour activer votre compte et continuer.'
+            : 'Votre secteur et vos emplacements préparent vos catégories et vos alertes.'}
+      </p>
+      <ApercuEspace
+        entreprise={session?.entreprise.nom ?? nomEntrepriseSaisi}
+        administrateur={session?.utilisateur.nom ?? nomAdminSaisi}
+        email={session?.utilisateur.email ?? emailSaisi}
+        emailConfirme={etapeEffective === 2}
+        motDePasseValide={motDePasseSaisi.length >= 8}
+        secteur={libelleSecteur}
+        emplacements={emplacements}
+        tva={tauxTvaParDefaut}
+      />
     </div>
   );
 
   if (etapeEffective === 'attente') {
     return (
-      <AuthLayout titre="Confirmez votre email" description="Valable 24 heures." panneauGauche={panneauGauche}>
+      <AuthLayout
+        titre="Confirmez votre email"
+        description="Le lien est valable 24 heures."
+        etape={{ actuelle: 2, libelles: ETAPES }}
+        panneauGauche={panneauGauche}
+      >
         <div className="flex flex-col gap-4">
+          <span className="inscription-enveloppe" aria-hidden="true">
+            <MailCheck />
+          </span>
           {erreur && <Alert variant="error">{erreur}</Alert>}
-          <div className="flex items-start gap-3 rounded-md bg-paper p-4">
-            <MailCheck className="mt-0.5 size-5 shrink-0 text-action" aria-hidden="true" />
-            <p className="text-corps text-steel-500">
-              Un lien de confirmation part vers{' '}
-              <span className="font-medium text-ink-900">{emailInscrit}</span>. Cliquez dessus pour activer
-              votre compte administrateur et poursuivre vers l’étape suivante.
+          <div className="flex items-start gap-3 rounded-lg border border-rule bg-paper p-4">
+            <Mail className="mt-0.5 size-5 shrink-0 text-action" aria-hidden="true" />
+            <p className="text-corps text-steel-700">
+              Un lien de confirmation part vers <span className="font-semibold text-ink-900">{emailInscrit}</span>.
             </p>
           </div>
+          <ol className="inscription-consignes">
+            <li>Ouvrez votre messagerie</li>
+            <li>Cliquez sur « Confirmer mon adresse email »</li>
+            <li>Vous revenez ici pour décrire votre activité</li>
+          </ol>
           {renvoiConfirme ? (
             <Alert variant="success">Nouveau lien envoyé — vérifiez votre boîte mail.</Alert>
           ) : (
-            <Button variant="secondary" onClick={renvoyerConfirmation} loading={renvoiEnCours} className="w-full">
+            <Button variant="secondary" onClick={renvoyerConfirmation} loading={renvoiEnCours} className="h-12 w-full">
               Renvoyer le lien
             </Button>
           )}
@@ -250,50 +242,47 @@ export function InscriptionPage() {
       <AuthLayout
         titre="Votre activité"
         description="Ces réglages définissent vos catégories et vos alertes par défaut."
-        etape={{ actuelle: 2, total: 2, libelle: 'Votre activité' }}
+        etape={{ actuelle: 3, libelles: ETAPES }}
         panneauGauche={panneauGauche}
       >
         <div className="flex flex-col gap-4">
           {erreur && <Alert variant="error">{erreur}</Alert>}
 
-          <div className="flex flex-col gap-1.5">
-            <span className="text-corps font-medium text-ink-900">Secteur d’activité</span>
-            <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-2">
+            <span className="text-corps font-semibold text-ink-900">Secteur d’activité</span>
+            <div className="grid gap-2.5 min-[420px]:grid-cols-2">
               {SECTEURS.map(({ valeur, libelle, Icone }) => (
                 <button
                   key={valeur}
                   type="button"
                   onClick={() => setSecteurActivite(valeur)}
                   aria-pressed={secteurActivite === valeur}
-                  className={cn(
-                    'flex items-center gap-2 rounded-md border px-3 py-2 text-corps font-medium transition-colors',
-                    secteurActivite === valeur
-                      ? 'border-action bg-action-wash text-action'
-                      : 'border-rule text-steel-500 hover:bg-survol',
-                  )}
+                  className="inscription-secteur"
                 >
-                  <Icone className="size-4 shrink-0" aria-hidden="true" />
+                  <span className="inscription-secteur-tuile">
+                    <Icone className="size-[17px]" aria-hidden="true" />
+                  </span>
                   {libelle}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <span className="text-corps font-medium text-ink-900">Emplacements de stock</span>
+          <div className="flex flex-col gap-2">
+            <span className="text-corps font-semibold text-ink-900">Emplacements de stock</span>
             {emplacements.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {emplacements.map((nom) => (
                   <span
                     key={nom}
-                    className="flex items-center gap-1.5 rounded-full bg-action-wash py-1 pr-1.5 pl-3 text-corps font-medium text-action"
+                    className="apparition flex h-8 items-center gap-1.5 rounded-full bg-action-wash pr-1.5 pl-3 text-corps font-semibold text-action"
                   >
                     {nom}
                     <button
                       type="button"
                       onClick={() => retirerEmplacement(nom)}
                       aria-label={`Retirer ${nom}`}
-                      className="rounded-full p-0.5 hover:bg-action/20"
+                      className="rounded-full p-1 hover:bg-action/20"
                     >
                       <X className="size-3.5" aria-hidden="true" />
                     </button>
@@ -301,60 +290,67 @@ export function InscriptionPage() {
                 ))}
               </div>
             )}
-            <div className="flex gap-2">
-              <Input
-                label=""
-                placeholder="Dépôt Madina"
-                autoComplete="off"
-                icone={<MapPin className="size-4" aria-hidden="true" />}
-                value={nouvelEmplacement}
-                onChange={(event) => setNouvelEmplacement(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    ajouterEmplacement();
-                  }
-                }}
-              />
-              <Button type="button" variant="secondary" onClick={ajouterEmplacement}>
+            <div className="flex items-end gap-2">
+              <div className="min-w-0 flex-1">
+                <Input
+                  label=""
+                  aria-label="Nouvel emplacement"
+                  placeholder="Dépôt Madina"
+                  autoComplete="off"
+                  icone={<MapPin className="size-4" aria-hidden="true" />}
+                  value={nouvelEmplacement}
+                  onChange={(event) => setNouvelEmplacement(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      ajouterEmplacement();
+                    }
+                  }}
+                />
+              </div>
+              <Button type="button" variant="secondary" onClick={() => ajouterEmplacement()} className="h-[50px] rounded-lg">
                 <Plus className="size-4" aria-hidden="true" />
                 Ajouter
               </Button>
             </div>
+            <div className="flex flex-wrap items-center gap-1.5 text-meta text-steel-500">
+              <span>Suggestions :</span>
+              {SUGGESTIONS_EMPLACEMENTS.filter((nom) => !emplacements.includes(nom)).map((nom) => (
+                <button key={nom} type="button" onClick={() => ajouterEmplacement(nom)} className="inscription-suggestion">
+                  + {nom}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <span className="text-corps font-medium text-ink-900">Devise</span>
-              <div className="flex h-9 items-center rounded-md border border-rule bg-paper px-3 text-corps text-steel-500">
+          <div className="grid gap-3 min-[420px]:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <span className="text-corps font-semibold text-ink-900">Devise</span>
+              <div className="flex h-[50px] items-center gap-2 rounded-lg border border-rule bg-paper px-3.5 text-corps text-steel-500">
+                <Banknote className="size-[17px]" aria-hidden="true" />
                 GNF · Franc guinéen
               </div>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <span className="text-corps font-medium text-ink-900">TVA par défaut</span>
-              <div className="flex gap-2">
+            <div className="flex flex-col gap-2">
+              <span className="text-corps font-semibold text-ink-900">TVA par défaut</span>
+              <div className="inscription-segment">
                 {[18, 0].map((valeur) => (
                   <button
                     key={valeur}
                     type="button"
                     onClick={() => setTauxTvaParDefaut(valeur as 0 | 18)}
                     aria-pressed={tauxTvaParDefaut === valeur}
-                    className={cn(
-                      'flex-1 rounded-md border px-3 py-2 text-corps font-medium transition-colors',
-                      tauxTvaParDefaut === valeur
-                        ? 'border-action bg-action-wash text-action'
-                        : 'border-rule text-steel-500 hover:bg-survol',
-                    )}
                   >
-                    {valeur}%
+                    {valeur} %
                   </button>
                 ))}
               </div>
             </div>
           </div>
 
-          <Button type="button" loading={envoiEnCours} onClick={terminerInscription} className="mt-2 w-full">
+          <Button type="button" loading={envoiEnCours} onClick={terminerInscription} className="auth-principal mt-2 w-full">
             Créer mon espace
+            {!envoiEnCours && <ArrowRight className="size-[18px]" aria-hidden="true" />}
           </Button>
         </div>
       </AuthLayout>
@@ -363,9 +359,9 @@ export function InscriptionPage() {
 
   return (
     <AuthLayout
-      titre="Créer votre entreprise"
-      description="Vous serez administrateur et pourrez inviter vos gestionnaires ensuite."
-      etape={{ actuelle: 1, total: 2, libelle: 'Compte administrateur' }}
+      titre="Créez votre entreprise"
+      description="30 jours d’essai gratuit. Vous serez administrateur et pourrez inviter votre équipe ensuite."
+      etape={{ actuelle: 1, libelles: ETAPES }}
       panneauGauche={panneauGauche}
       pied={
         <>
@@ -410,15 +406,31 @@ export function InscriptionPage() {
           {!formCompte.formState.errors.password && (
             <>
               <IndicateurForceMotDePasse motDePasse={motDePasseSaisi} />
-              <p className="text-meta text-steel-500">Au moins 8 caractères.</p>
+              <p className="flex flex-wrap gap-x-3.5 gap-y-1 text-meta text-steel-500">
+                <span>Obligatoire :</span>
+                <Critere rempli={motDePasseSaisi.length >= 8}>8 caractères</Critere>
+                <span>Conseillé :</span>
+                <Critere rempli={/\d/.test(motDePasseSaisi)}>un chiffre</Critere>
+                <Critere rempli={/[A-Z]/.test(motDePasseSaisi)}>une majuscule</Critere>
+              </p>
             </>
           )}
         </div>
 
         <Button type="submit" loading={formCompte.formState.isSubmitting} className="mt-2 w-full">
-          Continuer
+          Créer mon compte
+          {!formCompte.formState.isSubmitting && <ArrowRight className="size-[18px]" aria-hidden="true" />}
         </Button>
       </form>
     </AuthLayout>
+  );
+}
+
+function Critere({ rempli, children }: { rempli: boolean; children: string }) {
+  return (
+    <span className={cn('inline-flex items-center gap-1 transition-colors', rempli && 'text-ok')}>
+      <Check className={cn('size-3.5 stroke-3', !rempli && 'opacity-35')} aria-hidden="true" />
+      {children}
+    </span>
   );
 }

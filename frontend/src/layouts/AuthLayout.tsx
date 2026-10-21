@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Logo } from '@/components/patterns/Logo';
+import { cn } from '@/lib/cn';
 import './auth.css';
 
 /**
@@ -21,8 +22,8 @@ export function AuthLayout({
   panneauGauche: ReactNode;
   titre: string;
   description?: string;
-  /** Barre de progression facultative pour les parcours en plusieurs étapes. */
-  etape?: { actuelle: number; total: number; libelle: string };
+  /** Parcours en plusieurs temps : une barre par étape, avec son libellé. */
+  etape?: { actuelle: number; libelles: string[] };
   children: ReactNode;
   pied?: ReactNode;
 }) {
@@ -61,20 +62,33 @@ export function AuthLayout({
         <div className="auth-centre">
           <div className="auth-formulaire fenetre-entree">
             {etape && (
-              <div className="mb-5">
-                <div className="mb-1.5 flex items-baseline justify-between text-meta">
-                  <span className="font-semibold text-action">
-                    Étape {etape.actuelle} sur {etape.total}
-                  </span>
-                  <span className="text-steel-500">{etape.libelle}</span>
-                </div>
-                <div className="h-1 overflow-hidden rounded-full bg-rule">
-                  <div
-                    className="h-full rounded-full bg-action transition-all"
-                    style={{ width: `${(etape.actuelle / etape.total) * 100}%` }}
-                  />
-                </div>
-              </div>
+              <ol className="mb-6 grid gap-2" style={{ gridTemplateColumns: `repeat(${etape.libelles.length}, minmax(0, 1fr))` }}>
+                {etape.libelles.map((libelle, index) => {
+                  const numero = index + 1;
+                  const etat = numero < etape.actuelle ? 'fait' : numero === etape.actuelle ? 'actif' : 'avenir';
+                  return (
+                    <li key={libelle} aria-current={etat === 'actif' ? 'step' : undefined}>
+                      <span className="block h-1 overflow-hidden rounded-full bg-rule">
+                        <span
+                          className={cn(
+                            'block h-full rounded-full transition-[width] duration-500',
+                            etat === 'avenir' ? 'w-0' : 'w-full',
+                            etat === 'fait' ? 'bg-ok' : 'bg-action',
+                          )}
+                        />
+                      </span>
+                      <span
+                        className={cn(
+                          'mt-1.5 block truncate text-meta font-semibold',
+                          etat === 'fait' ? 'text-ok' : etat === 'actif' ? 'text-action' : 'text-steel-400',
+                        )}
+                      >
+                        {numero} · {libelle}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
             )}
 
             <h1 className="font-display text-[1.875rem] leading-[1.15] font-semibold tracking-[-0.025em] text-ink-900">
