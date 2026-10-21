@@ -1,7 +1,20 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Archive, Download, Layers, MapPin, Pencil, Plus, Search, Upload } from 'lucide-react';
+import {
+  Archive,
+  Download,
+  LayoutGrid,
+  Layers,
+  List,
+  MapPin,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  Upload,
+  type LucideIcon,
+} from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { exporterCsv } from '@/lib/exporterCsv';
 import { Button } from '@/components/ui/Button';
@@ -12,10 +25,11 @@ import { Card, PageHeader } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { NiveauStock } from '@/components/patterns/NiveauStock';
 import { Vignette } from '@/components/patterns/Vignette';
-import { libelleStatut, statutStock, varianteStatut } from '@/components/patterns/statutStock';
+import { libelleStatut, statutStock, varianteStatut, type StatutStock } from '@/components/patterns/statutStock';
+import { Compteur } from '@/components/patterns/Compteur';
 import { useDebounce } from '@/lib/useDebounce';
-import { cn } from '@/lib/cn';
 import { useModules } from '@/lib/useModules';
+import './produits.css';
 
 interface Produit {
   id: string;
@@ -41,6 +55,41 @@ interface LigneStock {
 const FORMATEUR_GNF = new Intl.NumberFormat('fr-FR');
 const TOUTES = '__toutes__';
 const SANS_CATEGORIE = '__sans__';
+const CLE_VUE = 'stockflow.produits.vue';
+
+type Vue = 'liste' | 'grille';
+
+function lireVue(): Vue {
+  try {
+    return localStorage.getItem(CLE_VUE) === 'grille' ? 'grille' : 'liste';
+  } catch {
+    return 'liste';
+  }
+}
+
+function initiales(nom: string): string {
+  return nom
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((mot) => mot[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
+
+/** Teinte stable par catégorie, pour les vignettes sans photo. */
+const TEINTES = ['#c2440b', '#12705c', '#2f6fb3', '#9a6500', '#7a4bc2', '#c32b1e'];
+function teinteDe(cle: string): string {
+  let somme = 0;
+  for (const caractere of cle) somme += caractere.charCodeAt(0);
+  return TEINTES[somme % TEINTES.length];
+}
+
+const INDICATEURS: { statut: StatutStock; titre: string; detail: string; teinte: string }[] = [
+  { statut: 'ok', titre: 'En stock', detail: 'au-dessus du seuil', teinte: 'var(--color-ok)' },
+  { statut: 'faible', titre: 'Sous le seuil', detail: 'à réapprovisionner', teinte: 'var(--color-faible)' },
+  { statut: 'rupture', titre: 'En rupture', detail: 'plus aucune unité', teinte: 'var(--color-rupture)' },
+];
 
 function EtatProduit({ produit, quantite }: { produit: Produit; quantite: number }) {
   if (produit.archive) return <Badge variant="neutral">Archivé</Badge>;
@@ -58,6 +107,74 @@ function Emplacements({ noms }: { noms: string[] }) {
         <span className="shrink-0 rounded-sm bg-paper px-1 text-meta text-steel-500">+{noms.length - 1}</span>
       )}
     </span>
+  );
+}
+
+function Prix({ valeur }: { valeur: number | null }) {
+  if (valeur === null) return <span className="text-meta text-steel-400">Sans prix</span>;
+  return (
+    <span className="whitespace-nowrap">
+      <span className="font-mono font-semibold text-ink-900">{FORMATEUR_GNF.format(valeur)}</span>{' '}
+      <span className="text-meta text-steel-400">GNF</span>
+    </span>
+  );
+}
+
+interface ActionPlus {
+  libelle: string;
+  Icone: LucideIcon;
+  onSelect: () => void;
+  desactive?: boolean;
+}
+
+/** Actions secondaires de l'en-tête (import, export, modèles), regroupées dans un menu. */
+function MenuPlus({ actions }: { actions: ActionPlus[] }) {
+  const [ouvert, setOuvert] = useState(false);
+  const racine = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!ouvert) return;
+    const surClic = (e: MouseEvent) => {
+      if (!racine.current?.contains(e.target as Node)) setOuvert(false);
+    };
+    const surTouche = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOuvert(false);
+    };
+    document.addEventListener('mousedown', surClic);
+    document.addEventListener('keydown', surTouche);
+    return () => {
+      document.removeEventListener('mousedown', surClic);
+      document.removeEventListener('keydown', surTouche);
+    };
+  }, [ouvert]);
+
+  return (
+    <div ref={racine} className="relative">
+      <Button variant="secondary" aria-haspopup="menu" aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)}>
+        <MoreHorizontal className="size-4" aria-hidden="true" />
+        <span className="max-sm:sr-only">Plus</span>
+      </Button>
+      {ouvert && (
+        <div role="menu" className="fenetre-entree absolute top-full right-0 z-20 mt-1.5 min-w-[220px] rounded-lg border border-rule bg-surface p-1.5 shadow-pop">
+          {actions.map(({ libelle, Icone, onSelect, desactive }) => (
+            <button
+              key={libelle}
+              type="button"
+              role="menuitem"
+              disabled={desactive}
+              onClick={() => {
+                setOuvert(false);
+                onSelect();
+              }}
+              className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-corps text-ink-900 hover:bg-survol disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Icone className="size-4 shrink-0 text-steel-500" aria-hidden="true" />
+              {libelle}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -79,6 +196,31 @@ export function ProduitsPage() {
   const [erreur, setErreur] = useState<string | null>(null);
 
   const [categorieFiltre, setCategorieFiltre] = useState(TOUTES);
+  const [statutFiltre, setStatutFiltre] = useState<StatutStock | null>(null);
+  const [vue, setVue] = useState<Vue>(lireVue);
+  const champRecherche = useRef<HTMLInputElement>(null);
+
+  function choisirVue(valeur: Vue) {
+    setVue(valeur);
+    try {
+      localStorage.setItem(CLE_VUE, valeur);
+    } catch {
+      // Préférence non mémorisée (navigation privée) : la vue reste valable pour la session.
+    }
+  }
+
+  // « / » place le curseur dans la recherche, sauf pendant une saisie.
+  useEffect(() => {
+    function surTouche(e: KeyboardEvent) {
+      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+      const cible = e.target as HTMLElement;
+      if (cible.closest('input, textarea, select, [contenteditable="true"]')) return;
+      e.preventDefault();
+      champRecherche.current?.focus();
+    }
+    document.addEventListener('keydown', surTouche);
+    return () => document.removeEventListener('keydown', surTouche);
+  }, []);
 
   const rechercheRetardee = useDebounce(recherche);
 
@@ -124,9 +266,36 @@ export function ProduitsPage() {
     );
   }, [data]);
 
+  const infosStock = (id: string) => parProduit.get(id) ?? { quantite: 0, emplacements: [] };
+
+  // Indicateurs du haut : produits actifs du catalogue affiché (recherche comprise).
+  const resume = useMemo(() => {
+    const total: Record<StatutStock, number> = { ok: 0, faible: 0, rupture: 0 };
+    let valeur = 0;
+    let actifs = 0;
+    for (const produit of data ?? []) {
+      if (produit.archive) continue;
+      actifs += 1;
+      const quantite = parProduit.get(produit.id)?.quantite ?? 0;
+      total[statutStock(quantite, produit.seuilAlerte)] += 1;
+      if (produit.prixVente !== null && quantite > 0) valeur += produit.prixVente * quantite;
+    }
+    return { total, valeur, actifs };
+  }, [data, parProduit]);
+
   const produitsAffiches = (data ?? []).filter(
-    (p) => categorieFiltre === TOUTES || (p.categorie?.id ?? SANS_CATEGORIE) === categorieFiltre,
+    (p) =>
+      (categorieFiltre === TOUTES || (p.categorie?.id ?? SANS_CATEGORIE) === categorieFiltre) &&
+      (statutFiltre === null ||
+        (!p.archive && statutStock(infosStock(p.id).quantite, p.seuilAlerte) === statutFiltre)),
   );
+  const filtresActifs = recherche !== '' || categorieFiltre !== TOUTES || statutFiltre !== null;
+
+  function effacerFiltres() {
+    setRecherche('');
+    setCategorieFiltre(TOUTES);
+    setStatutFiltre(null);
+  }
 
   const archiver = useMutation({
     mutationFn: async (id: string) => api.patch(`/produits/${id}/archive`),
@@ -138,8 +307,6 @@ export function ProduitsPage() {
     onError: (err) => setErreur(messageErreur(err, 'L’archivage a échoué.')),
   });
 
-  const rechercheActive = rechercheRetardee.length > 0;
-  const infosStock = (id: string) => parProduit.get(id) ?? { quantite: 0, emplacements: [] };
 
   return (
     <div className="flex flex-col gap-5">
@@ -148,41 +315,36 @@ export function ProduitsPage() {
         description="Votre catalogue, où il se trouve et ce qu’il en reste."
         action={
           <>
-            <Button
-              variant="secondary"
-              disabled={!data || data.length === 0}
-              onClick={() =>
-                data &&
-                exporterCsv(
-                  `produits-${new Date().toISOString().slice(0, 10)}.csv`,
-                  [
-                    { entete: 'Nom', valeur: (p: Produit) => p.nom },
-                    { entete: 'Référence', valeur: (p: Produit) => p.reference ?? '' },
-                    { entete: 'Catégorie', valeur: (p: Produit) => p.categorie?.nom ?? '' },
-                    { entete: 'Marque', valeur: (p: Produit) => p.marque?.nom ?? '' },
-                    { entete: 'Prix de vente (GNF)', valeur: (p: Produit) => p.prixVente ?? '' },
-                    { entete: 'Seuil d’alerte', valeur: (p: Produit) => p.seuilAlerte },
-                    { entete: 'Statut', valeur: (p: Produit) => (p.archive ? 'Archivé' : 'Actif') },
-                  ],
-                  data,
-                )
-              }
-            >
-              <Download className="size-4" aria-hidden="true" />
-              Exporter CSV
-            </Button>
-            {modules.import && (
-              <Button variant="secondary" onClick={() => navigate('/produits/import')}>
-                <Upload className="size-4" aria-hidden="true" />
-                Importer
-              </Button>
-            )}
-            {modules.variantes && (
-              <Button variant="secondary" onClick={() => navigate('/produits/modeles')}>
-                <Layers className="size-4" aria-hidden="true" />
-                Modèles à variantes
-              </Button>
-            )}
+            <MenuPlus
+              actions={[
+                ...(modules.import
+                  ? [{ libelle: 'Importer un fichier', Icone: Upload, onSelect: () => navigate('/produits/import') }]
+                  : []),
+                {
+                  libelle: 'Exporter en CSV',
+                  Icone: Download,
+                  desactive: !data || data.length === 0,
+                  onSelect: () =>
+                    data &&
+                    exporterCsv(
+                      `produits-${new Date().toISOString().slice(0, 10)}.csv`,
+                      [
+                        { entete: 'Nom', valeur: (p: Produit) => p.nom },
+                        { entete: 'Référence', valeur: (p: Produit) => p.reference ?? '' },
+                        { entete: 'Catégorie', valeur: (p: Produit) => p.categorie?.nom ?? '' },
+                        { entete: 'Marque', valeur: (p: Produit) => p.marque?.nom ?? '' },
+                        { entete: 'Prix de vente (GNF)', valeur: (p: Produit) => p.prixVente ?? '' },
+                        { entete: 'Seuil d’alerte', valeur: (p: Produit) => p.seuilAlerte },
+                        { entete: 'Statut', valeur: (p: Produit) => (p.archive ? 'Archivé' : 'Actif') },
+                      ],
+                      data,
+                    ),
+                },
+                ...(modules.variantes
+                  ? [{ libelle: 'Modèles à variantes', Icone: Layers, onSelect: () => navigate('/produits/modeles') }]
+                  : []),
+              ]}
+            />
             <Button onClick={() => navigate('/produits/nouveau')}>
               <Plus className="size-4" aria-hidden="true" />
               Nouveau produit
@@ -191,31 +353,82 @@ export function ProduitsPage() {
         }
       />
 
+      {data && resume.actifs > 0 && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {INDICATEURS.map(({ statut, titre, detail, teinte }) => (
+            <button
+              key={statut}
+              type="button"
+              aria-pressed={statutFiltre === statut}
+              onClick={() => setStatutFiltre((s) => (s === statut ? null : statut))}
+              className="produits-indicateur"
+              style={{ '--teinte': teinte } as CSSProperties}
+            >
+              <span className="flex items-center gap-2 text-meta font-semibold text-steel-500">
+                <i className="size-2 rounded-full" style={{ background: teinte }} aria-hidden="true" />
+                {titre}
+              </span>
+              <span className="font-display text-[1.625rem] leading-none font-semibold tracking-[-0.02em] text-ink-900">
+                <Compteur valeur={resume.total[statut]} format={(n) => FORMATEUR_GNF.format(n)} />
+              </span>
+              <span className="text-meta text-steel-400">{detail}</span>
+            </button>
+          ))}
+          <div className="produits-indicateur produits-indicateur-fixe" style={{ '--teinte': 'var(--color-action)' } as CSSProperties}>
+            <span className="flex items-center gap-2 text-meta font-semibold text-steel-500">
+              <i className="size-2 rounded-full bg-action" aria-hidden="true" />
+              Valeur au prix de vente
+            </span>
+            <span className="font-display text-[1.375rem] leading-none font-semibold tracking-[-0.02em] whitespace-nowrap text-ink-900">
+              <Compteur valeur={resume.valeur} format={(n) => FORMATEUR_GNF.format(n)} />{' '}
+              <span className="text-meta font-medium text-steel-400">GNF</span>
+            </span>
+            <span className="text-meta text-steel-400">
+              {resume.actifs} produit{resume.actifs > 1 ? 's' : ''} actif{resume.actifs > 1 ? 's' : ''}
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-3">
           <div className="relative min-w-0 flex-1 basis-64">
             <Search
               className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-steel-400"
               aria-hidden="true"
             />
             <input
+              ref={champRecherche}
               type="search"
               value={recherche}
               onChange={(event) => setRecherche(event.target.value)}
-              placeholder="Rechercher un produit…"
+              placeholder="Rechercher par nom ou référence…"
               aria-label="Rechercher un produit"
-              className="h-9 w-full champ rounded-md border border-rule-strong bg-surface-elevee pr-3 pl-9 text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-action"
+              aria-keyshortcuts="/"
+              className="champ h-10 w-full rounded-lg border border-rule-strong bg-surface-elevee pr-10 pl-9 text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-action"
             />
+            <kbd className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rounded border border-rule-strong px-1.5 font-mono text-[11px] text-steel-400 max-sm:hidden">
+              /
+            </kbd>
           </div>
 
-          <label className="flex items-center gap-2 text-corps text-steel-500">
+          <div className="produits-vue" role="group" aria-label="Affichage">
+            <button type="button" aria-pressed={vue === 'liste'} onClick={() => choisirVue('liste')} aria-label="Liste" title="Liste">
+              <List className="size-4" aria-hidden="true" />
+            </button>
+            <button type="button" aria-pressed={vue === 'grille'} onClick={() => choisirVue('grille')} aria-label="Grille" title="Grille">
+              <LayoutGrid className="size-4" aria-hidden="true" />
+            </button>
+          </div>
+
+          <label className="produits-bascule">
             <input
               type="checkbox"
               checked={afficherArchives}
               onChange={(event) => setAfficherArchives(event.target.checked)}
-              className="size-4 accent-action"
             />
-            Afficher les produits archivés
+            <span aria-hidden="true" />
+            Archivés
           </label>
         </div>
 
@@ -226,26 +439,31 @@ export function ProduitsPage() {
             role="group"
             aria-label="Filtrer par catégorie"
           >
-            {[[TOUTES, { nom: 'Toutes', n: data?.length ?? 0 }] as const, ...categories].map(([cle, { nom, n }]) => {
-              const actif = categorieFiltre === cle;
-              return (
-                <button
-                  key={cle}
-                  type="button"
-                  aria-pressed={actif}
-                  onClick={() => setCategorieFiltre(cle)}
-                  className={cn(
-                    'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-corps whitespace-nowrap transition-colors',
-                    actif
-                      ? 'border-action/30 bg-action-wash font-medium text-action'
-                      : 'border-rule bg-surface text-steel-700 hover:border-rule-strong',
-                  )}
-                >
-                  {nom}
-                  <span className={cn('text-meta', actif ? 'text-action/70' : 'text-steel-400')}>{n}</span>
-                </button>
-              );
-            })}
+            {[[TOUTES, { nom: 'Toutes', n: data?.length ?? 0 }] as const, ...categories].map(([cle, { nom, n }]) => (
+              <button
+                key={cle}
+                type="button"
+                aria-pressed={categorieFiltre === cle}
+                onClick={() => setCategorieFiltre(cle)}
+                className="produits-categorie"
+              >
+                {nom}
+                <span className="font-mono text-[11.5px] opacity-60">{n}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {data && (
+          <div className="flex items-center justify-between px-0.5 text-meta text-steel-500">
+            <span>
+              {produitsAffiches.length} produit{produitsAffiches.length > 1 ? 's' : ''}
+            </span>
+            {filtresActifs && (
+              <button type="button" onClick={effacerFiltres} className="font-semibold text-action hover:underline">
+                Effacer les filtres
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -257,13 +475,69 @@ export function ProduitsPage() {
           <LoadingState />
         ) : isError ? (
           <ErrorState message={messageErreur(error)} onRetry={() => refetch()} />
+        ) : produitsAffiches.length > 0 && vue === 'grille' ? (
+          <ul className="produits-grille">
+            {produitsAffiches.map((produit) => {
+              const infos = infosStock(produit.id);
+              const teinte = teinteDe(produit.categorie?.id ?? SANS_CATEGORIE);
+              return (
+                <li key={produit.id} className="produits-carte">
+                  <Link to={`/produits/${produit.id}`} className="flex flex-col gap-3 rounded-md">
+                    <span className="produits-visuel" style={{ '--teinte': teinte } as CSSProperties}>
+                      {produit.photoUrl ? (
+                        <img src={produit.photoUrl} alt="" className="size-full object-cover" />
+                      ) : (
+                        <span aria-hidden="true">{initiales(produit.nom)}</span>
+                      )}
+                      <span className="absolute top-2 left-2">
+                        <EtatProduit produit={produit} quantite={infos.quantite} />
+                      </span>
+                    </span>
+                    <span className="min-w-0">
+                      <span className="line-clamp-2 font-semibold text-ink-900">{produit.nom}</span>
+                      <span className="mt-1 flex items-center justify-between gap-2 text-meta text-steel-500">
+                        <span className="truncate">{produit.categorie?.nom ?? 'Sans catégorie'}</span>
+                        <Emplacements noms={infos.emplacements} />
+                      </span>
+                    </span>
+                    <NiveauStock quantite={infos.quantite} seuil={produit.seuilAlerte} unite={produit.uniteMesure} />
+                  </Link>
+                  <div className="flex items-center justify-between border-t border-rule pt-2.5">
+                    <Prix valeur={produit.prixVente} />
+                    <div className="flex gap-0.5">
+                      <Button
+                        variant="ghost"
+                        taille="sm"
+                        icone
+                        aria-label={`Modifier ${produit.nom}`}
+                        onClick={() => navigate(`/produits/${produit.id}`)}
+                      >
+                        <Pencil className="size-4" aria-hidden="true" />
+                      </Button>
+                      {!produit.archive && (
+                        <Button
+                          variant="ghost"
+                          taille="sm"
+                          icone
+                          aria-label={`Archiver ${produit.nom}`}
+                          onClick={() => setAArchiver(produit)}
+                        >
+                          <Archive className="size-4" aria-hidden="true" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         ) : produitsAffiches.length > 0 ? (
           <>
             <div className="relative hidden overflow-x-auto lg:block">
               <table className="w-full text-corps">
                 <thead className="border-b border-rule bg-entete-tableau text-left text-meta font-medium text-steel-500">
                   <tr>
-                    <th scope="col" className="py-2.5 pr-3 pl-5 font-medium">Référence</th>
+                    <th scope="col" className="py-2.5 pr-3 pl-5 font-medium">Produit</th>
                     <th scope="col" className="px-3 py-2.5 font-medium">Catégorie</th>
                     <th scope="col" className="px-3 py-2.5 font-medium">Emplacements</th>
                     <th scope="col" className="px-3 py-2.5 text-right font-medium">Stock</th>
@@ -278,10 +552,10 @@ export function ProduitsPage() {
                   {produitsAffiches.map((produit) => {
                     const infos = infosStock(produit.id);
                     return (
-                      <tr key={produit.id} className="hover:bg-entete-tableau">
+                      <tr key={produit.id} className="produits-ligne">
                         <td className="py-2.5 pr-3 pl-5">
                           <Link to={`/produits/${produit.id}`} className="group flex min-w-0 items-center gap-3">
-                            <Vignette nom={produit.nom} photoUrl={produit.photoUrl} taille={34} />
+                            <Vignette nom={produit.nom} photoUrl={produit.photoUrl} taille={40} teinte={teinteDe(produit.categorie?.id ?? SANS_CATEGORIE)} />
                             <span className="min-w-0">
                               <span className="block max-w-[300px] truncate font-medium text-ink-900 group-hover:underline">
                                 {produit.nom}
@@ -294,7 +568,13 @@ export function ProduitsPage() {
                           </Link>
                         </td>
                         <td className="px-3 py-2.5 text-steel-700">
-                          {produit.categorie?.nom ?? <span className="text-steel-400">—</span>}
+                          {produit.categorie ? (
+                            <span className="inline-flex h-6 items-center rounded-full bg-survol px-2.5 text-meta font-semibold text-steel-700">
+                              {produit.categorie.nom}
+                            </span>
+                          ) : (
+                            <span className="text-steel-400">—</span>
+                          )}
                           {produit.marque && <span className="block text-meta text-steel-400">{produit.marque.nom}</span>}
                         </td>
                         <td className="max-w-[180px] px-3 py-2.5 text-steel-700">
@@ -309,21 +589,14 @@ export function ProduitsPage() {
                             className="ml-auto w-[124px]"
                           />
                         </td>
-                        <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                          {produit.prixVente !== null ? (
-                            <>
-                              <span className="font-medium text-ink-900">{FORMATEUR_GNF.format(produit.prixVente)}</span>{' '}
-                              <span className="text-meta text-steel-400">GNF</span>
-                            </>
-                          ) : (
-                            <span className="text-steel-400">—</span>
-                          )}
+                        <td className="px-3 py-2.5 text-right">
+                          <Prix valeur={produit.prixVente} />
                         </td>
                         <td className="min-w-[124px] px-3 py-2.5">
                           <EtatProduit produit={produit} quantite={infos.quantite} />
                         </td>
                         <td className="py-2.5 pr-5 pl-3">
-                          <div className="flex justify-end gap-0.5">
+                          <div className="produits-gestes flex justify-end gap-0.5">
                             <Button
                               variant="ghost"
                               taille="sm"
@@ -363,7 +636,7 @@ export function ProduitsPage() {
                   <li key={produit.id} className="flex flex-col gap-3 px-4 py-3.5">
                     <div className="flex items-start justify-between gap-3">
                       <Link to={`/produits/${produit.id}`} className="flex min-w-0 items-center gap-3">
-                        <Vignette nom={produit.nom} photoUrl={produit.photoUrl} taille={38} />
+                        <Vignette nom={produit.nom} photoUrl={produit.photoUrl} taille={40} teinte={teinteDe(produit.categorie?.id ?? SANS_CATEGORIE)} />
                         <span className="min-w-0">
                           <span className="line-clamp-2 text-corps font-medium text-ink-900">{produit.nom}</span>
                           <span className="block font-mono text-meta text-steel-500">{produit.reference ?? '—'}</span>
@@ -373,15 +646,8 @@ export function ProduitsPage() {
                     </div>
                     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-4 gap-y-2">
                       <NiveauStock quantite={infos.quantite} seuil={produit.seuilAlerte} unite={produit.uniteMesure} />
-                      <p className="text-right whitespace-nowrap">
-                        {produit.prixVente !== null ? (
-                          <>
-                            <span className="font-medium text-ink-900">{FORMATEUR_GNF.format(produit.prixVente)}</span>{' '}
-                            <span className="text-meta text-steel-400">GNF</span>
-                          </>
-                        ) : (
-                          <span className="text-meta text-steel-400">Sans prix</span>
-                        )}
+                      <p className="text-right">
+                        <Prix valeur={produit.prixVente} />
                       </p>
                       <p className="min-w-0 text-meta text-steel-500">
                         <Emplacements noms={infos.emplacements} />
@@ -412,13 +678,13 @@ export function ProduitsPage() {
               })}
             </ul>
           </>
-        ) : rechercheActive ? (
+        ) : filtresActifs ? (
           <EmptyState
-            titre="Aucun résultat"
-            description={`Aucun produit ne correspond à « ${rechercheRetardee} ».`}
+            titre="Aucun produit ne correspond"
+            description="Modifiez la recherche ou effacez les filtres."
             action={
-              <Button variant="secondary" onClick={() => setRecherche('')}>
-                Effacer la recherche
+              <Button variant="secondary" onClick={effacerFiltres}>
+                Effacer les filtres
               </Button>
             }
           />
@@ -452,7 +718,7 @@ export function ProduitsPage() {
         }
       >
         <p className="text-corps text-steel-500">
-          Vous pourrez le retrouver en cochant « Afficher les produits archivés ».
+          Vous pourrez le retrouver en activant « Archivés » au-dessus de la liste.
         </p>
       </Modal>
     </div>

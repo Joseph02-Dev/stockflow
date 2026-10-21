@@ -1,0 +1,191 @@
+/* Écran Produits : indicateurs-filtres, barre d'outils, liste et grille. */
+.produits-indicateur {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  text-align: left;
+  transition:
+    border-color 200ms,
+    box-shadow 200ms,
+    transform 200ms var(--ease-sortie);
+}
+button.produits-indicateur:hover {
+  transform: translateY(-2px);
+}
+button.produits-indicateur:focus-visible {
+  outline: 2px solid var(--teinte);
+  outline-offset: 2px;
+}
+.produits-indicateur[aria-pressed='true'] {
+  border-color: var(--teinte);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--teinte) 18%, transparent);
+}
+
+.produits-vue {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-lg);
+  background: var(--color-survol);
+}
+.produits-vue button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  color: var(--color-steel-500);
+  transition:
+    background 200ms,
+    color 200ms;
+}
+.produits-vue button[aria-pressed='true'] {
+  background: var(--color-surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+  color: var(--color-ink-900);
+}
+
+.produits-bascule {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.84375rem;
+  color: var(--color-steel-700);
+  cursor: pointer;
+  user-select: none;
+}
+.produits-bascule input {
+  position: absolute;
+  opacity: 0;
+}
+.produits-bascule > span {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: 99px;
+  background: var(--color-rule-strong);
+  transition: background 200ms;
+}
+.produits-bascule > span::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  transition: transform 200ms var(--ease-sortie);
+}
+.produits-bascule input:checked + span {
+  background: var(--color-action);
+}
+.produits-bascule input:checked + span::after {
+  transform: translateX(14px);
+}
+.produits-bascule input:focus-visible + span {
+  outline: 2px solid var(--color-action);
+  outline-offset: 2px;
+}
+
+.produits-categorie {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: 99px;
+  background: var(--color-surface);
+  font-size: 0.84375rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-steel-700);
+  transition:
+    background 200ms,
+    color 200ms,
+    border-color 200ms;
+}
+.produits-categorie:hover {
+  border-color: var(--color-steel-400);
+}
+.produits-categorie[aria-pressed='true'] {
+  border-color: var(--color-ink-900);
+  background: var(--color-ink-900);
+  color: var(--color-surface);
+}
+
+.produits-ligne {
+  transition: background 150ms;
+}
+.produits-ligne:hover {
+  background: var(--color-entete-tableau);
+}
+@media (hover: hover) {
+  .produits-ligne .produits-gestes {
+    opacity: 0.4;
+    transition: opacity 200ms;
+  }
+  .produits-ligne:hover .produits-gestes,
+  .produits-ligne:focus-within .produits-gestes {
+    opacity: 1;
+  }
+}
+
+.produits-grille {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+.produits-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  transition:
+    transform 200ms var(--ease-sortie),
+    box-shadow 200ms;
+}
+.produits-carte:hover {
+  box-shadow: var(--shadow-pop);
+  transform: translateY(-3px);
+}
+.produits-visuel {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 112px;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: radial-gradient(
+    circle at 30% 20%,
+    color-mix(in oklab, var(--teinte) 24%, var(--color-surface)),
+    color-mix(in oklab, var(--teinte) 8%, var(--color-surface))
+  );
+  font: 700 1.875rem var(--font-display);
+  color: var(--teinte);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .produits-indicateur,
+  .produits-carte {
+    transition-duration: 120ms;
+  }
+  button.produits-indicateur:hover,
+  .produits-carte:hover {
+    transform: none;
+  }
+}
