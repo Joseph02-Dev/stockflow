@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -19,6 +20,29 @@ import { ModuleRequis } from '../../common/decorators/module-requis.decorator.js
 import { lirePagination } from '../../common/pagination/pagination.js';
 import { BOM_UTF8 } from '../../common/pagination/csv.js';
 import type { Response } from 'express';
+import { TypeMouvement } from '../../generated/prisma/enums.js';
+
+/**
+ * `type=ENTREE,SORTIE` → liste de types validée ; absent ou vide → aucun
+ * filtre. Plusieurs types à la fois : l'interface regroupe par familles
+ * (« Pertes » = PERIME + CASSE).
+ */
+function lireTypes(valeur?: string): TypeMouvement[] | undefined {
+  const types = (valeur ?? '')
+    .split(',')
+    .map((t) => t.trim())
+    .filter(Boolean);
+  if (types.length === 0) return undefined;
+  const inconnus = types.filter(
+    (t) => !Object.values(TypeMouvement).includes(t as TypeMouvement),
+  );
+  if (inconnus.length > 0) {
+    throw new BadRequestException(
+      `Type de mouvement inconnu : ${inconnus.join(', ')}.`,
+    );
+  }
+  return types as TypeMouvement[];
+}
 
 @Controller()
 export class MouvementsController {
@@ -64,12 +88,13 @@ export class MouvementsController {
     @CurrentTenant() entrepriseId: string,
     @Query('produit_id') produitId?: string,
     @Query('emplacement_id') emplacementId?: string,
+    @Query('type') type?: string,
     @Query('limite') limite?: string,
     @Query('apres') apres?: string,
   ) {
     return this.mouvementsService.listerMouvements(
       entrepriseId,
-      { produitId, emplacementId },
+      { produitId, emplacementId, types: lireTypes(type) },
       lirePagination(limite, apres),
     );
   }
@@ -81,7 +106,10 @@ export class MouvementsController {
     @Res() res: Response,
     @Query('produit_id') produitId?: string,
     @Query('emplacement_id') emplacementId?: string,
+    @Query('type') type?: string,
   ) {
+    // Validé avant tout en-tête : une erreur doit rester une réponse 400 en JSON.
+    const types = lireTypes(type);
     const date = new Date().toISOString().slice(0, 10);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader(
@@ -96,7 +124,7 @@ export class MouvementsController {
     await ecrire(BOM_UTF8);
     await this.mouvementsService.exporterMouvements(
       entrepriseId,
-      { produitId, emplacementId },
+      { produitId, emplacementId, types },
       ecrire,
     );
     res.end();

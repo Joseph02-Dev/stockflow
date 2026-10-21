@@ -1,0 +1,368 @@
+/* Écran Stock & mouvements : emplacements, stock par produit, journal, inventaires. */
+.stock-lieux {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 3px;
+  margin: -3px;
+  scrollbar-width: none;
+}
+.stock-lieu {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  min-width: 168px;
+  padding: 10px 14px 10px 10px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  text-align: left;
+  transition:
+    border-color 200ms,
+    box-shadow 200ms,
+    transform 200ms var(--ease-sortie);
+}
+.stock-lieu:hover {
+  transform: translateY(-1px);
+  border-color: var(--color-rule-strong);
+}
+.stock-lieu[aria-pressed='true'] {
+  border-color: var(--teinte);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--teinte) 16%, transparent);
+}
+.stock-lieu-tuile {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  color: var(--teinte);
+  background: color-mix(in oklab, var(--teinte) 13%, var(--color-surface));
+}
+
+/* Indicateurs ; ceux de statut filtrent la liste. */
+.stock-indicateur {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  text-align: left;
+  transition:
+    border-color 200ms,
+    box-shadow 200ms,
+    transform 200ms var(--ease-sortie);
+}
+button.stock-indicateur:hover {
+  transform: translateY(-2px);
+}
+.stock-indicateur[aria-pressed='true'] {
+  border-color: var(--teinte);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--teinte) 18%, transparent);
+}
+
+/* Stock : une ligne par produit, détail par emplacement en dessous. */
+.stock-ligne {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 2.4fr) minmax(0, 1.1fr) 128px 20px;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+}
+.stock-entete {
+  padding-block: 10px;
+  background: var(--color-entete-tableau);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-steel-500);
+}
+.stock-produit > summary {
+  list-style: none;
+  cursor: pointer;
+  transition: background 150ms;
+}
+.stock-produit > summary::-webkit-details-marker {
+  display: none;
+}
+.stock-produit > summary:hover {
+  background: var(--color-survol);
+}
+.stock-chevron {
+  justify-self: end;
+  color: var(--color-steel-400);
+  transition: transform 300ms var(--ease-sortie);
+}
+.stock-produit[open] .stock-chevron {
+  transform: rotate(180deg);
+}
+.stock-barre {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--color-rule);
+}
+.stock-barre i {
+  height: 100%;
+  background: var(--teinte);
+  transform-origin: left;
+  animation: stock-pousse 700ms var(--ease-sortie) both;
+}
+@keyframes stock-pousse {
+  from {
+    transform: scaleX(0);
+  }
+}
+.stock-legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 7px;
+  font-size: 0.78125rem;
+  color: var(--color-steel-500);
+}
+.stock-legende > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.stock-legende i {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--teinte);
+}
+.stock-legende b {
+  font-weight: 600;
+}
+.stock-nom-lieu {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-weight: 600;
+  color: var(--color-ink-900);
+}
+.stock-nom-lieu i {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--teinte);
+}
+.stock-detail {
+  padding: 4px 20px 12px 72px;
+  border-top: 1px dashed var(--color-rule);
+  background: color-mix(in oklab, var(--color-entete-tableau) 55%, transparent);
+}
+.stock-sous {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 128px;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--color-rule);
+}
+.stock-sous:last-child {
+  border-bottom: 0;
+}
+
+/* Journal des mouvements, regroupé par jour. */
+.stock-puce {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: 99px;
+  background: var(--color-surface);
+  font-size: 0.84375rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-steel-700);
+  transition:
+    background 200ms,
+    color 200ms,
+    border-color 200ms;
+}
+.stock-puce:hover {
+  border-color: var(--color-steel-400);
+}
+.stock-puce i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--teinte);
+}
+.stock-puce[aria-pressed='true'] {
+  border-color: var(--color-ink-900);
+  background: var(--color-ink-900);
+  color: var(--color-surface);
+}
+.stock-jour-titre {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 2px;
+}
+.stock-mvt {
+  display: grid;
+  grid-template-columns: 44px 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px 12px 14px;
+}
+.stock-type {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+}
+.stock-heure-mobile {
+  display: none;
+}
+
+/* Inventaires en cartes. */
+.stock-inventaire {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  text-align: left;
+  transition:
+    transform 200ms var(--ease-sortie),
+    border-color 200ms;
+}
+.stock-inventaire:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-rule-strong);
+}
+.stock-inventaire-nouveau {
+  align-items: center;
+  justify-content: center;
+  border-style: dashed;
+  background: transparent;
+  box-shadow: none;
+  text-align: center;
+}
+
+.stock-apparition {
+  animation: stock-arrive 400ms var(--ease-sortie) both;
+}
+@keyframes stock-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (max-width: 767px) {
+  .stock-lieu {
+    min-width: 0;
+  }
+  .stock-entete {
+    display: none;
+  }
+  .stock-ligne {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'produit etat'
+      'repartition repartition'
+      'quantite quantite';
+    gap: 10px;
+    padding: 14px 16px;
+  }
+  .stock-ligne > :nth-child(1) {
+    grid-area: produit;
+  }
+  .stock-ligne > :nth-child(2) {
+    grid-area: repartition;
+  }
+  .stock-ligne > :nth-child(3) {
+    grid-area: quantite;
+  }
+  .stock-ligne > :nth-child(4) {
+    grid-area: etat;
+  }
+  .stock-ligne > :nth-child(5) {
+    display: none;
+  }
+  .stock-detail {
+    padding: 2px 16px 10px;
+  }
+  .stock-sous {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'lieu etat'
+      'niveau niveau';
+    gap: 8px 12px;
+  }
+  .stock-sous > :nth-child(1) {
+    grid-area: lieu;
+  }
+  .stock-sous > :nth-child(2) {
+    grid-area: niveau;
+  }
+  .stock-sous > :nth-child(3) {
+    grid-area: etat;
+  }
+  .stock-mvt {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+  .stock-mvt > :first-child {
+    display: none;
+  }
+  .stock-type {
+    width: 36px;
+    height: 36px;
+  }
+  .stock-heure-mobile {
+    display: inline;
+  }
+}
+
+/* Version douce : ni déplacement ni barre qui pousse, un simple fondu. */
+@keyframes stock-fondu {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stock-lieu,
+  .stock-indicateur,
+  .stock-inventaire,
+  .stock-chevron {
+    transition-duration: 150ms;
+  }
+  .stock-lieu:hover,
+  button.stock-indicateur:hover,
+  .stock-inventaire:hover {
+    transform: none;
+  }
+  .stock-barre i {
+    animation: none;
+  }
+  .stock-apparition {
+    animation: stock-fondu 250ms ease-out both;
+  }
+}

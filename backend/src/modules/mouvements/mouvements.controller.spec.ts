@@ -286,6 +286,43 @@ describe('Mouvements de stock (MVT-001 à MVT-004) — intégration réelle, bas
     expect(response.body).toHaveLength(2);
   });
 
+  it("l'historique des mouvements est filtrable par type, un ou plusieurs à la fois", async () => {
+    const { accessToken, produitId, emplacementId } = await creerContexte();
+    const serveur = app.getHttpServer();
+    await request(serveur)
+      .post('/mouvements/entree')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ produitId, emplacementId, quantite: 10 });
+    await request(serveur)
+      .post('/mouvements/sortie')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ produitId, emplacementId, quantite: 3 });
+
+    const entrees = await request(serveur).get('/mouvements?type=ENTREE').set('Authorization', `Bearer ${accessToken}`);
+    expect(entrees.status).toBe(200);
+    expect(entrees.body.map((m: { type: string }) => m.type)).toEqual(['ENTREE']);
+
+    const deux = await request(serveur)
+      .get('/mouvements?type=ENTREE,SORTIE')
+      .set('Authorization', `Bearer ${accessToken}`);
+    expect(deux.body).toHaveLength(2);
+
+    const csv = await request(serveur)
+      .get('/mouvements/export?type=SORTIE')
+      .set('Authorization', `Bearer ${accessToken}`);
+    expect(csv.status).toBe(200);
+    expect(csv.text).toContain(',Sortie,');
+    expect(csv.text).not.toContain(',Entrée,');
+  });
+
+  it('rejette avec 400 un type de mouvement inconnu', async () => {
+    const { accessToken } = await creerContexte();
+    for (const url of ['/mouvements?type=ENTREE,VOL', '/mouvements/export?type=VOL']) {
+      const response = await request(app.getHttpServer()).get(url).set('Authorization', `Bearer ${accessToken}`);
+      expect(response.status).toBe(400);
+    }
+  });
+
   it('la vue du stock retourne la quantité par emplacement', async () => {
     const { accessToken, produitId, emplacementId } = await creerContexte();
     await request(app.getHttpServer())
