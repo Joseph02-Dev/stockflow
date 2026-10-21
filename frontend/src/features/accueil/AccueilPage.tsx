@@ -6,16 +6,10 @@ import {
   Boxes,
   Check,
   ChevronDown,
-  ClipboardCheck,
-  FileText,
   Mail,
   Menu,
-  Package,
-  PackageX,
   Smartphone,
   Tags,
-  Truck,
-  Users,
   WifiOff,
   X,
 } from 'lucide-react';
@@ -26,6 +20,15 @@ import { ADRESSE_AIDE } from '@/lib/contact';
 import { DUREE_ESSAI_JOURS, OFFRES, faq, type Offre } from './contenu';
 import { useApparitionAuDefilement } from './useApparition';
 import { SceneEmplacements, SceneHorsLigne, SceneJournal, SceneSeuil } from './ScenesQuotidien';
+import {
+  IconeCatalogue,
+  IconeEquipe,
+  IconeFournisseurs,
+  IconeInventaires,
+  IconePertes,
+  IconeRapports,
+  TuileAnimee,
+} from './IconesAussi';
 import './accueil.css';
 
 const TITRE_PAGE = 'NimbaFlow — gestion de stock et de ventes pour commerçants et grossistes';
@@ -134,12 +137,12 @@ const VITRINES: Vitrine[] = [
 ];
 
 const AUSSI = [
-  { Icone: Package, titre: 'Catalogue', texte: 'Catégories, marques, unités, codes-barres et photos ; import CSV ou Excel.' },
-  { Icone: Truck, titre: 'Fournisseurs', texte: 'Commandes fournisseurs et réception directement en stock.' },
-  { Icone: ClipboardCheck, titre: 'Inventaires', texte: 'Comptage par emplacement et ajustement des écarts.' },
-  { Icone: PackageX, titre: 'Pertes et retours', texte: 'Casses déclarées, retours clients et retours fournisseurs.' },
-  { Icone: Users, titre: 'Équipe', texte: 'Invitations, rôles administrateur et gestionnaire.' },
-  { Icone: FileText, titre: 'Rapports', texte: 'Rapports PDF prêts à partager ou à imprimer.' },
+  { Icone: IconeCatalogue, titre: 'Catalogue', texte: 'Catégories, marques, unités, codes-barres et photos ; import CSV ou Excel.' },
+  { Icone: IconeFournisseurs, titre: 'Fournisseurs', texte: 'Commandes fournisseurs et réception directement en stock.' },
+  { Icone: IconeInventaires, titre: 'Inventaires', texte: 'Comptage par emplacement et ajustement des écarts.' },
+  { Icone: IconePertes, titre: 'Pertes et retours', texte: 'Casses déclarées, retours clients et retours fournisseurs.' },
+  { Icone: IconeEquipe, titre: 'Équipe', texte: 'Invitations, rôles administrateur et gestionnaire.' },
+  { Icone: IconeRapports, titre: 'Rapports', texte: 'Rapports PDF prêts à partager ou à imprimer.' },
 ];
 
 /** Modules activables dans Paramètres › Modules, selon le métier. */
@@ -733,9 +736,7 @@ export function AccueilPage() {
                   style={delai((index % 3) * 60)}
                   className="carte-vivante flex gap-4 rounded-xl border border-rule bg-surface p-5"
                 >
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-paper text-action ring-1 ring-rule">
-                    <Icone className="size-5" aria-hidden="true" />
-                  </span>
+                  <TuileAnimee Icone={Icone} decalage={index * 400} />
                   <div>
                     <h3 className="text-[1rem] font-semibold text-ink-900">{titre}</h3>
                     <p className="mt-1 text-corps leading-relaxed text-steel-700">{texte}</p>

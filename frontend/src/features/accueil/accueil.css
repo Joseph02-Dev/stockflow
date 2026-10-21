@@ -563,11 +563,114 @@
     linear-gradient(135deg, var(--color-action), #7fd6c0) border-box;
 }
 
+/* ——— Icônes animées de « Et aussi » (IconesAussi.tsx) ———
+ * Boucle de 5 s, en pause hors écran (data-actif posé par la tuile). Au
+ * repos (keyframe 0 %), chaque icône est complète et lisible.
+ */
+.tuile-animee {
+  --cycle: 5s;
+}
+.tuile-animee svg * {
+  animation-duration: var(--cycle);
+  animation-delay: var(--decalage, 0ms);
+  animation-iteration-count: infinite;
+  animation-timing-function: var(--ease-sortie);
+  animation-play-state: paused;
+}
+.tuile-animee[data-actif] svg * {
+  animation-play-state: running;
+}
+.ia-trace {
+  stroke-dasharray: 1;
+  animation-name: ia-trace;
+}
+.ia-trace-2 {
+  animation-delay: calc(var(--decalage, 0ms) + 180ms) !important;
+}
+.ia-trace-3 {
+  animation-delay: calc(var(--decalage, 0ms) + 360ms) !important;
+}
+@keyframes ia-trace {
+  0%, 62% { stroke-dashoffset: 0; opacity: 1; }
+  68% { stroke-dashoffset: 0; opacity: 0; }
+  70% { stroke-dashoffset: 1; opacity: 0; }
+  72% { stroke-dashoffset: 1; opacity: 1; }
+  86%, 100% { stroke-dashoffset: 0; opacity: 1; }
+}
+.ia-scan {
+  opacity: 0;
+  animation-name: ia-scan;
+  animation-timing-function: ease-in-out;
+}
+@keyframes ia-scan {
+  0%, 60% { opacity: 0; transform: translateY(-9px); }
+  64% { opacity: 0.85; transform: translateY(-9px); }
+  80% { opacity: 0.85; transform: translateY(9px); }
+  84%, 100% { opacity: 0; transform: translateY(9px); }
+}
+.ia-sautille {
+  animation-name: ia-sautille;
+}
+@keyframes ia-sautille {
+  0%, 84%, 96%, 100% { transform: translateY(0); }
+  89% { transform: translateY(-2px); }
+}
+.ia-roule {
+  animation-name: ia-roule;
+  animation-timing-function: ease-in-out;
+}
+@keyframes ia-roule {
+  0%, 55% { transform: translateX(0); }
+  59% { transform: translateX(-1.5px); }
+  68% { transform: translateX(30px); }
+  68.1% { transform: translateX(-30px); }
+  82% { transform: translateX(0.8px); }
+  86%, 100% { transform: translateX(0); }
+}
+.ia-secoue {
+  transform-box: fill-box;
+  transform-origin: 50% 70%;
+  animation-name: ia-secoue;
+}
+@keyframes ia-secoue {
+  0%, 60%, 74%, 100% { transform: rotate(0); }
+  63% { transform: rotate(-4deg); }
+  66% { transform: rotate(3deg); }
+  70% { transform: rotate(-1.5deg); }
+}
+.ia-arrive {
+  animation-name: ia-arrive;
+}
+@keyframes ia-arrive {
+  0%, 62% { opacity: 1; transform: translateX(0); }
+  68%, 74% { opacity: 0; transform: translateX(4px); }
+  88%, 100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes ia-fondu {
+  0%, 62% { opacity: 1; }
+  68%, 74% { opacity: 0; }
+  88%, 100% { opacity: 1; }
+}
+
+/*
+ * Mouvement réduit : version douce plutôt qu'immobile. Les scènes et les
+ * icônes continuent leur boucle, mais sans déplacement ni rotation : seuls
+ * des fondus, des tracés et des transitions courtes subsistent.
+ */
 @media (prefers-reduced-motion: reduce) {
   .scene *,
   .scene *::before {
-    transition: none !important;
+    transition-duration: 250ms !important;
     animation: none !important;
+  }
+  .ia-scan,
+  .ia-sautille,
+  .ia-roule,
+  .ia-secoue {
+    animation-name: none;
+  }
+  .ia-arrive {
+    animation-name: ia-fondu;
   }
   .pastille-flottante {
     animation: none;
