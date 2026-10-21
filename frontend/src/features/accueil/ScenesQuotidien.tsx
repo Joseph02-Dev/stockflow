@@ -19,8 +19,10 @@ import { Compteur } from '@/components/patterns/Compteur';
 
 /**
  * Fait défiler les étapes d'une scène en boucle, seulement quand elle est
- * à l'écran. Avant d'être vue (et sous prefers-reduced-motion), la scène
- * reste sur sa dernière étape : tout est lisible, rien ne bouge.
+ * à l'écran. Avant d'être vue, la scène reste sur sa dernière étape : tout
+ * est lisible. Sous prefers-reduced-motion, la boucle continue mais en
+ * version douce (transitions courtes, sans rotation ni oscillation : voir
+ * accueil.css).
  */
 function useEtapes(durees: readonly number[]) {
   const racine = useRef<HTMLDivElement>(null);
@@ -30,7 +32,6 @@ function useEtapes(durees: readonly number[]) {
   useEffect(() => {
     const element = racine.current;
     if (!element || typeof IntersectionObserver === 'undefined') return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     let minuterie: number | undefined;
     const suivante = (i: number) => {
       setEtape(i);
