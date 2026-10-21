@@ -4,12 +4,17 @@ import {
   ArrowRight,
   Bell,
   Boxes,
+  Building2,
   Check,
   ChevronDown,
+  ClipboardCheck,
+  FileText,
   Mail,
   Menu,
+  Receipt,
   Smartphone,
   Tags,
+  Users,
   WifiOff,
   X,
 } from 'lucide-react';
@@ -29,6 +34,7 @@ import {
   IconeRapports,
   TuileAnimee,
 } from './IconesAussi';
+import { CalendrierEssai } from './CalendrierEssai';
 import { EtapesDemarrage } from './EtapesDemarrage';
 import { ModulesMetier } from './ModulesMetier';
 import './accueil.css';
@@ -44,6 +50,18 @@ const LIENS = [
 
 const MAILTO_AIDE = `mailto:${ADRESSE_AIDE}`;
 const MAILTO_OFFRES = `mailto:${ADRESSE_AIDE}?subject=${encodeURIComponent('Offres NimbaFlow')}`;
+
+/** Fonctions disponibles pendant l'essai (aucune restriction d'offre dans l'application). */
+const DEJA_DANS_ESSAI = [
+  { Icone: Receipt, libelle: 'Ventes au comptoir' },
+  { Icone: Building2, libelle: 'Plusieurs emplacements' },
+  { Icone: WifiOff, libelle: 'Saisie hors ligne' },
+  { Icone: Bell, libelle: 'Alertes de stock' },
+  { Icone: ClipboardCheck, libelle: 'Inventaires' },
+  { Icone: FileText, libelle: 'Rapports PDF' },
+  { Icone: Users, libelle: 'Équipe et rôles' },
+  { Icone: Smartphone, libelle: 'Sur téléphone' },
+];
 
 /** Atouts vérifiés dans l'application, affichés sous le titre. */
 const ATOUTS = ['Prix de détail, demi-gros et gros', 'Plusieurs emplacements', 'Mouvements saisis même hors ligne'];
@@ -741,70 +759,108 @@ export function AccueilPage() {
               texte="Essayez NimbaFlow avec vos propres produits. Les offres Standard et Premium seront détaillées prochainement."
               centre
             />
-            <ul className="mt-14 grid items-stretch gap-6 md:grid-cols-3">
+            <div className="mt-14 grid gap-x-5 gap-y-8 md:grid-cols-2">
               {OFFRES.map((offre, index) => {
                 const prix = prixAffiche(offre);
                 const essai = offre.cle === 'essai';
                 return (
-                  <li
+                  <article
                     key={offre.cle}
                     data-apparition=""
                     style={delai(index * 80)}
                     className={cn(
-                      'carte-vivante relative flex flex-col rounded-xl p-7',
-                      essai ? 'offre-phare shadow-pop' : 'border border-rule bg-surface',
+                      'relative min-w-0 rounded-xl p-6 sm:p-7',
+                      essai
+                        ? 'offre-phare grid gap-7 shadow-pop md:col-span-2 md:grid-cols-[1.1fr_1fr] md:p-8'
+                        : 'carte-vivante flex flex-col border border-rule bg-surface shadow-card',
                     )}
                   >
                     <span
                       className={cn(
-                        'absolute -top-3 left-7 rounded-full px-3 py-1 text-meta font-semibold',
-                        essai ? 'bg-action text-sur-couleur' : 'bg-paper text-steel-500 ring-1 ring-rule',
+                        'absolute -top-3 left-6 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-meta font-semibold sm:left-7',
+                        essai ? 'bg-action text-sur-couleur md:left-8' : 'bg-surface text-steel-500 ring-1 ring-rule-strong',
                       )}
                     >
-                      {essai ? 'Pour commencer' : 'Bientôt'}
+                      {!essai && !offre.prix && <i className="offre-pouls" aria-hidden="true" />}
+                      {essai ? 'Pour commencer' : offre.prix ? offre.nom : 'En préparation'}
                     </span>
-                    <h3 className="text-[1.25rem] font-semibold text-ink-900">{offre.nom}</h3>
-                    <p className="mt-1.5 text-corps text-steel-700 md:min-h-[2.75rem]">{offre.positionnement}</p>
-                    <div className="mt-6 border-t border-rule pt-6">
-                      <p
-                        className={cn(
-                          'leading-none font-semibold tracking-[-0.02em]',
-                          essai ? 'text-[2.5rem] text-ink-900' : 'text-[1.625rem] text-steel-700',
-                        )}
-                      >
-                        {prix.montant}
-                      </p>
-                      <p className="mt-2 text-meta text-steel-500">{prix.detail}</p>
-                    </div>
-                    {offre.inclus.length > 0 ? (
-                      <ul className="mt-6 flex flex-col gap-3">
-                        {offre.inclus.map((element) => (
-                          <li key={element} className="flex items-start gap-2.5 text-corps text-ink-900">
-                            <Check className="mt-0.5 size-4 shrink-0 text-ok" aria-hidden="true" />
-                            {element}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="mt-6 text-corps text-steel-500">Contenu détaillé de l’offre bientôt disponible.</p>
-                    )}
-                    <div className="mt-auto pt-8">
-                      {essai ? (
-                        <Link to="/inscription" className={cn(boutonPrincipal, 'w-full')}>
-                          Commencer l’essai
-                          <ArrowRight className={fleche} aria-hidden="true" />
-                        </Link>
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <h3 className="text-[1.25rem] font-semibold text-ink-900">{offre.nom}</h3>
+                      <p className="mt-1.5 text-corps text-steel-700">{offre.positionnement}</p>
+                      <div className="mt-6 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 border-t border-rule pt-6">
+                        <p
+                          className={cn(
+                            'font-display leading-none font-semibold tracking-[-0.03em]',
+                            essai || offre.prix ? 'text-[2.5rem] text-ink-900 sm:text-[2.875rem]' : 'text-[1.625rem] text-steel-500',
+                          )}
+                        >
+                          {prix.montant}
+                        </p>
+                        {(essai || offre.prix) && <p className="text-corps text-steel-500">{prix.detail}</p>}
+                      </div>
+                      {offre.inclus.length > 0 ? (
+                        <ul className="mt-6 flex flex-col gap-3">
+                          {offre.inclus.map((element, rang) => (
+                            <li key={element} className="flex items-start gap-2.5 text-corps text-ink-900">
+                              <span className="essai-coche" style={{ '--rang': rang } as CSSProperties}>
+                                <Check aria-hidden="true" />
+                              </span>
+                              {element}
+                            </li>
+                          ))}
+                        </ul>
                       ) : (
-                        <a href={MAILTO_OFFRES} className={cn(boutonSecondaire, 'w-full')}>
-                          <Mail className="size-4" aria-hidden="true" />
-                          Nous écrire
-                        </a>
+                        <>
+                          <div className="offre-ombre" aria-hidden="true">
+                            <span />
+                            <span />
+                            <span />
+                          </div>
+                          <p className="mt-3.5 text-meta text-steel-500">{prix.detail}.</p>
+                        </>
                       )}
+                      <div className={cn(essai ? 'mt-7' : 'mt-auto pt-7')}>
+                        {essai ? (
+                          <Link to="/inscription" className={cn(boutonPrincipal, 'w-full md:max-w-sm')}>
+                            Commencer l’essai
+                            <ArrowRight className={fleche} aria-hidden="true" />
+                          </Link>
+                        ) : (
+                          <a href={MAILTO_OFFRES} className={cn(boutonSecondaire, 'w-full')}>
+                            <Mail className="size-4" aria-hidden="true" />
+                            Être prévenu
+                          </a>
+                        )}
+                      </div>
                     </div>
-                  </li>
+                    {essai && <CalendrierEssai jours={DUREE_ESSAI_JOURS} />}
+                  </article>
                 );
               })}
-            </ul>
+            </div>
+
+            <div className="mt-8 rounded-xl border border-dashed border-rule-strong p-5 sm:p-6" data-apparition="">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <h3 className="text-[1rem] font-semibold text-ink-900">Pendant l’essai, vous utilisez déjà</h3>
+                <p className="text-meta text-steel-500">les fonctions de l’application, avec vos produits</p>
+              </div>
+              <ul className="mt-4 grid gap-2.5 min-[421px]:grid-cols-2 lg:grid-cols-4">
+                {DEJA_DANS_ESSAI.map(({ Icone, libelle }) => (
+                  <li key={libelle} className="flex items-center gap-2.5 text-corps font-medium text-ink-900">
+                    <span className="flex size-[34px] shrink-0 items-center justify-center rounded-lg bg-action-wash text-action">
+                      <Icone className="size-[17px]" aria-hidden="true" />
+                    </span>
+                    {libelle}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <p className="mt-6 text-center text-corps text-steel-500">
+              Une question sur les offres ?{' '}
+              <a href={MAILTO_OFFRES} className={cn('font-semibold text-action hover:underline', focusClair)}>
+                Écrivez-nous à {ADRESSE_AIDE}
+              </a>
+            </p>
           </div>
         </section>
 

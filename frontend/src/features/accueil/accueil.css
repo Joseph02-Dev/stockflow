@@ -1242,6 +1242,159 @@
   }
 }
 
+/* ——— Tarifs : essai, offres à venir (AccueilPage + CalendrierEssai.tsx) ——— */
+.essai-coche {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: var(--color-ok-wash);
+  color: var(--color-ok);
+}
+.essai-coche svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 3;
+}
+.essai-coche path {
+  stroke-dasharray: 24;
+}
+[data-etat='visible'] .essai-coche path {
+  animation: essai-coche 500ms var(--ease-sortie) both;
+  animation-delay: calc(300ms + var(--rang) * 150ms);
+}
+@keyframes essai-coche {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.essai-calendrier {
+  align-self: center;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-xl);
+  background: var(--color-survol);
+}
+.essai-calendrier-tete {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  font-size: 0.8125rem;
+  color: var(--color-steel-500);
+}
+.essai-calendrier-tete b {
+  font: 650 0.9375rem var(--font-display);
+  color: var(--color-ink-900);
+}
+.essai-jours {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.essai-jour {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font: 500 11.5px var(--font-mono);
+  color: var(--color-steel-400);
+  transition:
+    background 350ms,
+    color 350ms,
+    border-color 350ms,
+    transform 350ms var(--ease-sortie);
+}
+@media (min-width: 768px) {
+  .essai-jour {
+    aspect-ratio: 1.45;
+  }
+}
+.essai-jour-fait {
+  border-color: transparent;
+  background: var(--color-action-wash);
+  color: var(--color-action);
+}
+.essai-jour-courant {
+  border-color: var(--color-action);
+  background: var(--color-action);
+  color: var(--color-sur-couleur);
+  transform: scale(1.08);
+}
+.essai-calendrier-pied {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 0.78125rem;
+  white-space: nowrap;
+  color: var(--color-steel-500);
+}
+.essai-barre {
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--color-rule);
+}
+.essai-barre > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-action);
+  transition: width 350ms;
+}
+.offre-pouls {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-faible);
+  animation: offre-pouls 2s ease-in-out infinite;
+}
+@keyframes offre-pouls {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+}
+.offre-ombre {
+  display: grid;
+  gap: 7px;
+  margin-top: 18px;
+}
+.offre-ombre span {
+  height: 10px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--color-rule) 0%, var(--color-rule-strong) 40%, var(--color-rule) 80%) 0 0 / 300%
+    100%;
+  animation: offre-reflet 2.4s linear infinite;
+}
+.offre-ombre span:nth-child(1) {
+  width: 82%;
+}
+.offre-ombre span:nth-child(2) {
+  width: 64%;
+  animation-delay: 0.2s;
+}
+.offre-ombre span:nth-child(3) {
+  width: 72%;
+  animation-delay: 0.4s;
+}
+@keyframes offre-reflet {
+  to {
+    background-position: -300% 0;
+  }
+}
+
 /*
  * Mouvement réduit : version douce plutôt qu'immobile. Les scènes et les
  * icônes continuent leur boucle, mais sans déplacement ni rotation : seuls
@@ -1273,6 +1426,17 @@
     transform: none;
   }
   .etape-curseur {
+    animation: none;
+  }
+  .essai-jour,
+  .essai-barre > i {
+    transition-duration: 200ms;
+  }
+  .essai-jour-courant {
+    transform: none;
+  }
+  .offre-pouls,
+  .offre-ombre span {
     animation: none;
   }
   .pastille-flottante {
