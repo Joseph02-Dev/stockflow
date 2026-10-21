@@ -18,7 +18,7 @@ import type { EntreeStockDto } from './dto/entree-stock.dto.js';
 import type { SortieStockDto } from './dto/sortie-stock.dto.js';
 import type { TransfertStockDto } from './dto/transfert-stock.dto.js';
 import { ligneCsv } from '../../common/pagination/csv.js';
-import type { MotifPerte } from '../../generated/prisma/enums.js';
+import type { MotifPerte, TypeMouvement } from '../../generated/prisma/enums.js';
 import {
   crediterLot,
   crediterStock,
@@ -528,13 +528,14 @@ export class MouvementsService {
    */
   async listerMouvements(
     entrepriseId: string,
-    filtres: { produitId?: string; emplacementId?: string },
+    filtres: { produitId?: string; emplacementId?: string; types?: TypeMouvement[] },
     pagination: Pagination,
   ) {
     return this.prisma.mouvement.findMany({
       where: {
         entrepriseId,
         produitId: filtres.produitId,
+        type: filtres.types ? { in: filtres.types } : undefined,
         // Un transfert doit apparaître dans l'historique filtré de son
         // emplacement source ET de sa destination — sinon un utilisateur
         // qui filtre sur "Coyah" ne verrait jamais les transferts reçus.
@@ -574,7 +575,7 @@ export class MouvementsService {
    */
   async exporterMouvements(
     entrepriseId: string,
-    filtres: { produitId?: string; emplacementId?: string },
+    filtres: { produitId?: string; emplacementId?: string; types?: TypeMouvement[] },
     ecrire: (morceau: string) => Promise<void>,
   ) {
     const LIBELLES = {
