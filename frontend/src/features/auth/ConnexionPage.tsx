@@ -1,14 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AlertTriangle, ArrowLeftRight, Mail, WifiOff } from 'lucide-react';
+import { ArrowRight, Check, Mail, ShieldCheck, WifiOff } from 'lucide-react';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { ChampMotDePasse } from './ChampMotDePasse';
+import { ActiviteDirect } from './ActiviteDirect';
 import { api, messageErreur } from '@/lib/api';
 import { setSession } from '@/lib/session';
 import { useEnLigne } from '@/lib/useEnLigne';
@@ -21,12 +22,6 @@ const schema = z.object({
 
 type Formulaire = z.infer<typeof schema>;
 
-const REPERES = [
-  { Icone: AlertTriangle, titre: 'Alertes automatiques', description: 'Prévient avant la rupture, seuil par produit.' },
-  { Icone: ArrowLeftRight, titre: 'Entrées et sorties tracées', description: 'Qui, quand, où — sur chaque emplacement.' },
-  { Icone: WifiOff, titre: 'Fonctionne en réseau faible', description: 'Saisie hors-ligne, synchronisation au retour.' },
-];
-
 // Au-delà de ce délai, on affiche un message rassurant plutôt que de
 // laisser un spinner muet — la personne sait que ce n'est pas figé.
 const SEUIL_CONNEXION_LENTE_MS = 2500;
@@ -36,6 +31,17 @@ export function ConnexionPage() {
   const [parametres] = useSearchParams();
   const enLigne = useEnLigne();
   const [erreur, setErreur] = useState<string | null>(null);
+  // Incrémenté à chaque échec : rejoue l'animation de tremblement du formulaire.
+  const [echecs, setEchecs] = useState(0);
+  const formulaire = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    const element = formulaire.current;
+    if (!element || echecs === 0) return;
+    element.classList.remove('auth-secoue');
+    void element.offsetWidth; // relance l'animation même si la classe était déjà là
+    element.classList.add('auth-secoue');
+  }, [echecs]);
   const [resterConnecte, setResterConnecte] = useState(true);
   const [connexionLente, setConnexionLente] = useState(false);
   const [emailNonConfirme, setEmailNonConfirme] = useState<string | null>(null);
@@ -60,6 +66,7 @@ export function ConnexionPage() {
     } catch (error) {
       const message = messageErreur(error, 'Email ou mot de passe incorrect.');
       setErreur(message);
+      setEchecs((n) => n + 1);
       // Repère textuel simple plutôt qu'un code d'erreur structuré côté
       // API — suffisant ici, ce message est le seul à contenir ce mot.
       if (message.includes('Confirmez votre adresse email')) {
@@ -88,44 +95,21 @@ export function ConnexionPage() {
 
   return (
     <AuthLayout
-      titre="Connexion"
-      description="Accédez à votre espace NimbaFlow."
+      titre="Bon retour parmi nous"
+      description="Connectez-vous à votre espace NimbaFlow."
       panneauGauche={
-        <div className="flex flex-col gap-8">
-          <div>
-            <h2 className="text-[1.875rem] leading-[1.15] font-semibold tracking-[-0.03em] text-balance text-white">
-              Votre stock, à jour à chaque ouverture de boutique.
-            </h2>
-            <p className="mt-3 text-corps text-white/65">
-              Entrées, sorties, seuils d’alerte et fournisseurs au même endroit. Conçu pour fonctionner même
-              quand la connexion faiblit.
-            </p>
-          </div>
-          <ul className="flex flex-col gap-2">
-            {REPERES.map(({ Icone, titre, description }) => (
-              <li key={titre} className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/[0.05] backdrop-blur-sm transition-colors hover:bg-white/[0.08] p-3">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-action/20 ring-1 ring-action-clair/25" aria-hidden="true">
-                  <Icone className="size-4 text-action-clair" />
-                </span>
-                <div>
-                  <p className="text-corps font-medium text-white">{titre}</p>
-                  <p className="text-meta text-white/65">{description}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+        <div>
+          <h2 className="max-w-[18ch] font-display text-[2.375rem] leading-[1.1] font-semibold tracking-[-0.03em] text-balance text-white">
+            Votre boutique continue de tourner.
+          </h2>
+          <p className="mt-3 max-w-[44ch] text-[1rem] text-white/65">
+            Ventes, entrées, alertes : retrouvez tout ce qui s’est passé dans votre espace, même saisi sans réseau.
+          </p>
+          <ActiviteDirect />
         </div>
       }
-      pied={
-        <>
-          Pas encore de compte ?{' '}
-          <Link to="/inscription" className="font-medium text-action hover:underline">
-            Créer une entreprise
-          </Link>
-        </>
-      }
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+      <form ref={formulaire} onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
         {!enLigne && (
           <Alert variant="warning">
             <span className="flex items-center gap-2">
@@ -176,20 +160,36 @@ export function ConnexionPage() {
           />
         </div>
 
-        <label className="flex items-center gap-2 text-corps text-steel-500">
+        <label className="flex w-fit cursor-pointer items-center gap-2.5 text-corps text-steel-700 select-none">
           <input
             type="checkbox"
             checked={resterConnecte}
             onChange={(event) => setResterConnecte(event.target.checked)}
-            className="size-4 accent-action"
+            className="sr-only"
           />
-          Rester connectée sur cet appareil
+          <span className="auth-case" aria-hidden="true">
+            <Check />
+          </span>
+          Se souvenir de moi sur cet appareil
         </label>
 
-        <Button type="submit" loading={isSubmitting} className="mt-2 w-full">
+        <Button type="submit" loading={isSubmitting} className="mt-1 w-full">
           {isSubmitting && connexionLente ? 'Connexion lente détectée…' : 'Se connecter'}
+          {!isSubmitting && <ArrowRight className="size-[18px]" aria-hidden="true" />}
         </Button>
       </form>
+
+      <p className="auth-separateur">Nouveau sur NimbaFlow ?</p>
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-rule-strong px-4 py-3.5 text-corps text-steel-700">
+        <span>Créez votre entreprise en quelques minutes.</span>
+        <Link to="/inscription" className="font-semibold whitespace-nowrap text-action hover:underline">
+          Essai gratuit →
+        </Link>
+      </div>
+      <p className="mt-6 flex items-center justify-center gap-1.5 text-meta text-steel-500">
+        <ShieldCheck className="size-3.5 text-ok" aria-hidden="true" />
+        Connexion sécurisée (HTTPS)
+      </p>
     </AuthLayout>
   );
 }
