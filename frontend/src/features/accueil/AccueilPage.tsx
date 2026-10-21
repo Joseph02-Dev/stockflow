@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import {
   ArrowRight,
   Bell,
-  Boxes,
   Building2,
   Check,
   ClipboardCheck,
@@ -12,7 +11,6 @@ import {
   Menu,
   Receipt,
   Smartphone,
-  Tags,
   Users,
   WifiOff,
   X,
@@ -35,6 +33,7 @@ import {
 } from './IconesAussi';
 import { CalendrierEssai } from './CalendrierEssai';
 import { EtapesDemarrage } from './EtapesDemarrage';
+import { TelephoneAnime } from './TelephoneAnime';
 import { FaqRecherche } from './FaqRecherche';
 import { ModulesMetier } from './ModulesMetier';
 import './accueil.css';
@@ -163,13 +162,6 @@ const AUSSI = [
   { Icone: IconePertes, titre: 'Pertes et retours', texte: 'Casses déclarées, retours clients et retours fournisseurs.' },
   { Icone: IconeEquipe, titre: 'Équipe', texte: 'Invitations, rôles administrateur et gestionnaire.' },
   { Icone: IconeRapports, titre: 'Rapports', texte: 'Rapports PDF prêts à partager ou à imprimer.' },
-];
-
-const MOBILE = [
-  { Icone: Smartphone, texte: 'Interface pensée pour l’écran du téléphone' },
-  { Icone: WifiOff, texte: 'Mouvements de stock mis en attente hors ligne, puis envoyés' },
-  { Icone: Boxes, texte: 'Stock et seuils consultables partout' },
-  { Icone: Tags, texte: 'Vente au comptoir depuis le téléphone' },
 ];
 
 const PIED = [
@@ -677,42 +669,23 @@ export function AccueilPage() {
         <section id="mobile" aria-labelledby="titre-mobile" className="bandeau-action scroll-mt-16 text-white">
           <div className="accueil-grille pointer-events-none absolute inset-0 -z-10" aria-hidden="true" />
           <FondEntrepot3D ton="sombre" className="-z-10" />
-          <div className={cn(conteneur, 'grid items-center gap-12 py-20 md:py-28 lg:grid-cols-[1.1fr_1fr]')}>
-            <div className="flex flex-col items-start gap-5" data-apparition="">
-              <Etiquette sombre>Sur téléphone</Etiquette>
-              <h2
-                id="titre-mobile"
-                className="text-[1.875rem] leading-[1.15] font-semibold tracking-[-0.02em] text-white md:text-[2.5rem]"
-              >
-                La boutique dans la poche, même quand le réseau faiblit.
-              </h2>
-              <p className="text-[1.0625rem] leading-relaxed text-white/75">
-                Le même compte sur ordinateur et sur téléphone, depuis le navigateur, sans installation. L’interface mobile met
-                les ventes, le stock et les commandes à portée de pouce.
-              </p>
-              <ul className="mt-2 grid w-full gap-4 sm:grid-cols-2">
-                {MOBILE.map(({ Icone, texte }) => (
-                  <li key={texte} className="flex items-start gap-3 text-corps text-white/85">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/15">
-                      <Icone className="size-4 text-action-clair" aria-hidden="true" />
-                    </span>
-                    {texte}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="flex items-end justify-center gap-5" data-apparition="" style={delai(120)}>
-              <CadreTelephone
-                src="/accueil/mobile.webp"
-                alt="Liste des produits de NimbaFlow sur téléphone."
-                className="w-[44%] max-w-[230px] translate-y-6"
-              />
-              <CadreTelephone
-                src="/accueil/mobile-vente.webp"
-                alt="Nouvelle vente dans NimbaFlow sur téléphone, avec le total à encaisser."
-                className="w-[44%] max-w-[230px]"
-              />
-            </div>
+          <div className={cn(conteneur, 'py-20 md:py-28')}>
+            <TelephoneAnime
+              entete={
+                <>
+                  <Etiquette sombre>Sur téléphone</Etiquette>
+                  <h2
+                    id="titre-mobile"
+                    className="text-[1.875rem] leading-[1.15] font-semibold tracking-[-0.02em] text-white md:text-[2.5rem]"
+                  >
+                    La boutique dans la poche, même quand le réseau faiblit.
+                  </h2>
+                  <p className="text-[1.0625rem] leading-relaxed text-white/75">
+                    Le même compte sur ordinateur et sur téléphone, depuis le navigateur, sans installation.
+                  </p>
+                </>
+              }
+            />
           </div>
         </section>
 
