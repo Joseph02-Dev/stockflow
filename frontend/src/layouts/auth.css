@@ -99,15 +99,18 @@
 .auth-formulaire .champ.pl-9 {
   padding-left: 44px;
 }
-.auth-formulaire button[type='submit'] {
+.auth-formulaire button[type='submit'],
+.auth-formulaire .auth-principal {
   height: 52px;
   border-radius: var(--radius-lg);
   font-size: 1rem;
 }
-.auth-formulaire button[type='submit'] svg {
+.auth-formulaire button[type='submit'] svg,
+.auth-formulaire .auth-principal svg {
   transition: transform 200ms var(--ease-sortie);
 }
-.auth-formulaire button[type='submit']:hover svg {
+.auth-formulaire button[type='submit']:hover svg,
+.auth-formulaire .auth-principal:hover svg {
   transform: translateX(3px);
 }
 
@@ -224,15 +227,217 @@ input:focus-visible + .auth-case {
   height: 17px;
 }
 
+/* ——— Inscription (InscriptionPage.tsx, ApercuEspace.tsx) ——— */
+.apercu-espace {
+  max-width: 420px;
+  margin-top: 30px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 18px;
+  background: rgb(255 255 255 / 0.05);
+  backdrop-filter: blur(8px);
+}
+.apercu-logo {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #f27a35;
+  font: 700 1rem var(--font-display);
+  color: #15161a;
+}
+.apercu-rebond {
+  animation: apercu-rebond 320ms var(--ease-sortie);
+}
+@keyframes apercu-rebond {
+  40% {
+    transform: scale(1.12);
+  }
+}
+.apercu-ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: rgb(255 255 255 / 0.65);
+}
+.apercu-ligne dt {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+.apercu-ligne dt svg {
+  width: 15px;
+  height: 15px;
+  color: rgb(255 255 255 / 0.45);
+}
+.apercu-ligne dd {
+  min-width: 0;
+  text-align: right;
+}
+.inscription-enveloppe {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 22px;
+  background: var(--color-action-wash);
+  color: var(--color-action);
+}
+.inscription-enveloppe svg {
+  width: 34px;
+  height: 34px;
+  animation: inscription-flotte 3s ease-in-out infinite;
+}
+.inscription-enveloppe::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
+  border: 3px solid var(--color-surface);
+  border-radius: 50%;
+  background: var(--color-action);
+}
+@keyframes inscription-flotte {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+.inscription-consignes {
+  display: grid;
+  gap: 10px;
+  counter-reset: consigne;
+}
+.inscription-consignes li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+  color: var(--color-steel-700);
+  counter-increment: consigne;
+}
+.inscription-consignes li::before {
+  content: counter(consigne);
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: 50%;
+  background: var(--color-paper);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-steel-500);
+}
+.inscription-secteur {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  font-size: 0.90625rem;
+  font-weight: 600;
+  text-align: left;
+  color: var(--color-steel-700);
+  transition:
+    border-color 200ms,
+    background 200ms,
+    color 200ms,
+    transform 150ms;
+}
+.inscription-secteur:hover {
+  border-color: var(--color-action);
+}
+.inscription-secteur:active {
+  transform: scale(0.98);
+}
+.inscription-secteur:focus-visible {
+  outline: 2px solid var(--color-action);
+  outline-offset: 2px;
+}
+.inscription-secteur-tuile {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--color-survol);
+  color: var(--color-steel-500);
+  transition:
+    background 200ms,
+    color 200ms;
+}
+.inscription-secteur[aria-pressed='true'] {
+  border-color: var(--color-action);
+  background: var(--color-action-wash);
+  color: var(--color-action);
+}
+.inscription-secteur[aria-pressed='true'] .inscription-secteur-tuile {
+  background: var(--color-action);
+  color: var(--color-sur-couleur);
+}
+.inscription-suggestion {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px dashed var(--color-rule-strong);
+  border-radius: 99px;
+  font-weight: 600;
+  color: var(--color-steel-700);
+  transition:
+    border-color 200ms,
+    color 200ms;
+}
+.inscription-suggestion:hover {
+  border-color: var(--color-action);
+  color: var(--color-action);
+}
+.inscription-segment {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  height: 50px;
+  padding: 4px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-lg);
+  background: var(--color-survol);
+}
+.inscription-segment button {
+  border-radius: 8px;
+  font-weight: 650;
+  color: var(--color-steel-500);
+  transition:
+    background 200ms,
+    color 200ms,
+    box-shadow 200ms;
+}
+.inscription-segment button[aria-pressed='true'] {
+  background: var(--color-surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+  color: var(--color-action);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .auth-secoue,
-  .activite-pouls {
+  .activite-pouls,
+  .apercu-rebond,
+  .inscription-enveloppe svg {
     animation: none;
   }
   .activite-carte {
     transition-duration: 200ms;
   }
-  .auth-formulaire button[type='submit']:hover svg {
+  .auth-formulaire button[type='submit']:hover svg,
+  .auth-formulaire .auth-principal:hover svg {
     transform: none;
   }
 }
