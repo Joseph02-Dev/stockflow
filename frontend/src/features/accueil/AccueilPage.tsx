@@ -29,6 +29,8 @@ import {
   IconeRapports,
   TuileAnimee,
 } from './IconesAussi';
+import { EtapesDemarrage } from './EtapesDemarrage';
+import { ModulesMetier } from './ModulesMetier';
 import './accueil.css';
 
 const TITRE_PAGE = 'NimbaFlow — gestion de stock et de ventes pour commerçants et grossistes';
@@ -143,34 +145,6 @@ const AUSSI = [
   { Icone: IconePertes, titre: 'Pertes et retours', texte: 'Casses déclarées, retours clients et retours fournisseurs.' },
   { Icone: IconeEquipe, titre: 'Équipe', texte: 'Invitations, rôles administrateur et gestionnaire.' },
   { Icone: IconeRapports, titre: 'Rapports', texte: 'Rapports PDF prêts à partager ou à imprimer.' },
-];
-
-/** Modules activables dans Paramètres › Modules, selon le métier. */
-const MODULES = [
-  'Lots et péremptions',
-  'Variantes',
-  'Conditionnements',
-  'Numéros de série',
-  'Réapprovisionnement automatique',
-  'Valorisation FIFO ou coût moyen',
-  'Rotation et stock dormant',
-  'Assistant IA (lecture seule)',
-  'Webhooks et API',
-];
-
-const ETAPES = [
-  {
-    titre: 'Créez votre espace',
-    texte: 'Votre compte et votre entreprise, puis votre premier emplacement : boutique ou dépôt.',
-  },
-  {
-    titre: 'Ajoutez vos produits',
-    texte: 'Un par un, ou en important votre catalogue depuis un fichier CSV ou Excel.',
-  },
-  {
-    titre: 'Vendez et suivez',
-    texte: 'Entrées, ventes et sorties mettent le stock à jour ; les alertes signalent ce qui manque.',
-  },
 ];
 
 const MOBILE = [
@@ -745,19 +719,7 @@ export function AccueilPage() {
               ))}
             </ul>
 
-            <div className="mt-10 rounded-xl border border-dashed border-rule-strong bg-surface p-6 md:p-8" data-apparition="">
-              <div className="flex flex-col gap-1 md:flex-row md:items-baseline md:justify-between md:gap-6">
-                <h3 className="text-[1.0625rem] font-semibold text-ink-900">Modules à activer selon votre métier</h3>
-                <p className="text-meta text-steel-500">L’administrateur les active dans Paramètres › Modules.</p>
-              </div>
-              <ul className="mt-5 flex flex-wrap gap-2">
-                {MODULES.map((module) => (
-                  <li key={module} className="rounded-full bg-paper px-3.5 py-1.5 text-corps text-ink-900 ring-1 ring-rule">
-                    {module}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <ModulesMetier />
           </div>
         </section>
 
@@ -765,34 +727,7 @@ export function AccueilPage() {
         <section aria-labelledby="titre-etapes" className="border-y border-rule bg-surface py-20 md:py-28">
           <div className={conteneur}>
             <TitreSection id="titre-etapes" etiquette="Comment ça marche" titre="Prêt à vendre en trois étapes." centre />
-            <div className="relative mt-14">
-              <span
-                className="absolute top-6 right-[16%] left-[16%] hidden h-px bg-gradient-to-r from-action/0 via-action/40 to-action/0 md:block"
-                aria-hidden="true"
-              />
-              <ol className="relative grid gap-10 md:grid-cols-3 md:gap-8">
-                {ETAPES.map((etape, index) => (
-                  <li
-                    key={etape.titre}
-                    className="flex flex-col items-center gap-4 text-center"
-                    data-apparition=""
-                    style={delai(index * 90)}
-                  >
-                    <span
-                      className="flex size-12 items-center justify-center rounded-xl bg-action text-[1.125rem] font-semibold text-sur-couleur shadow-pop ring-4 ring-surface"
-                      aria-hidden="true"
-                    >
-                      {index + 1}
-                    </span>
-                    <h3 className="text-[1.125rem] font-semibold text-ink-900">
-                      <span className="sr-only">Étape {index + 1} : </span>
-                      {etape.titre}
-                    </h3>
-                    <p className="max-w-xs text-corps leading-relaxed text-steel-700">{etape.texte}</p>
-                  </li>
-                ))}
-              </ol>
-            </div>
+            <EtapesDemarrage />
           </div>
         </section>
 

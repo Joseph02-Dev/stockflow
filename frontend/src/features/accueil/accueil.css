@@ -652,6 +652,596 @@
   88%, 100% { opacity: 1; }
 }
 
+/* ——— Comment ça marche (EtapesDemarrage.tsx) ———
+ * Mobile : colonne, rail vertical à gauche. Dès md : trois colonnes, rail
+ * horizontal entre les repères. --progression (0 → 1) remplit le rail.
+ */
+.etapes {
+  --progression: 0;
+  position: relative;
+  display: grid;
+  gap: 28px;
+  margin-top: 40px;
+}
+.etapes::before,
+.etapes::after {
+  content: '';
+  position: absolute;
+  top: 24px;
+  left: 23px;
+  width: 2px;
+  border-radius: 2px;
+}
+.etapes::before {
+  bottom: 24px;
+  background: var(--color-rule-strong);
+}
+.etapes::after {
+  height: calc((100% - 48px) * var(--progression));
+  background: var(--color-action);
+  transition: height 700ms var(--ease-sortie);
+}
+.etape {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: start;
+  gap: 4px 16px;
+  min-width: 0;
+}
+.etape-repere {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-xl);
+  border: 1.5px solid var(--color-rule-strong);
+  background: var(--color-surface);
+  color: var(--color-steel-500);
+  font: 650 1.1875rem var(--font-display);
+  cursor: pointer;
+  transition:
+    background 400ms,
+    color 400ms,
+    border-color 400ms,
+    box-shadow 400ms;
+}
+.etape-repere svg {
+  width: 20px;
+  height: 20px;
+}
+.etape-faite .etape-repere {
+  border-color: transparent;
+  background: var(--color-action-wash);
+  color: var(--color-action);
+}
+.etape-active .etape-repere {
+  border-color: var(--color-action);
+  background: var(--color-action);
+  color: var(--color-sur-couleur);
+  box-shadow: 0 0 0 6px color-mix(in oklab, var(--color-action) 18%, transparent);
+}
+.etape-texte {
+  padding-top: 2px;
+}
+.etape-scene {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 226px;
+  margin-top: 10px;
+  overflow: hidden;
+  padding: 14px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--color-steel-700);
+  opacity: 0.72;
+  transition:
+    opacity 400ms,
+    border-color 400ms,
+    box-shadow 400ms;
+}
+.etape-scene > * {
+  flex-shrink: 0;
+}
+.etape-active .etape-scene {
+  border-color: color-mix(in oklab, var(--color-action) 45%, var(--color-rule));
+  box-shadow: var(--shadow-pop);
+  opacity: 1;
+}
+@media (min-width: 768px) {
+  .etapes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+    margin-top: 56px;
+  }
+  .etapes::before,
+  .etapes::after {
+    left: calc(100% / 6);
+    height: 2px;
+  }
+  .etapes::before {
+    right: calc(100% / 6);
+    bottom: auto;
+    width: auto;
+  }
+  .etapes::after {
+    width: calc(100% * 2 / 3 * var(--progression));
+    height: 2px;
+    transition: width 700ms var(--ease-sortie);
+  }
+  .etape {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    text-align: center;
+  }
+  .etape-texte {
+    flex: 1;
+    max-width: 34ch;
+  }
+  .etape-scene {
+    width: 100%;
+    margin-top: 0;
+    text-align: left;
+  }
+}
+.etape-libelle {
+  margin-bottom: 4px;
+  font-size: 11.5px;
+  color: var(--color-steel-400);
+}
+.etape-champ {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-survol);
+  font-weight: 500;
+  color: var(--color-ink-900);
+}
+.etape-curseur {
+  width: 1.5px;
+  height: 15px;
+  margin-left: 1px;
+  background: var(--color-action);
+  animation: etape-clignote 0.9s steps(1) infinite;
+}
+@keyframes etape-clignote {
+  50% {
+    opacity: 0;
+  }
+}
+.etape-choix {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-md);
+  background: var(--color-survol);
+}
+.etape-choix > span {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  font-weight: 600;
+  color: var(--color-steel-500);
+  transition: color 300ms;
+}
+.etape-choix svg {
+  width: 14px;
+  height: 14px;
+}
+.etape-choix > i {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  opacity: 0;
+  transition: opacity 300ms;
+}
+.etape-choix-fait > i {
+  opacity: 1;
+}
+.etape-choix-fait > span:first-of-type {
+  color: var(--color-action);
+}
+.etape-valider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  margin-top: auto;
+  border-radius: var(--radius-md);
+  background: var(--color-action);
+  font-weight: 600;
+  color: var(--color-sur-couleur);
+  transition:
+    background 350ms,
+    transform 150ms;
+}
+.etape-valider svg {
+  width: 15px;
+  height: 15px;
+}
+.etape-presse {
+  transform: scale(0.97);
+}
+.etape-pret {
+  background: var(--color-ok);
+}
+.etape-fichier {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px dashed var(--color-rule-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-survol);
+  transition:
+    opacity 400ms,
+    transform 400ms var(--ease-sortie);
+}
+.etape-fichier b,
+.etape-fichier small {
+  display: block;
+}
+.etape-fichier b {
+  font-weight: 600;
+  color: var(--color-ink-900);
+}
+.etape-fichier small {
+  font-size: 11px;
+  color: var(--color-steel-400);
+}
+.etape-tuile-ok {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background: var(--color-ok-wash);
+  color: var(--color-ok);
+}
+.etape-tuile-ok svg {
+  width: 15px;
+  height: 15px;
+}
+.etape-compte {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--color-ink-900);
+}
+.etape-compte small {
+  display: inline;
+}
+.etape-progres {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--color-rule);
+}
+.etape-progres > i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-action);
+  transition: width 1.3s var(--ease-sortie);
+}
+.etape-progres > i.etape-progres-vide {
+  width: 0;
+  transition: none;
+}
+.etape-lignes {
+  display: grid;
+  gap: 5px;
+}
+.etape-ligne {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--color-survol);
+  transition:
+    opacity 350ms,
+    transform 350ms var(--ease-sortie);
+}
+.etape-ligne b {
+  overflow: hidden;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--color-ink-900);
+}
+.etape-ligne span {
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  color: var(--color-steel-500);
+}
+.etape-cache {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.etape-ticket {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--color-steel-500);
+}
+.etape-ticket b {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-ink-900);
+}
+.etape-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-top: 6px;
+  border-top: 1px dashed var(--color-rule-strong);
+}
+.etape-total b {
+  font: 600 15px var(--font-mono);
+  color: var(--color-ink-900);
+}
+.etape-stock {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: auto;
+  padding: 7px 9px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-md);
+}
+.etape-stock-nom {
+  overflow: hidden;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--color-ink-900);
+}
+.etape-stock > b {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--color-ink-900);
+}
+.etape-jauge {
+  position: relative;
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--color-rule);
+}
+.etape-jauge > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  border-radius: inherit;
+  background: var(--color-ok);
+  transition:
+    width 900ms var(--ease-sortie),
+    background 500ms;
+}
+.etape-jauge > s {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: 36%;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--color-ink-900);
+  opacity: 0.45;
+}
+.etape-vendu .etape-jauge > i {
+  width: 33%;
+  background: var(--color-faible);
+}
+.etape-signal {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 99px;
+  background: var(--color-faible-wash);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-faible);
+  opacity: 0;
+  transition: opacity 350ms;
+}
+.etape-signal svg {
+  width: 12px;
+  height: 12px;
+}
+.etape-vendu .etape-signal {
+  opacity: 1;
+  transition-delay: 600ms;
+}
+
+/* ——— Modules selon le métier (ModulesMetier.tsx) ——— */
+.modules-metiers {
+  display: flex;
+  gap: 8px;
+  margin: 18px -16px 0;
+  padding: 2px 16px 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.modules-metiers::-webkit-scrollbar {
+  display: none;
+}
+.modules-metier {
+  flex: none;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: 99px;
+  background: var(--color-surface);
+  font-size: 0.84375rem;
+  font-weight: 600;
+  color: var(--color-steel-700);
+  cursor: pointer;
+  transition:
+    background 300ms,
+    color 300ms,
+    border-color 300ms;
+}
+.modules-metier:hover {
+  border-color: var(--color-action);
+}
+.modules-metier[aria-pressed='true'] {
+  border-color: var(--color-ink-900);
+  background: var(--color-ink-900);
+  color: var(--color-surface);
+}
+.modules-resume {
+  margin: 10px 0 16px;
+  min-height: 20px;
+  font-size: 0.8125rem;
+  color: var(--color-steel-500);
+}
+.modules-resume b {
+  margin-right: 2px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--color-action);
+}
+.modules-liste {
+  display: grid;
+  gap: 10px;
+}
+@media (min-width: 640px) {
+  .modules-metiers {
+    margin-inline: -24px;
+    padding-inline: 24px;
+  }
+  .modules-liste {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  .modules-liste {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.module {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  transition:
+    border-color 350ms,
+    background 350ms;
+}
+.module b {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-ink-900);
+}
+.module small {
+  display: block;
+  font-size: 0.78125rem;
+  line-height: 1.4;
+  color: var(--color-steel-500);
+}
+.module-tuile {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-lg);
+  background: var(--color-survol);
+  color: var(--color-steel-500);
+  transition:
+    background 350ms,
+    color 350ms;
+}
+.module-tuile svg {
+  width: 18px;
+  height: 18px;
+}
+.module-actif {
+  border-color: color-mix(in oklab, var(--color-action) 40%, var(--color-rule));
+  background: color-mix(in oklab, var(--color-action-wash) 55%, var(--color-surface));
+}
+.module-actif .module-tuile {
+  background: var(--color-action);
+  color: var(--color-sur-couleur);
+}
+.module-interrupteur {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 99px;
+  background: var(--color-rule-strong);
+  cursor: pointer;
+  transition: background 300ms;
+}
+.module-interrupteur::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 300ms var(--ease-sortie);
+}
+.module-interrupteur[aria-checked='true'] {
+  background: var(--color-action);
+}
+.module-interrupteur[aria-checked='true']::after {
+  transform: translateX(16px);
+}
+/* Changement de métier : les modules basculent l'un après l'autre. */
+.modules-liste[data-auto] .module,
+.modules-liste[data-auto] .module-tuile,
+.modules-liste[data-auto] .module-interrupteur,
+.modules-liste[data-auto] .module-interrupteur::after {
+  transition-delay: calc(var(--rang) * 70ms);
+}
+@media (max-width: 639px) {
+  .module:not(.module-actif) small {
+    display: none;
+  }
+}
+
 /*
  * Mouvement réduit : version douce plutôt qu'immobile. Les scènes et les
  * icônes continuent leur boucle, mais sans déplacement ni rotation : seuls
@@ -671,6 +1261,19 @@
   }
   .ia-arrive {
     animation-name: ia-fondu;
+  }
+  .etapes *,
+  .etapes::after,
+  .modules-liste *,
+  .modules-liste *::after {
+    transition-duration: 200ms !important;
+    transition-delay: 0ms !important;
+  }
+  .etape-cache {
+    transform: none;
+  }
+  .etape-curseur {
+    animation: none;
   }
   .pastille-flottante {
     animation: none;
