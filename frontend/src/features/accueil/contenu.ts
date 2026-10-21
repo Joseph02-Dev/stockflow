@@ -31,6 +31,22 @@ export interface Offre {
  */
 export const DUREE_ESSAI_JOURS = 30;
 
+export type CleReseau = 'facebook' | 'instagram' | 'x' | 'whatsapp' | 'tiktok' | 'linkedin';
+
+/**
+ * Adresses des comptes de NimbaFlow, à fournir par le propriétaire. null :
+ * l'icône s'affiche sans lien. WhatsApp : https://wa.me/ suivi du numéro
+ * au format international, sans « + » ni espaces.
+ */
+export const RESEAUX_SOCIAUX: Record<CleReseau, string | null> = {
+  facebook: null,
+  instagram: null,
+  x: null,
+  whatsapp: null,
+  tiktok: null,
+  linkedin: null,
+};
+
 export const OFFRES: Offre[] = [
   {
     cle: 'essai',

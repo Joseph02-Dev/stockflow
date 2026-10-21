@@ -33,6 +33,7 @@ import {
 } from './IconesAussi';
 import { CalendrierEssai } from './CalendrierEssai';
 import { EtapesDemarrage } from './EtapesDemarrage';
+import { ReseauxSociaux } from './ReseauxSociaux';
 import { TelephoneAnime } from './TelephoneAnime';
 import { FaqRecherche } from './FaqRecherche';
 import { ModulesMetier } from './ModulesMetier';
@@ -185,6 +186,7 @@ const PIED = [
     liens: [
       { href: '#faq', libelle: 'Questions fréquentes' },
       { href: MAILTO_AIDE, libelle: 'Nous contacter' },
+      { href: MAILTO_AIDE, libelle: ADRESSE_AIDE },
     ],
   },
 ];
@@ -888,13 +890,33 @@ export function AccueilPage() {
 
       {/* ——— Pied de page ——— */}
       <footer className="border-t border-rule bg-surface">
-        <div className={cn(conteneur, 'grid gap-10 py-14 sm:grid-cols-3 md:grid-cols-[1.4fr_1fr_1fr_1fr]')}>
-          <div className="flex flex-col gap-3 sm:col-span-3 md:col-span-1">
+        <div className={conteneur}>
+          <div className="pied-appel">
+            <div>
+              <p className="font-display text-[1.375rem] leading-tight font-semibold tracking-[-0.02em]">
+                Prêt à essayer NimbaFlow&nbsp;?
+              </p>
+              <p className="mt-1 text-corps text-white/70">
+                {DUREE_ESSAI_JOURS} jours d’essai, avec vos propres produits.
+              </p>
+            </div>
+            <Link to="/inscription" className={cn(boutonPrincipal, 'w-full sm:w-auto')}>
+              Commencer l’essai
+              <ArrowRight className={fleche} aria-hidden="true" />
+            </Link>
+          </div>
+        </div>
+        <div className={cn(conteneur, 'grid grid-cols-2 gap-x-7 gap-y-9 py-12 sm:grid-cols-3 md:grid-cols-[1.6fr_1fr_1fr_1fr]')}>
+          <div className="col-span-2 flex flex-col gap-3.5 sm:col-span-3 md:col-span-1">
             <span className="flex items-center gap-2.5">
               <Logo taille={28} />
               <span className="text-[1.0625rem] font-semibold text-ink-900">NimbaFlow</span>
             </span>
             <p className="max-w-xs text-corps text-steel-700">Gestion de stock et de ventes pour commerçants, grossistes et vendeurs.</p>
+            <div className="mt-1.5">
+              <p className="mb-2.5 text-meta font-semibold tracking-[0.06em] text-steel-500 uppercase">Suivez-nous</p>
+              <ReseauxSociaux />
+            </div>
           </div>
           {PIED.map((colonne) => (
             <nav key={colonne.titre} aria-label={colonne.titre} className="flex flex-col gap-3">
@@ -914,7 +936,7 @@ export function AccueilPage() {
           ))}
         </div>
         <div className="border-t border-rule">
-          <p className={cn(conteneur, 'py-5 text-meta text-steel-500')}>© {new Date().getFullYear()} NimbaFlow</p>
+          <p className={cn(conteneur, 'py-5 text-center text-meta text-steel-500')}>© {new Date().getFullYear()} NimbaFlow</p>
         </div>
       </footer>
     </div>
