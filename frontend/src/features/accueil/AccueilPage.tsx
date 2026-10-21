@@ -6,7 +6,6 @@ import {
   Boxes,
   Building2,
   Check,
-  ChevronDown,
   ClipboardCheck,
   FileText,
   Mail,
@@ -36,6 +35,7 @@ import {
 } from './IconesAussi';
 import { CalendrierEssai } from './CalendrierEssai';
 import { EtapesDemarrage } from './EtapesDemarrage';
+import { FaqRecherche } from './FaqRecherche';
 import { ModulesMetier } from './ModulesMetier';
 import './accueil.css';
 
@@ -866,41 +866,22 @@ export function AccueilPage() {
 
         {/* ——— FAQ ——— */}
         <section id="faq" aria-labelledby="titre-faq" className="scroll-mt-16 border-t border-rule bg-surface py-20 md:py-28">
-          <div className={cn(conteneur, 'grid gap-12 lg:grid-cols-[0.9fr_1.4fr] lg:gap-16')}>
-            <div className="flex flex-col gap-6">
+          <div className={cn(conteneur, 'faq-grille')}>
+            <div className="faq-titre">
               <TitreSection id="titre-faq" etiquette="Questions fréquentes" titre="Vos questions, nos réponses." />
-              <div className="rounded-xl bg-paper p-6 ring-1 ring-rule" data-apparition="">
-                <p className="text-[1rem] font-semibold text-ink-900">Une autre question ?</p>
-                <p className="mt-1 text-corps text-steel-700">Écrivez-nous, nous vous répondrons par email.</p>
-                <a
-                  href={MAILTO_AIDE}
-                  className={cn('mt-4 inline-flex items-center gap-2 rounded-sm text-corps font-semibold text-action hover:underline', focusClair)}
-                >
-                  <Mail className="size-4" aria-hidden="true" />
-                  {ADRESSE_AIDE}
-                </a>
-              </div>
             </div>
-            <div className="flex flex-col gap-3" data-apparition="">
-              {faq(ADRESSE_AIDE)
-                .filter((q) => q.reponse !== null)
-                .map((q) => (
-                  <details key={q.question} className="faq-question group rounded-xl bg-paper ring-1 ring-rule open:bg-surface open:shadow-card">
-                    <summary
-                      className={cn(
-                        'flex cursor-pointer list-none items-center justify-between gap-4 rounded-xl px-5 py-4 text-[1rem] font-semibold text-ink-900',
-                        focusClair,
-                      )}
-                    >
-                      {q.question}
-                      <ChevronDown
-                        className="size-5 shrink-0 text-steel-500 transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none"
-                        aria-hidden="true"
-                      />
-                    </summary>
-                    <p className="faq-reponse px-5 pb-5 text-corps leading-relaxed text-steel-700">{q.reponse}</p>
-                  </details>
-                ))}
+            <FaqRecherche questions={faq(ADRESSE_AIDE).filter((q) => q.reponse !== null)} adresse={ADRESSE_AIDE} />
+            <div className="faq-contact" data-apparition="">
+              <span className="faq-contact-tuile">
+                <Mail aria-hidden="true" />
+              </span>
+              <p className="mt-3.5 font-display text-[1.0625rem] font-semibold text-ink-900">Une autre question ?</p>
+              <p className="mt-1 text-corps text-steel-700">Écrivez-nous, nous vous répondrons par email.</p>
+              <a href={MAILTO_AIDE} className={cn('faq-contact-lien', focusClair)}>
+                <Mail className="size-4" aria-hidden="true" />
+                Nous écrire
+              </a>
+              <span className="mt-2.5 block font-mono text-meta text-steel-500">{ADRESSE_AIDE}</span>
             </div>
           </div>
         </section>
