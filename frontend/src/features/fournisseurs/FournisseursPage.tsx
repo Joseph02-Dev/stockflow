@@ -4,19 +4,20 @@ import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ChevronRight, Clock, Phone, Plus } from 'lucide-react';
+import { ChevronRight, Clock, Phone, Plus, Search } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { Drawer } from '@/components/ui/Drawer';
 import { ImageUploadField } from '@/components/patterns/ImageUploadField';
-import { Card, PageHeader, PanneauEntete } from '@/components/patterns/Page';
+import { Card, PageHeader } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { cn } from '@/lib/cn';
 import { pluriel } from '@/lib/format';
 import { Vignette } from '@/components/patterns/Vignette';
 import { FournisseurDetail } from './FournisseurDetail';
+import { teinteFournisseur, useActiviteFournisseurs, type ActiviteFournisseur } from './activite';
 
 interface Fournisseur {
   id: string;
@@ -49,7 +50,7 @@ function LigneResume({ fournisseur }: { fournisseur: Fournisseur }) {
       {fournisseur.delaiLivraisonJours !== null && (
         <span className="inline-flex shrink-0 items-center gap-1">
           <Clock className="size-3 text-steel-400" aria-hidden="true" />
-          {fournisseur.delaiLivraisonJours} {pluriel('jour', fournisseur.delaiLivraisonJours)}
+          {fournisseur.delaiLivraisonJours} j
         </span>
       )}
       {fournisseur.telephone && (
@@ -62,12 +63,42 @@ function LigneResume({ fournisseur }: { fournisseur: Fournisseur }) {
   );
 }
 
+/** Ce qui demande de l'attention chez ce fournisseur : commandes en route, produits en alerte. */
+function Marques({ activite }: { activite: ActiviteFournisseur }) {
+  const alertes = activite.produitsEnAlerte.size;
+  if (activite.enRoute === 0 && alertes === 0) return null;
+  return (
+    <span className="mt-1.5 flex flex-wrap gap-1.5">
+      {activite.enRoute > 0 && (
+        <span className="inline-flex h-5 items-center gap-1.5 rounded-full bg-[#2f6fb3]/12 px-2 text-[11px] font-semibold text-[#2f6fb3] dark:text-[#6aa8d6]">
+          <i className="size-[5px] rounded-full bg-current" aria-hidden="true" />
+          {activite.enRoute} en route
+        </span>
+      )}
+      {alertes > 0 && (
+        <span className="inline-flex h-5 items-center gap-1.5 rounded-full bg-rupture-wash px-2 text-[11px] font-semibold text-rupture">
+          <i className="size-[5px] rounded-full bg-current" aria-hidden="true" />
+          {alertes} en alerte
+        </span>
+      )}
+    </span>
+  );
+}
+
+const sansAccents = (texte: string) =>
+  texte
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
 export function FournisseursPage() {
   const queryClient = useQueryClient();
   const [drawerOuvert, setDrawerOuvert] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined);
   const [selectionId, setSelectionId] = useState<string | null>(null);
+  const [terme, setTerme] = useState('');
+  const activite = useActiviteFournisseurs();
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['fournisseurs'],
@@ -80,6 +111,26 @@ export function FournisseursPage() {
   // effet, pour éviter un rendu supplémentaire évitable.
   const selectionEffective =
     selectionId && data?.some((f) => f.id === selectionId) ? selectionId : (data?.[0]?.id ?? null);
+
+  const cible = sansAccents(terme.trim());
+  const visibles = (data ?? []).filter(
+    (f) => !cible || sansAccents(`${f.nom} ${f.telephone ?? ''} ${f.emailContact ?? ''}`).includes(cible),
+  );
+  const recherche = (
+    <label className="relative block border-b border-rule p-3">
+      <Search className="absolute top-1/2 left-6 size-4 -translate-y-1/2 text-steel-400" aria-hidden="true" />
+      <input
+        type="search"
+        value={terme}
+        onChange={(e) => setTerme(e.target.value)}
+        placeholder="Nom, téléphone ou email"
+        aria-label="Rechercher un fournisseur"
+        autoComplete="off"
+        className="h-[38px] w-full rounded-md border border-rule-strong bg-surface pr-3 pl-9 text-corps text-ink-900 outline-none placeholder:text-steel-400 focus:border-action focus:shadow-[0_0_0_4px_color-mix(in_oklab,var(--color-action)_15%,transparent)]"
+      />
+    </label>
+  );
+  const aucun = <p className="px-4 py-6 text-corps text-steel-500">Aucun fournisseur ne correspond.</p>;
 
   const { register, handleSubmit, reset, formState } = useForm<Formulaire>({
     resolver: zodResolver(schema),
@@ -141,28 +192,33 @@ export function FournisseursPage() {
         <>
           {/* Desktop : vue maître-détail, liste + fiche sur le même écran */}
           <div className="hidden items-start gap-5 md:flex">
-            <Card className="w-72 shrink-0 lg:w-80">
-              <PanneauEntete titre={`${data.length} ${pluriel('fournisseur', data.length)}`} />
-              <ul className="max-h-[calc(100vh-15rem)] divide-y divide-rule overflow-y-auto">
-                {data.map((fournisseur) => (
+            <Card className="w-72 shrink-0 lg:w-[330px]">
+              {recherche}
+              <p className="px-4 pt-2.5 pb-1 text-meta font-semibold tracking-[0.04em] text-steel-400 uppercase">
+                {visibles.length} {pluriel('fournisseur', visibles.length)}
+              </p>
+              {visibles.length === 0 && aucun}
+              <ul className="max-h-[calc(100vh-17rem)] overflow-y-auto">
+                {visibles.map((fournisseur) => (
                   <li key={fournisseur.id}>
                     <button
                       type="button"
                       onClick={() => setSelectionId(fournisseur.id)}
                       aria-current={selectionEffective === fournisseur.id ? 'true' : undefined}
                       className={cn(
-                        'flex w-full items-center gap-3 border-l-2 py-3 pr-4 pl-[18px] text-left transition-colors',
+                        'flex w-full items-center gap-3 border-l-[3px] py-3 pr-4 pl-[15px] text-left transition-colors',
                         selectionEffective === fournisseur.id
                           ? 'border-action bg-action-wash'
                           : 'border-transparent hover:bg-entete-tableau',
                       )}
                     >
-                      <Vignette nom={fournisseur.nom} photoUrl={fournisseur.photoUrl} taille={34} />
+                      <Vignette nom={fournisseur.nom} photoUrl={fournisseur.photoUrl} taille={42} teinte={teinteFournisseur(fournisseur.id)} className="rounded-full!" />
                       <div className="min-w-0">
-                        <p className="truncate text-corps font-medium text-ink-900">{fournisseur.nom}</p>
-                        <p className="text-meta text-steel-500">
+                        <p className="truncate text-corps font-semibold text-ink-900">{fournisseur.nom}</p>
+                        <p className="text-meta text-steel-400">
                           <LigneResume fournisseur={fournisseur} />
                         </p>
+                        <Marques activite={activite(fournisseur.id)} />
                       </div>
                     </button>
                   </li>
@@ -183,20 +239,23 @@ export function FournisseursPage() {
 
           {/* Mobile : liste seule, navigation vers la fiche en page dédiée */}
           <Card className="md:hidden">
+            {recherche}
+            {visibles.length === 0 && aucun}
             <ul className="divide-y divide-rule">
-              {data.map((fournisseur) => (
+              {visibles.map((fournisseur) => (
                 <li key={fournisseur.id}>
                   <Link
                     to={`/fournisseurs/${fournisseur.id}`}
                     className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-entete-tableau"
                   >
                     <div className="flex min-w-0 items-center gap-3">
-                      <Vignette nom={fournisseur.nom} photoUrl={fournisseur.photoUrl} taille={36} />
+                      <Vignette nom={fournisseur.nom} photoUrl={fournisseur.photoUrl} taille={42} teinte={teinteFournisseur(fournisseur.id)} className="rounded-full!" />
                       <div className="min-w-0">
-                        <p className="truncate text-corps font-medium text-ink-900">{fournisseur.nom}</p>
-                        <p className="text-meta text-steel-500">
+                        <p className="truncate text-corps font-semibold text-ink-900">{fournisseur.nom}</p>
+                        <p className="text-meta text-steel-400">
                           <LigneResume fournisseur={fournisseur} />
                         </p>
+                        <Marques activite={activite(fournisseur.id)} />
                       </div>
                     </div>
                     <ChevronRight className="size-4 shrink-0 text-steel-400" aria-hidden="true" />
