@@ -44,6 +44,7 @@ import { AssistantPanel } from '@/features/assistant/AssistantPanel';
 import { ClocheNotifications } from '@/features/notifications/ClocheNotifications';
 import { OngletsSection, type OngletSection } from '@/components/patterns/OngletsSection';
 import { useIndicateurGlissant } from '@/components/patterns/useIndicateurGlissant';
+import './menuMobile.css';
 
 // Navigation en quatre sections : piloter, gérer le stock, s'approvisionner,
 // organiser. Les liens réservés à l'Admin (Paramètres et ses onglets) et
@@ -331,8 +332,19 @@ function LienNav({
   );
 }
 
-const classesLienPlus =
-  'flex h-12 items-center gap-3 rounded-md px-3 text-corps font-medium text-ink-900 hover:bg-survol';
+/** Teinte de chaque tuile du menu mobile, reprise des écrans eux-mêmes. */
+const TEINTES_MENU_MOBILE: Record<string, string> = {
+  '/statistiques': 'var(--color-accent)',
+  '/alertes': 'var(--color-rupture)',
+  '/produits': 'var(--color-action)',
+  '/pertes': 'var(--color-rupture)',
+  '/fournisseurs': 'var(--color-serie-4)',
+  '/clients': 'var(--color-ok)',
+  '/rapports': 'var(--color-steel-500)',
+  '/emplacements': 'var(--color-action)',
+  '/categories': 'var(--color-accent)',
+  '/parametres': 'var(--color-steel-500)',
+};
 
 export function AppLayout() {
   const session = useSession();
@@ -378,6 +390,16 @@ export function AppLayout() {
     };
   }, [menuProfilOuvert]);
 
+  // Menu mobile : Échap le ferme, comme le voile.
+  useEffect(() => {
+    if (!plusOuvert) return;
+    const touche = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPlusOuvert(false);
+    };
+    document.addEventListener('keydown', touche);
+    return () => document.removeEventListener('keydown', touche);
+  }, [plusOuvert]);
+
   const ariane = filAriane(location.pathname);
   const sousChemin = (chemin: string) => location.pathname === chemin || location.pathname.startsWith(`${chemin}/`);
 
@@ -386,9 +408,11 @@ export function AppLayout() {
   // pastille à jour automatiquement.
   const alertesActives = useQuery({
     queryKey: ['alertes', 'ACTIVE'],
-    queryFn: async () => (await api.get<unknown[]>('/alertes?statut=ACTIVE')).data,
+    queryFn: async () => (await api.get<{ type: 'STOCK_FAIBLE' | 'RUPTURE' }[]>('/alertes?statut=ACTIVE')).data,
   });
   const nombreAlertes = alertesActives.data?.length ?? 0;
+  const nombreRuptures = alertesActives.data?.filter((a) => a.type === 'RUPTURE').length ?? 0;
+  const nombreFaibles = nombreAlertes - nombreRuptures;
   // Même clé que l'écran Péremptions : une sortie de lot y met la pastille à jour.
   const peremptions = useQuery({
     queryKey: ['peremptions', 'resume'],
@@ -475,6 +499,23 @@ export function AppLayout() {
     navigate(`/produits?q=${encodeURIComponent(terme)}`);
     setRecherche('');
   }
+
+  const sectionsMenuMobile = sectionsNav
+    .map((section) => ({
+      titre: section.titre,
+      // Les pages d'usage courant d'abord, la configuration (Admin) ensuite.
+      liens: section.liens
+        .filter(
+          (lien) =>
+            !navMobile.some((m) => m.to === lien.to) &&
+            (!lien.admin || session?.utilisateur.role === 'ADMIN') &&
+            (lien.module !== 'rapports' || modules.rapports),
+        )
+        .sort((a, b) => Number(Boolean(a.admin)) - Number(Boolean(b.admin))),
+    }))
+    .filter((section) => section.liens.length > 0);
+  // Entrée échelonnée des tuiles, dans l'ordre de lecture.
+  let indexTuile = 0;
 
   const libelleReseau =
     statutSynchro === 'hors-ligne'
@@ -838,93 +879,131 @@ export function AppLayout() {
       {plusOuvert && (
         <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Menu">
           <div
-            className="absolute inset-0 bg-voile/50 backdrop-blur-[2px]"
+            className="menu-mobile-voile absolute inset-0 bg-voile/50 backdrop-blur-[2px]"
             onClick={() => setPlusOuvert(false)}
             aria-hidden="true"
           />
-          {/* Le menu descend du bouton qui l'ouvre, en haut à droite. */}
-          <div className="absolute inset-x-0 top-0 max-h-[85dvh] overflow-y-auto rounded-b-xl border-b border-rule/70 bg-surface/95 p-3 pt-[calc(env(safe-area-inset-top)+8px)] pb-4 shadow-pop backdrop-blur-xl">
-            <div className="mb-1 flex items-center justify-between px-3">
-              <span className="text-panneau text-ink-900">Menu</span>
+          {/* Le menu remonte du bas de l'écran, à portée de pouce. */}
+          <div className="menu-mobile-panneau absolute inset-x-0 bottom-0 flex max-h-[88dvh] flex-col bg-surface">
+            <div className="mx-auto mt-2 mb-1 h-[5px] w-10 rounded-full bg-rule-strong" aria-hidden="true" />
+            <div className="flex items-center gap-3 px-4 pt-2 pb-3.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setPlusOuvert(false);
+                  setProfilOuvert(true);
+                }}
+                aria-label="Mon profil"
+                className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left"
+              >
+                <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-action font-display text-corps font-semibold text-sur-couleur">
+                  {session?.utilisateur.photoUrl ? (
+                    <img src={session.utilisateur.photoUrl} alt="" className="size-full object-cover" />
+                  ) : (
+                    initiales
+                  )}
+                </span>
+                <span className="min-w-0 leading-tight">
+                  <span className="block truncate text-[15px] font-semibold text-ink-900">{session?.utilisateur.nom}</span>
+                  <span className="mt-0.5 flex items-center gap-1 text-meta text-steel-400">
+                    <span className="truncate">
+                      {session?.utilisateur.role === 'ADMIN' ? 'Administrateur' : 'Gestionnaire'} · {session?.entreprise.nom}
+                    </span>
+                    <ChevronRight className="size-3.5 shrink-0" aria-hidden="true" />
+                  </span>
+                </span>
+              </button>
               <button
                 type="button"
                 onClick={() => setPlusOuvert(false)}
                 aria-label="Fermer le menu"
-                className="inline-flex size-10 items-center justify-center rounded-md text-steel-700 hover:bg-survol"
+                className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-paper text-steel-500 hover:bg-survol"
               >
                 <X className="size-5" aria-hidden="true" />
               </button>
             </div>
-            <NavLink to="/statistiques" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
-              <ChartLine className="size-5 text-steel-500" aria-hidden="true" />
-              Statistiques
-            </NavLink>
-            <NavLink to="/pertes" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
-              <PackageX className="size-5 text-steel-500" aria-hidden="true" />
-              Pertes
-            </NavLink>
-            <NavLink to="/produits" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
-              <Package className="size-5 text-steel-500" aria-hidden="true" />
-              Produits
-            </NavLink>
-            {modules.rapports && (
-              <NavLink to="/rapports" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
-                <FileText className="size-5 text-steel-500" aria-hidden="true" />
-                Rapports
-              </NavLink>
-            )}
-            <NavLink to="/fournisseurs" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
-              <Truck className="size-5 text-steel-500" aria-hidden="true" />
-              Fournisseurs
-            </NavLink>
-            <NavLink to="/clients" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
-              <Users className="size-5 text-steel-500" aria-hidden="true" />
-              Clients & créances
-            </NavLink>
-            {session?.utilisateur.role === 'ADMIN' && (
-              <>
-                <NavLink to="/emplacements" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
-                  <MapPin className="size-5 text-steel-500" aria-hidden="true" />
-                  Emplacements
-                </NavLink>
-                <NavLink to="/categories" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
-                  <Tag className="size-5 text-steel-500" aria-hidden="true" />
-                  Catégories & marques
-                </NavLink>
-                <NavLink to="/parametres" onClick={() => setPlusOuvert(false)} className={classesLienPlus}>
-                  <Settings className="size-5 text-steel-500" aria-hidden="true" />
-                  Paramètres
-                </NavLink>
-              </>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setPlusOuvert(false);
-                setProfilOuvert(true);
-              }}
-              className={cn(classesLienPlus, 'w-full text-left')}
-            >
-              <UserRound className="size-5 text-steel-500" aria-hidden="true" />
-              Mon profil
-            </button>
-            <button type="button" onClick={seDeconnecter} className={cn(classesLienPlus, 'w-full text-left')}>
-              <LogOut className="size-5 text-steel-500" aria-hidden="true" />
-              Déconnexion
-            </button>
-            <div className="mt-3 flex items-center gap-2 border-t border-rule px-3 pt-3 text-meta text-steel-500">
-              <span
-                className={cn(
-                  'inline-flex size-2 rounded-full',
-                  statutSynchro === 'hors-ligne'
-                    ? 'bg-rupture'
-                    : statutSynchro === 'synchronisation'
-                      ? 'bg-faible'
-                      : 'bg-ok',
-                )}
-                aria-hidden="true"
-              />
-              {libelleReseau}
+
+            <div className="overflow-y-auto px-4 pb-2.5">
+              <Link
+                to="/ventes/nouvelle"
+                onClick={() => setPlusOuvert(false)}
+                className="flex h-12 items-center justify-center gap-2 rounded-[14px] bg-action text-[15px] font-semibold text-sur-couleur shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] transition-colors hover:bg-action-dark"
+              >
+                <Plus className="size-5" aria-hidden="true" />
+                Nouvelle vente
+              </Link>
+              {sectionsMenuMobile.map((section) => (
+                <div key={section.titre} role="group" aria-labelledby={`menu-${section.titre}`}>
+                  <h3
+                    id={`menu-${section.titre}`}
+                    className="mx-0.5 mt-4 mb-2 text-[11.5px] font-bold tracking-[0.07em] text-steel-400 uppercase"
+                  >
+                    {section.titre}
+                  </h3>
+                  <div className="menu-mobile-tuiles">
+                    {section.liens.map((lien) => {
+                      const actif = sousChemin(lien.to) || (lien.aussi?.some(sousChemin) ?? false);
+                      const estAlertes = lien.to === '/alertes';
+                      return (
+                        <Link
+                          key={lien.to}
+                          to={lien.to}
+                          onClick={() => setPlusOuvert(false)}
+                          aria-current={actif ? 'page' : undefined}
+                          className="menu-mobile-tuile"
+                          style={{ '--teinte': TEINTES_MENU_MOBILE[lien.to], animationDelay: `${indexTuile++ * 25}ms` } as React.CSSProperties}
+                        >
+                          <span className="menu-mobile-pastille" aria-hidden="true">
+                            <lien.Icone className="size-5" />
+                          </span>
+                          {lien.libelle}
+                          {estAlertes && (nombreRuptures > 0 || nombreFaibles > 0) && (
+                            <>
+                              <span className="menu-mobile-badges" aria-hidden="true">
+                                {nombreRuptures > 0 && <span className="bg-rupture">{nombreRuptures}</span>}
+                                {nombreFaibles > 0 && <span className="bg-faible">{nombreFaibles}</span>}
+                              </span>
+                              <span className="sr-only">
+                                {[
+                                  nombreRuptures > 0 && `${nombreRuptures} en rupture`,
+                                  nombreFaibles > 0 && `${nombreFaibles} sous le seuil`,
+                                ]
+                                  .filter(Boolean)
+                                  .join(', ')}
+                              </span>
+                            </>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between gap-2.5 border-t border-rule px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+              <span className="inline-flex min-w-0 items-center gap-2 text-meta text-steel-500">
+                <span
+                  className={cn(
+                    'inline-flex size-2 shrink-0 rounded-full',
+                    statutSynchro === 'hors-ligne'
+                      ? 'bg-rupture'
+                      : statutSynchro === 'synchronisation'
+                        ? 'bg-faible'
+                        : 'bg-ok',
+                  )}
+                  aria-hidden="true"
+                />
+                <span className="truncate">{libelleReseau}</span>
+              </span>
+              <button
+                type="button"
+                onClick={seDeconnecter}
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] border border-rule-strong bg-surface px-3 text-[13px] font-semibold text-rupture hover:bg-survol"
+              >
+                <LogOut className="size-4" aria-hidden="true" />
+                Déconnexion
+              </button>
             </div>
           </div>
         </div>
