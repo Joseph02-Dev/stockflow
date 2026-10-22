@@ -1,26 +1,18 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, Plus, Send, Trash2 } from 'lucide-react';
+import { Check, ExternalLink, ListChecks, Plus, Send, Trash2 } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { dateHeure } from '@/lib/montant';
 import { useModules } from '@/lib/useModules';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { boutonClasses } from '@/components/ui/boutonClasses';
 import { Alert } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
-import { Card, PanneauEntete } from '@/components/patterns/Page';
 import { ErrorState, LoadingState } from '@/components/patterns/States';
-
-interface Abonnement {
-  id: string;
-  url: string;
-  evenements: string[];
-  actif: boolean;
-  echecsConsecutifs: number;
-  createdAt: string;
-}
+import { useWebhooks, type Abonnement } from './donnees';
+import { EnteteCarte, EnteteSection } from './EnteteSection';
 
 interface Livraison {
   id: string;
@@ -60,11 +52,7 @@ export function IntegrationsSection() {
   const [journal, setJournal] = useState<Abonnement | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; texte: string } | null>(null);
 
-  const abonnements = useQuery({
-    queryKey: ['webhooks'],
-    enabled: modules.webhooks,
-    queryFn: async () => (await api.get<Abonnement[]>('/webhooks')).data,
-  });
+  const abonnements = useWebhooks(modules.webhooks);
   const livraisons = useQuery({
     queryKey: ['webhooks', journal?.id, 'livraisons'],
     enabled: journal !== null,
@@ -103,39 +91,40 @@ export function IntegrationsSection() {
     setEvenements((liste) => (liste.includes(valeur) ? liste.filter((e) => e !== valeur) : [...liste, valeur]));
 
   return (
-    <div className="flex max-w-[820px] flex-col gap-4">
-      <Card>
-        <PanneauEntete titre="API" meta="Pour relier NimbaFlow à un autre logiciel" />
-        <div className="flex flex-col gap-2 p-5 text-corps text-steel-700">
-          <p>
-            La documentation interactive de l’API (OpenAPI) décrit toutes les routes, leurs paramètres et leurs réponses.
-            Authentification : jeton obtenu par <code className="font-mono">POST /auth/login</code>.
-          </p>
-          <a
-            href={`${BASE_API}/docs`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 self-start font-medium text-action hover:underline"
-          >
-            Ouvrir la documentation de l’API
+    <div className="flex flex-col gap-4">
+      <EnteteSection titre="Intégrations" description="Relier NimbaFlow à un autre logiciel : comptabilité, site marchand…" />
+
+      <div className="parametres-carte">
+        <EnteteCarte titre="API" meta="La documentation interactive (OpenAPI) décrit toutes les routes, leurs paramètres et leurs réponses." />
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
+          <code className="rounded-md border border-rule bg-paper px-2.5 py-1.5 font-mono text-[12.5px] text-steel-700">
+            Authentification : <b className="font-semibold text-action">POST</b> /auth/login
+          </code>
+          <a href={`${BASE_API}/docs`} target="_blank" rel="noreferrer" className={boutonClasses('secondary', undefined, { taille: 'sm' })}>
             <ExternalLink className="size-4" aria-hidden="true" />
+            Ouvrir la documentation
+            <span className="sr-only"> (nouvel onglet)</span>
           </a>
         </div>
-      </Card>
+      </div>
 
-      <Card>
-        <PanneauEntete titre="Webhooks" meta="Un POST JSON signé à votre URL à chaque événement choisi" />
+      <div className="parametres-carte">
+        <EnteteCarte titre="Webhooks" meta="Un POST JSON signé à votre URL à chaque événement choisi." />
         {!modules.webhooks ? (
-          <p className="p-5 text-corps text-steel-500">Activez le module « Webhooks » dans l’onglet Modules.</p>
+          <p className="p-4 text-corps text-steel-500 sm:p-5">Activez le module « Webhooks » dans la section Modules.</p>
         ) : (
-          <div className="flex flex-col gap-4 p-5">
-            {message && <Alert variant={message.ok ? 'success' : 'error'}>{message.texte}</Alert>}
-            {secret && (
-              <Alert variant="info">
-                Secret de signature — copiez-le maintenant, il ne sera plus affiché :{' '}
-                <code className="font-mono font-semibold break-all">{secret}</code>. Chaque envoi porte l’en-tête{' '}
-                <code className="font-mono">X-StockFlow-Signature: t=…,v1=…</code> : HMAC-SHA256 de « t.corps » avec ce secret.
-              </Alert>
+          <>
+            {(message || secret) && (
+              <div className="flex flex-col gap-3 px-4 pt-4 sm:px-5">
+                {message && <Alert variant={message.ok ? 'success' : 'error'}>{message.texte}</Alert>}
+                {secret && (
+                  <Alert variant="info">
+                    Secret de signature — copiez-le maintenant, il ne sera plus affiché :{' '}
+                    <code className="font-mono font-semibold break-all">{secret}</code>. Chaque envoi porte l’en-tête{' '}
+                    <code className="font-mono">X-StockFlow-Signature: t=…,v1=…</code> : HMAC-SHA256 de « t.corps » avec ce secret.
+                  </Alert>
+                )}
+              </div>
             )}
             {abonnements.isLoading ? (
               <LoadingState lignes={2} />
@@ -143,56 +132,95 @@ export function IntegrationsSection() {
               <ErrorState message={messageErreur(abonnements.error)} onRetry={() => abonnements.refetch()} />
             ) : (
               abonnements.data!.length > 0 && (
-                <ul className="divide-y divide-rule rounded-md border border-rule">
+                <ul className="divide-y divide-rule">
                   {abonnements.data!.map((a) => (
-                    <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
-                      <span className="min-w-0 flex-1 basis-64">
-                        <span className="block truncate font-mono text-corps text-ink-900">{a.url}</span>
-                        <span className="block truncate text-meta text-steel-500">
-                          {a.evenements.join(', ')}
-                          {a.echecsConsecutifs > 0 && ` · ${a.echecsConsecutifs} échec(s) consécutif(s)`}
-                        </span>
-                      </span>
-                      <Badge variant={a.actif ? 'ok' : 'neutral'}>{a.actif ? 'Actif' : 'Désactivé'}</Badge>
-                      <Button variant="ghost" taille="sm" onClick={() => setJournal(a)}>
-                        Journal
-                      </Button>
-                      <Button variant="ghost" taille="sm" loading={tester.isPending} onClick={() => tester.mutate(a.id)}>
-                        <Send className="size-4" aria-hidden="true" />
-                        Tester
-                      </Button>
-                      <Button variant="ghost" taille="sm" onClick={() => basculer.mutate(a)}>
-                        {a.actif ? 'Désactiver' : 'Réactiver'}
-                      </Button>
-                      <Button variant="ghost" taille="sm" loading={supprimer.isPending} onClick={() => supprimer.mutate(a.id)}>
-                        <Trash2 className="size-4" aria-hidden="true" />
-                        <span className="sr-only">Supprimer</span>
-                      </Button>
+                    <li key={a.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3.5 sm:px-5">
+                      <div className="min-w-0 flex-1 basis-72">
+                        <p className="flex min-w-0 items-center gap-2.5 font-mono text-[13.5px] text-ink-900">
+                          <span
+                            className={cn(
+                              'size-2 shrink-0 rounded-full',
+                              a.actif ? 'bg-ok shadow-[0_0_0_3px_var(--color-ok-wash)]' : 'bg-rupture shadow-[0_0_0_3px_var(--color-rupture-wash)]',
+                            )}
+                            aria-hidden="true"
+                          />
+                          <span className="truncate">{a.url}</span>
+                        </p>
+                        <p className="mt-1.5 flex flex-wrap gap-1.5">
+                          <Badge variant={a.actif ? 'ok' : 'rupture'}>
+                            {a.actif ? 'Actif' : 'Désactivé'}
+                            {a.echecsConsecutifs > 0 && ` · ${a.echecsConsecutifs} échec${a.echecsConsecutifs > 1 ? 's' : ''} consécutif${a.echecsConsecutifs > 1 ? 's' : ''}`}
+                          </Badge>
+                          {a.evenements.map((e) => (
+                            <span key={e} className="inline-flex h-[22px] items-center rounded-full border border-rule bg-paper px-2 font-mono text-[11.5px] text-steel-500">
+                              {e}
+                            </span>
+                          ))}
+                        </p>
+                      </div>
+                      <div className="-ml-2 flex flex-wrap items-center gap-0.5 sm:ml-0">
+                        <Button variant="ghost" taille="sm" onClick={() => setJournal(a)}>
+                          <ListChecks className="size-4" aria-hidden="true" />
+                          Journal
+                        </Button>
+                        <Button variant="ghost" taille="sm" loading={tester.isPending && tester.variables === a.id} onClick={() => tester.mutate(a.id)}>
+                          <Send className="size-4" aria-hidden="true" />
+                          Tester
+                        </Button>
+                        <Button variant={a.actif ? 'ghost' : 'secondary'} taille="sm" onClick={() => basculer.mutate(a)}>
+                          {a.actif ? 'Désactiver' : 'Réactiver'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          taille="sm"
+                          icone
+                          className="text-rupture hover:bg-rupture-wash"
+                          loading={supprimer.isPending && supprimer.variables === a.id}
+                          onClick={() => supprimer.mutate(a.id)}
+                          aria-label={`Supprimer le webhook ${a.url}`}
+                          title="Supprimer"
+                        >
+                          <Trash2 className="size-4" aria-hidden="true" />
+                        </Button>
+                      </div>
                     </li>
                   ))}
                 </ul>
               )
             )}
 
-            <div className="flex flex-col gap-3 rounded-md border border-rule bg-entete-groupe p-3">
-              <Input label="URL du destinataire" placeholder="https://exemple.com/webhooks/stockflow" value={url} onChange={(e) => setUrl(e.target.value)} />
-              <fieldset className="flex flex-col gap-2">
-                <legend className="mb-1 text-corps font-medium text-ink-900">Événements</legend>
+            <div className="flex flex-col gap-3 rounded-b-[var(--radius-xl)] border-t border-rule bg-entete-groupe p-4 sm:p-5">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-corps font-medium text-ink-900">Nouveau destinataire</span>
+                <input
+                  type="url"
+                  inputMode="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://exemple.com/webhooks/stockflow"
+                  className="h-10 w-full champ rounded-lg border border-rule-strong bg-surface-elevee px-3 text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-action"
+                />
+              </label>
+              <div className="grid gap-2 sm:grid-cols-3" role="group" aria-label="Événements">
                 {EVENEMENTS.map((e) => (
-                  <label key={e.valeur} className="flex items-start gap-2">
-                    <input
-                      type="checkbox"
-                      className="mt-1 size-4 accent-[var(--color-action)]"
-                      checked={evenements.includes(e.valeur)}
-                      onChange={() => basculerEvenement(e.valeur)}
-                    />
-                    <span className="text-corps text-ink-900">
-                      {e.libelle} <span className="font-mono text-meta text-steel-500">{e.valeur}</span>
-                      <span className="block text-meta text-steel-500">{e.aide}</span>
+                  <button
+                    key={e.valeur}
+                    type="button"
+                    className="parametres-evenement"
+                    aria-pressed={evenements.includes(e.valeur)}
+                    onClick={() => basculerEvenement(e.valeur)}
+                  >
+                    <span className="parametres-case" aria-hidden="true">
+                      {evenements.includes(e.valeur) && <Check className="size-[11px]" strokeWidth={3} />}
                     </span>
-                  </label>
+                    <span className="min-w-0">
+                      <span className="block text-[13px] font-semibold text-ink-900">{e.libelle}</span>
+                      <span className="block font-mono text-[11px] text-steel-400">{e.valeur}</span>
+                      <span className="mt-0.5 block text-[11.5px] text-steel-500">{e.aide}</span>
+                    </span>
+                  </button>
                 ))}
-              </fieldset>
+              </div>
               <Button
                 taille="sm"
                 className="self-end"
@@ -204,9 +232,9 @@ export function IntegrationsSection() {
                 Ajouter le webhook
               </Button>
             </div>
-          </div>
+          </>
         )}
-      </Card>
+      </div>
 
       {journal && (
         <Modal ouvert onFermer={() => setJournal(null)} titre="Journal des envois" description={journal.url}>

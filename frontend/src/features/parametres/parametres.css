@@ -1,0 +1,501 @@
+/* Écran Paramètres : menu des sections, aperçu d'en-tête, équipe, modules, apparence. */
+.parametres-grille {
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.parametres-nav {
+  position: sticky;
+  top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.parametres-nav button {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  text-align: left;
+  transition:
+    background 200ms,
+    border-color 200ms;
+}
+.parametres-nav button:hover {
+  background: color-mix(in oklab, var(--color-surface) 70%, transparent);
+}
+.parametres-nav button[aria-selected='true'] {
+  border-color: var(--color-rule);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+.parametres-pastille {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--color-rule);
+  border-radius: 9px;
+  color: var(--color-steel-500);
+  background: var(--color-paper);
+}
+.parametres-nav button[aria-selected='true'] .parametres-pastille {
+  border-color: color-mix(in oklab, var(--color-action) 25%, transparent);
+  color: var(--color-action);
+  background: var(--color-action-wash);
+}
+.parametres-resume {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--color-steel-400);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.parametres-carte {
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  animation: parametres-arrive 400ms var(--ease-sortie) both;
+}
+
+/* Entreprise : aperçu de l'en-tête des rapports PDF */
+.parametres-apercu {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  overflow: hidden;
+}
+.parametres-feuille-zone {
+  padding: 22px;
+  border-right: 1px solid var(--color-rule);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-paper) 0 10px,
+    color-mix(in oklab, var(--color-paper) 60%, var(--color-surface)) 10px 20px
+  );
+}
+/* La feuille reste blanche en thème sombre : c'est un document imprimé. */
+.parametres-feuille {
+  position: relative;
+  padding: 18px 20px 46px;
+  border-radius: 6px;
+  color: #15161a;
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.08),
+    0 14px 30px -18px rgb(0 0 0 / 0.35);
+}
+.parametres-feuille::after {
+  content: '';
+  position: absolute;
+  right: 20px;
+  bottom: 12px;
+  left: 20px;
+  height: 20px;
+  background: repeating-linear-gradient(#eceee9 0 3px, transparent 3px 9px);
+}
+.parametres-feuille-doc {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  font: 600 10px var(--font-mono);
+  letter-spacing: 0.08em;
+  color: #8b8f98;
+}
+.parametres-manque {
+  display: inline-block;
+  padding: 0 5px;
+  border: 1px dashed #d9922b;
+  border-radius: 4px;
+  font-size: 10.5px;
+  line-height: 16px;
+  color: #9a6500;
+  background: #fdf6df;
+}
+.parametres-anneau {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: conic-gradient(var(--teinte) calc(var(--part) * 1%), var(--color-rule) 0);
+}
+.parametres-anneau span {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  font: 650 16px var(--font-display);
+  color: var(--color-ink-900);
+  background: var(--color-surface);
+}
+
+/* Barre d'enregistrement : au-dessus de la barre d'onglets mobile. */
+.parametres-barre {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(560px, calc(100% - 32px));
+  padding: 10px 10px 10px 18px;
+  border-radius: 14px;
+  color: #fff;
+  background: #15161a;
+  box-shadow: 0 18px 40px -16px rgb(0 0 0 / 0.55);
+  transform: translateX(-50%);
+  /* Fondu seul : la barre est centrée par transform. */
+  animation: parametres-fondu 300ms ease-out both;
+}
+[data-theme='dark'] .parametres-barre {
+  color: #15161a;
+  background: #f1f1ef;
+}
+
+/* Modules */
+.parametres-jauge {
+  display: flex;
+  gap: 3px;
+  height: 8px;
+}
+.parametres-jauge i {
+  flex: 1;
+  border-radius: 99px;
+  background: var(--color-rule);
+  transition: background 300ms;
+}
+.parametres-jauge i[data-actif] {
+  background: var(--color-action);
+}
+.parametres-famille {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-steel-400);
+}
+.parametres-famille::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-rule);
+}
+.parametres-modules {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.parametres-module {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  transition: border-color 250ms;
+}
+.parametres-module[data-actif] {
+  border-color: color-mix(in oklab, var(--color-action) 35%, var(--color-rule));
+}
+.parametres-module-icone {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--color-rule);
+  border-radius: 10px;
+  color: var(--color-steel-500);
+  background: var(--color-paper);
+  transition:
+    color 250ms,
+    background 250ms;
+}
+.parametres-module[data-actif] .parametres-module-icone {
+  border-color: transparent;
+  color: var(--color-action);
+  background: var(--color-action-wash);
+}
+.parametres-interrupteur {
+  position: relative;
+  flex: none;
+  width: 42px;
+  height: 24px;
+  margin-left: auto;
+  border-radius: 99px;
+  background: var(--color-rule-strong);
+  transition: background 250ms;
+}
+.parametres-interrupteur::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  transition: transform 250ms var(--ease-sortie);
+}
+.parametres-interrupteur[aria-checked='true'] {
+  background: var(--color-action);
+}
+.parametres-interrupteur[aria-checked='true']::after {
+  transform: translateX(18px);
+}
+.parametres-interrupteur:disabled {
+  opacity: 0.6;
+}
+.parametres-segment {
+  height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-steel-700);
+  background: var(--color-surface);
+}
+.parametres-segment[aria-pressed='true'] {
+  border-color: var(--color-action);
+  color: var(--color-action);
+  background: var(--color-action-wash);
+}
+
+/* Intégrations : choix des événements */
+.parametres-evenement {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: var(--radius-lg);
+  text-align: left;
+  background: var(--color-surface);
+}
+.parametres-evenement[aria-pressed='true'] {
+  border-color: var(--color-action);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-action) 14%, transparent);
+}
+.parametres-case {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border: 1.5px solid var(--color-rule-strong);
+  border-radius: 5px;
+  color: #fff;
+}
+.parametres-evenement[aria-pressed='true'] .parametres-case {
+  border-color: var(--color-action);
+  background: var(--color-action);
+}
+
+/* Apparence : vignettes de l'application dans chaque thème */
+.parametres-theme {
+  padding: 10px;
+  border: 1px solid var(--color-rule);
+  border-radius: 16px;
+  text-align: left;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  transition:
+    border-color 200ms,
+    box-shadow 200ms,
+    transform 200ms var(--ease-sortie);
+}
+.parametres-theme:hover {
+  transform: translateY(-2px);
+}
+.parametres-theme[aria-checked='true'] {
+  border-color: var(--color-action);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-action) 18%, transparent);
+}
+.parametres-mini {
+  position: relative;
+  display: grid;
+  grid-template-columns: 26% 1fr;
+  height: 120px;
+  overflow: hidden;
+  border: 1px solid rgb(0 0 0 / 0.06);
+  border-radius: 10px;
+  --cote: #15161a;
+  --trait-cote: #3a3d45;
+  --fond: #f4f5f2;
+  --encre: #15161a;
+  --bloc: #fff;
+  --bord: #e3e4df;
+}
+.parametres-mini[data-mode='dark'] {
+  --trait-cote: #34373f;
+  --fond: #0c0d10;
+  --encre: #f1f1ef;
+  --bloc: #15161a;
+  --bord: #26282e;
+}
+.parametres-mini-cote {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 6px;
+  background: var(--cote);
+}
+.parametres-mini-cote i {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--trait-cote);
+}
+.parametres-mini-cote i:first-child {
+  width: 70%;
+  height: 7px;
+  margin-bottom: 4px;
+  background: #c2440b;
+}
+.parametres-mini-contenu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: var(--fond);
+}
+.parametres-mini-contenu > i {
+  width: 55%;
+  height: 7px;
+  border-radius: 3px;
+  background: var(--encre);
+}
+.parametres-mini-contenu > span {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.parametres-mini-contenu > span > i {
+  border: 1px solid var(--bord);
+  border-radius: 6px;
+  background: var(--bloc);
+}
+.parametres-mini-auto > .parametres-mini {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  border-radius: 0;
+}
+.parametres-mini-auto > .parametres-mini[data-mode='dark'] {
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+.parametres-radio {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--color-rule-strong);
+  border-radius: 50%;
+}
+.parametres-theme[aria-checked='true'] .parametres-radio {
+  border-color: var(--color-action);
+}
+.parametres-theme[aria-checked='true'] .parametres-radio::after {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-action);
+}
+
+@keyframes parametres-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes parametres-fondu {
+  from {
+    opacity: 0;
+  }
+}
+@media (max-width: 979px) {
+  .parametres-grille {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .parametres-nav {
+    position: static;
+    flex-direction: row;
+    margin: 0 -16px;
+    padding: 2px 16px 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .parametres-nav button {
+    flex: none;
+    width: auto;
+    padding: 7px 12px 7px 7px;
+  }
+  .parametres-nav .parametres-resume {
+    display: none;
+  }
+  .parametres-pastille {
+    width: 30px;
+    height: 30px;
+  }
+  .parametres-apercu {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .parametres-feuille-zone {
+    border-right: 0;
+    border-bottom: 1px solid var(--color-rule);
+  }
+}
+@media (max-width: 767px) {
+  .parametres-barre {
+    bottom: calc(env(safe-area-inset-bottom) + 84px);
+  }
+}
+@media (max-width: 639px) {
+  .parametres-modules {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .parametres-feuille-zone {
+    padding: 16px;
+  }
+  .parametres-feuille-doc {
+    position: static;
+    display: block;
+    margin-bottom: 10px;
+  }
+  .parametres-mini {
+    height: 96px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .parametres-carte {
+    animation: parametres-fondu 300ms ease-out both;
+  }
+  .parametres-theme:hover {
+    transform: none;
+  }
+  .parametres-interrupteur::after {
+    transition: none;
+  }
+}
