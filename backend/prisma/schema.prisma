@@ -242,6 +242,7 @@ model Entreprise {
   abonnementsWebhook  AbonnementWebhook[]
   evenementsWebhook   EvenementWebhook[]
   notificationsLues   NotificationLue[]
+  operationsHorsLigne OperationHorsLigne[]
 
   @@map("entreprise")
 }
@@ -1336,4 +1337,20 @@ model LivraisonWebhook {
   @@index([statut, prochaineTentativeAt])
   @@index([abonnementId, createdAt])
   @@map("livraison_webhook")
+}
+
+/// Opération saisie hors ligne et déjà appliquée : son identifiant, créé
+/// sur l'appareil, empêche qu'un renvoi (réponse perdue, deux onglets)
+/// l'applique une seconde fois.
+model OperationHorsLigne {
+  id           String   @id @default(uuid())
+  entrepriseId String   @map("entreprise_id")
+  idClient     String   @map("id_client") @db.VarChar(36)
+  nature       String   @db.VarChar(40)
+  creeLe       DateTime @default(now()) @map("cree_le")
+
+  entreprise Entreprise @relation(fields: [entrepriseId], references: [id], onDelete: Cascade)
+
+  @@unique([entrepriseId, idClient])
+  @@map("operation_hors_ligne")
 }

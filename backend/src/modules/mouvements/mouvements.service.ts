@@ -17,6 +17,12 @@ import {
 import type { EntreeStockDto } from './dto/entree-stock.dto.js';
 import type { SortieStockDto } from './dto/sortie-stock.dto.js';
 import type { TransfertStockDto } from './dto/transfert-stock.dto.js';
+import {
+  DEJA_ENREGISTRE,
+  estDoublonOperation,
+  operationDejaAppliquee,
+  reserverOperation,
+} from './operations-hors-ligne.js';
 import { ligneCsv } from '../../common/pagination/csv.js';
 import type { MotifPerte, TypeMouvement } from '../../generated/prisma/enums.js';
 import {
@@ -93,6 +99,9 @@ export class MouvementsService {
     utilisateurId: string,
     dto: EntreeStockDto,
   ) {
+    if (await operationDejaAppliquee(this.prisma, entrepriseId, dto.idClient)) {
+      return DEJA_ENREGISTRE;
+    }
     await this.verifierProduitEtEmplacement(
       entrepriseId,
       dto.produitId,
@@ -109,7 +118,7 @@ export class MouvementsService {
         dto.conditionnementId,
       );
 
-    return this.prisma.$transaction((tx) =>
+    return this.transactionUnique(entrepriseId, dto.idClient, 'entree', (tx) =>
       this.entreeDansTransaction(
         tx,
         entrepriseId,
@@ -118,6 +127,29 @@ export class MouvementsService {
         { donnees: conditionnement },
       ),
     );
+  }
+
+  /**
+   * Transaction d'une opération qui peut avoir été saisie hors ligne :
+   * son identifiant (idClient) est inscrit avec elle, si bien qu'un
+   * renvoi simultané échoue sur la contrainte d'unicité et renvoie
+   * DEJA_ENREGISTRE au lieu d'appliquer l'opération une seconde fois.
+   */
+  private async transactionUnique<T>(
+    entrepriseId: string,
+    idClient: string | undefined,
+    nature: string,
+    travail: (tx: TransactionPrisma) => Promise<T>,
+  ): Promise<T | typeof DEJA_ENREGISTRE> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        await reserverOperation(tx, entrepriseId, idClient, nature);
+        return travail(tx);
+      });
+    } catch (erreur) {
+      if (idClient && estDoublonOperation(erreur)) return DEJA_ENREGISTRE;
+      throw erreur;
+    }
   }
 
   /**
@@ -228,6 +260,9 @@ export class MouvementsService {
     utilisateurId: string,
     dto: SortieStockDto,
   ) {
+    if (await operationDejaAppliquee(this.prisma, entrepriseId, dto.idClient)) {
+      return DEJA_ENREGISTRE;
+    }
     await this.verifierProduitEtEmplacement(
       entrepriseId,
       dto.produitId,
@@ -242,15 +277,20 @@ export class MouvementsService {
         dto.conditionnementId,
       );
 
-    const resultat = await this.prisma.$transaction((tx) =>
-      this.sortieDansTransaction(
-        tx,
-        entrepriseId,
-        utilisateurId,
-        { ...dto, quantite },
-        { donnees: conditionnement },
-      ),
+    const resultat = await this.transactionUnique(
+      entrepriseId,
+      dto.idClient,
+      'sortie',
+      (tx) =>
+        this.sortieDansTransaction(
+          tx,
+          entrepriseId,
+          utilisateurId,
+          { ...dto, quantite },
+          { donnees: conditionnement },
+        ),
     );
+    if ('dejaEnregistre' in resultat) return resultat;
 
     // ALERT-004 — Notification envoyée APRÈS le commit de la transaction :
     // un échec d'email ne doit jamais annuler un mouvement déjà validé.
@@ -440,6 +480,9 @@ export class MouvementsService {
     utilisateurId: string,
     dto: TransfertStockDto,
   ) {
+    if (await operationDejaAppliquee(this.prisma, entrepriseId, dto.idClient)) {
+      return DEJA_ENREGISTRE;
+    }
     if (dto.emplacementSourceId === dto.emplacementDestinationId) {
       throw new ConflictException(
         'L’emplacement de destination doit être différent de la source.',
@@ -469,7 +512,7 @@ export class MouvementsService {
       );
     dto = { ...dto, quantite };
 
-    const resultat = await this.prisma.$transaction(async (tx) => {
+    const resultat = await this.transactionUnique(entrepriseId, dto.idClient, 'transfert', async (tx) => {
       await this.verrouillerProduit(tx, dto.produitId);
       await debiterStock(
         tx,
@@ -517,6 +560,7 @@ export class MouvementsService {
         }),
       ];
     });
+    if ('dejaEnregistre' in resultat) return resultat;
 
     return resultat.length === 1 ? resultat[0] : resultat;
   }

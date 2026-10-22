@@ -69,4 +69,12 @@ export class EntreeStockDto {
   @IsOptional()
   @IsUUID('4', { message: 'conditionnementId doit être un identifiant valide.' })
   conditionnementId?: string;
+
+  /**
+   * Identifiant créé sur l'appareil pour une opération saisie hors ligne :
+   * un renvoi du même identifiant n'est jamais appliqué deux fois.
+   */
+  @IsOptional()
+  @IsUUID('4', { message: 'idClient doit être un identifiant valide.' })
+  idClient?: string;
 }
