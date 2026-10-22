@@ -1,0 +1,175 @@
+/* Écran Emplacements : synthèse, répartition du stock, cartes de lieux, règles de rangement. */
+.emplacements-synthese {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.emplacements-tuile,
+.emplacements-carte {
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  animation: emplacements-arrive 400ms var(--ease-sortie) both;
+}
+.emplacements-tuile {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  padding: 16px;
+}
+.emplacements-barre {
+  display: flex;
+  gap: 3px;
+  height: 14px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--color-rule);
+}
+.emplacements-barre i,
+.emplacements-jauge i {
+  background: var(--teinte);
+  transform-origin: left;
+  animation: emplacements-pousse 900ms var(--ease-sortie) 200ms both;
+}
+.emplacements-jauge {
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--color-rule);
+}
+.emplacements-jauge i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+.emplacements-grille {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.emplacements-carte {
+  min-width: 0;
+  overflow: hidden;
+}
+.emplacements-pastille {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid color-mix(in oklab, var(--teinte) 26%, transparent);
+  border-radius: 12px;
+  color: var(--teinte);
+  background: color-mix(in oklab, var(--teinte) 14%, var(--color-surface));
+}
+.emplacements-chiffres {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--color-rule);
+  border-radius: 12px;
+  background: var(--color-rule);
+}
+.emplacements-chiffres > div {
+  min-width: 0;
+  padding: 10px 12px;
+  background: var(--color-paper);
+}
+/* Arborescence : un trait relie chaque sous-emplacement à son parent. */
+.emplacements-sous {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0 8px calc(var(--niveau) * 26px);
+}
+.emplacements-sous::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 50%;
+  left: calc(var(--niveau) * 26px - 18px);
+  width: 12px;
+  border-bottom: 1.5px solid var(--color-rule-strong);
+  border-left: 1.5px solid var(--color-rule-strong);
+  border-bottom-left-radius: 6px;
+}
+.emplacements-sous[data-suite]::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  bottom: 0;
+  left: calc(var(--niveau) * 26px - 18px);
+  border-left: 1.5px solid var(--color-rule-strong);
+}
+.emplacements-jeton {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 3px 11px;
+  border: 1px solid var(--color-rule);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-900);
+  background: var(--color-paper);
+}
+.emplacements-jeton[data-cible] {
+  border-color: color-mix(in oklab, var(--color-action) 30%, var(--color-rule));
+  color: var(--color-action);
+  background: var(--color-action-wash);
+}
+
+@keyframes emplacements-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes emplacements-pousse {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes emplacements-fondu {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 979px) {
+  .emplacements-grille {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 639px) {
+  .emplacements-synthese {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .emplacements-synthese > :first-child {
+    grid-column: 1 / -1;
+  }
+  .emplacements-tuile {
+    padding: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .emplacements-tuile,
+  .emplacements-carte {
+    animation: emplacements-fondu 300ms ease-out both;
+  }
+  .emplacements-barre i,
+  .emplacements-jauge i {
+    animation: none;
+  }
+}

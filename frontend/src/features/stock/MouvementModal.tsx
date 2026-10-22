@@ -77,7 +77,16 @@ type TypeMouvement = 'ENTREE' | 'TRANSFERT';
  * ouverte, et le démonte à la fermeture : l'état (type, erreur, champs)
  * repart donc neuf à chaque ouverture, sans effet de réinitialisation.
  */
-export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer: () => void }) {
+export function MouvementModal({
+  ouvert,
+  onFermer,
+  emplacementInitial,
+}: {
+  ouvert: boolean;
+  onFermer: () => void;
+  /** Emplacement déjà choisi à l'ouverture (filtre de l'écran Stock, carte d'un emplacement). */
+  emplacementInitial?: string;
+}) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [type, setType] = useState<TypeMouvement>('ENTREE');
@@ -109,7 +118,7 @@ export function MouvementModal({ ouvert, onFermer }: { ouvert: boolean; onFermer
     resolver: zodResolver(schema),
     defaultValues: {
       produitId: '',
-      emplacementId: '',
+      emplacementId: emplacementInitial ?? '',
       emplacementDestinationId: '',
       quantite: 1,
       fournisseurId: '',

@@ -16,7 +16,7 @@ import { MouvementModal } from './MouvementModal';
 import { InventairesTab } from './InventairesTab';
 import { StockActuel } from './StockActuel';
 import { FAMILLES, JournalMouvements, type CleFamille, type Mouvement } from './JournalMouvements';
-import type { Emplacement, LieuAffiche, LigneStock } from './types';
+import { TEINTES_LIEUX, type Emplacement, type LieuAffiche, type LigneStock } from './types';
 import './stock.css';
 
 const onglets = [
@@ -27,13 +27,12 @@ const onglets = [
 
 type CleOnglet = (typeof onglets)[number]['cle'];
 
-/** Une teinte par emplacement, dans l'ordre de la liste ; les couleurs de statut restent aux états du stock. */
-const TEINTES_LIEUX = ['var(--color-action)', 'var(--color-accent)', '#2f6fb3', '#8a6d3b', '#5b7083', '#b0487a'];
 
-/** Ouverture depuis un raccourci (tableau de bord) : onglet à afficher, saisie à ouvrir. */
+/** Ouverture depuis un raccourci (tableau de bord, Emplacements) : onglet à afficher, saisie à ouvrir, lieu à filtrer. */
 interface EtatArrivee {
   onglet?: CleOnglet;
   nouveauMouvement?: boolean;
+  emplacementId?: string;
 }
 
 export function StockPage() {
@@ -45,7 +44,7 @@ export function StockPage() {
   const modules = useModules();
   const ongletsVisibles = onglets.filter((o) => o.cle !== 'inventaires' || modules.inventaires);
   const actifVisible: CleOnglet = actif === 'inventaires' && !modules.inventaires ? 'stock' : actif;
-  const [emplacementFiltre, setEmplacementFiltre] = useState('');
+  const [emplacementFiltre, setEmplacementFiltre] = useState(arrivee.emplacementId ?? '');
   const [famille, setFamille] = useState<CleFamille>('tous');
   const [modaleOuverte, setModaleOuverte] = useState(arrivee.nouveauMouvement === true);
 
@@ -236,7 +235,7 @@ export function StockPage() {
 
       {/* Monté seulement à l'ouverture : garantit un formulaire vierge
           à chaque fois, sans effet de réinitialisation. */}
-      {modaleOuverte && <MouvementModal ouvert onFermer={() => setModaleOuverte(false)} />}
+      {modaleOuverte && <MouvementModal ouvert onFermer={() => setModaleOuverte(false)} emplacementInitial={emplacementFiltre || undefined} />}
     </div>
   );
 }
