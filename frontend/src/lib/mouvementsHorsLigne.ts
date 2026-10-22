@@ -1,6 +1,11 @@
-import { api } from './api';
+import { api, messageErreur } from './api';
 
 const CLE_STOCKAGE = 'stockflow.mouvements-en-attente';
+/** Dernier refus du serveur sur un mouvement de la file (il bloque les suivants). */
+const CLE_ECHEC = 'stockflow.synchro-echec';
+/** Date ISO de la dernière synchronisation complète (file vide, données rechargées). */
+const CLE_DERNIERE = 'stockflow.derniere-synchro';
+const CLES_SUIVIES = [CLE_STOCKAGE, CLE_ECHEC, CLE_DERNIERE];
 
 export type TypeMouvementHorsLigne = 'entree' | 'sortie' | 'transfert';
 
@@ -29,7 +34,7 @@ function notifier() {
 
 function surStockage(evenement: StorageEvent) {
   // Un autre onglet a modifié la file : le compteur doit suivre.
-  if (evenement.key === CLE_STOCKAGE) notifier();
+  if (evenement.key && CLES_SUIVIES.includes(evenement.key)) notifier();
 }
 
 /** Abonnement aux changements de la file et de l'état de synchronisation. */
@@ -90,7 +95,66 @@ export function ajouterMouvementEnAttente(
 }
 
 export function supprimerMouvementEnAttente(idLocal: string) {
+  if (lireEchec()?.idLocal === idLocal) ecrireCle(CLE_ECHEC, null);
   ecrire(lire().filter((m) => m.idLocal !== idLocal));
+}
+
+export interface EchecSynchronisation {
+  idLocal: string;
+  message: string;
+}
+
+function lireCle(cle: string): string | null {
+  try {
+    return localStorage.getItem(cle);
+  } catch {
+    return null;
+  }
+}
+
+function ecrireCle(cle: string, valeur: string | null) {
+  try {
+    if (valeur === null) localStorage.removeItem(cle);
+    else localStorage.setItem(cle, valeur);
+  } catch {
+    // Stockage indisponible : l'information est perdue, la file reste correcte.
+  }
+  notifier();
+}
+
+function lireEchec(): EchecSynchronisation | null {
+  try {
+    const brut = lireCle(CLE_ECHEC);
+    return brut ? (JSON.parse(brut) as EchecSynchronisation) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Note la fin d'une synchronisation complète (file vide, données rechargées). */
+export function marquerSynchronise() {
+  ecrireCle(CLE_DERNIERE, new Date().toISOString());
+}
+
+export interface EtatFile {
+  mouvements: MouvementEnAttente[];
+  echec: EchecSynchronisation | null;
+  /** Date ISO de la dernière synchronisation complète, si connue. */
+  derniere: string | null;
+}
+
+let cacheEtat: { cle: string; valeur: EtatFile } | null = null;
+
+/**
+ * Instantané de la file pour useSyncExternalStore : même référence tant
+ * que le stockage n'a pas changé, sinon React boucle sur les rendus.
+ */
+export function etatFile(): EtatFile {
+  const cle = CLES_SUIVIES.map(lireCle).join('\u0000');
+  if (cacheEtat?.cle !== cle) {
+    cacheEtat = { cle, valeur: { mouvements: lire(), echec: lireEchec(), derniere: lireCle(CLE_DERNIERE) } };
+  }
+  return cacheEtat.valeur;
 }
 
 export interface ResultatSynchronisation {
@@ -116,15 +180,18 @@ async function rejouerFile(): Promise<ResultatSynchronisation> {
       supprimerMouvementEnAttente(mouvement.idLocal);
       resultat.reussis += 1;
     } catch (erreur) {
-      const message =
-        erreur instanceof Object && 'response' in erreur
-          ? ((erreur as { response?: { data?: { message?: string } } }).response?.data?.message ??
-            'Échec de synchronisation.')
-          : 'Échec de synchronisation.';
+      const message = messageErreur(erreur, 'Échec de synchronisation.');
+      // Refus du serveur (réponse reçue, ex. stock insuffisant) : il bloque
+      // la file jusqu'à ce que l'utilisateur réessaie ou supprime le
+      // mouvement. Une coupure réseau, elle, n'est pas un échec du mouvement.
+      if ((erreur as { response?: unknown } | null)?.response) {
+        ecrireCle(CLE_ECHEC, JSON.stringify({ idLocal: mouvement.idLocal, message }));
+      }
       resultat.echecs.push({ mouvement, message });
       break;
     }
   }
+  if (lire().length === 0) marquerSynchronise();
 
   return resultat;
 }

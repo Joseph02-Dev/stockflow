@@ -1,11 +1,14 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   estEnSynchronisation,
+  etatFile,
+  marquerSynchronise,
   nombreMouvementsEnAttente,
   souscrireFile,
   synchroniserMouvementsEnAttente,
 } from './mouvementsHorsLigne';
+import { verifierConnexion } from './connectivite';
 import { useEnLigne } from './useEnLigne';
 
 export type StatutSynchronisation = 'en-ligne' | 'hors-ligne' | 'synchronisation';
@@ -42,7 +45,31 @@ export function useSynchronisation() {
     });
   }, [enLigne, fileNonVide, queryClient]);
 
-  const statut: StatutSynchronisation = !enLigne ? 'hors-ligne' : enCoursDeSynchro ? 'synchronisation' : 'en-ligne';
+  const file = useSyncExternalStore(souscrireFile, etatFile, etatFile);
+  const [manuelleEnCours, setManuelleEnCours] = useState(false);
 
-  return { statut, nombreEnAttente, dernierResultat };
+  /**
+   * Bouton « Synchroniser » : vérifie le serveur, envoie la file puis
+   * recharge les données affichées. Sans réseau, ne fait rien : l'envoi
+   * repartira tout seul au retour de la connexion.
+   */
+  const synchroniser = useCallback(async () => {
+    setManuelleEnCours(true);
+    try {
+      if (!(await verifierConnexion())) return;
+      const resultat = await synchroniserMouvementsEnAttente();
+      await queryClient.invalidateQueries();
+      if (resultat.echecs.length === 0 && nombreMouvementsEnAttente() === 0) marquerSynchronise();
+    } finally {
+      setManuelleEnCours(false);
+    }
+  }, [queryClient]);
+
+  const statut: StatutSynchronisation = !enLigne
+    ? 'hors-ligne'
+    : enCoursDeSynchro || manuelleEnCours
+      ? 'synchronisation'
+      : 'en-ligne';
+
+  return { statut, nombreEnAttente, dernierResultat, file, synchroniser };
 }
