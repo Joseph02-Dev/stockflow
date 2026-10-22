@@ -1,0 +1,118 @@
+/* Écran Alertes : compteurs filtrants et groupes par fournisseur. */
+.alertes-compteur {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  text-align: left;
+  transition:
+    transform 200ms var(--ease-sortie),
+    border-color 200ms,
+    box-shadow 200ms;
+}
+button.alertes-compteur:hover {
+  transform: translateY(-2px);
+}
+.alertes-compteur[aria-pressed='true'] {
+  border-color: var(--teinte);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--teinte) 18%, transparent);
+}
+.alertes-anneau {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  color: var(--teinte);
+  background: color-mix(in oklab, var(--teinte) 13%, var(--color-surface));
+}
+/* Pouls autour du compteur de ruptures, tant qu'il y en a. */
+.alertes-anneau[data-pouls]::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 2px solid var(--teinte);
+  border-radius: 50%;
+  opacity: 0;
+  animation: alertes-pouls 2.4s ease-out infinite;
+}
+@keyframes alertes-pouls {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+}
+
+.alertes-entete {
+  background: linear-gradient(180deg, var(--color-entete-groupe), transparent);
+}
+.alertes-ligne {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px 118px 130px;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 20px;
+}
+.alertes-colonnes {
+  display: none;
+}
+@media (min-width: 860px) {
+  .alertes-colonnes {
+    display: grid;
+  }
+}
+.alertes-apparition {
+  animation: alertes-arrive 400ms var(--ease-sortie) both;
+}
+@keyframes alertes-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (max-width: 859px) {
+  .alertes-ligne {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px 14px;
+    padding: 13px 16px;
+  }
+  .alertes-ligne > :nth-child(2) {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+  .alertes-ligne > :nth-child(3) {
+    display: none;
+  }
+}
+
+/* Version douce : un simple fondu, pas de pouls ni de déplacement. */
+@keyframes alertes-fondu {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .alertes-compteur {
+    transition-duration: 150ms;
+  }
+  button.alertes-compteur:hover {
+    transform: none;
+  }
+  .alertes-anneau[data-pouls]::after {
+    animation: none;
+  }
+  .alertes-apparition {
+    animation: alertes-fondu 250ms ease-out both;
+  }
+}

@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { CheckCircle2, Clock, PackagePlus, Phone, ShoppingCart } from 'lucide-react';
+import { ArrowDown, CheckCircle2, Clock, PackageX, Phone, ShoppingCart, Truck, type LucideIcon } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { formatNombre, pluriel } from '@/lib/format';
+import { cn } from '@/lib/cn';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { boutonClasses } from '@/components/ui/boutonClasses';
@@ -12,7 +13,8 @@ import { Onglets } from '@/components/patterns/Onglets';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { NiveauStock } from '@/components/patterns/NiveauStock';
 import { Vignette } from '@/components/patterns/Vignette';
-import { libelleStatut, statutStock, varianteStatut } from '@/components/patterns/statutStock';
+import { libelleStatut, statutStock, varianteStatut, type StatutStock } from '@/components/patterns/statutStock';
+import './alertes.css';
 
 interface Alerte {
   id: string;
@@ -66,9 +68,67 @@ const filtres = [
 
 type Statut = (typeof filtres)[number]['cle'];
 
+const JOUR_MS = 86_400_000;
+
+/** Jours pleins écoulés entre deux dates (0 = le jour même). */
+const joursEntre = (debut: string, fin: number) => Math.max(0, Math.floor((fin - new Date(debut).getTime()) / JOUR_MS));
+
+function depuis(jours: number): string {
+  if (jours === 0) return 'depuis aujourd’hui';
+  if (jours === 1) return 'depuis hier';
+  return `depuis ${jours} jours`;
+}
+
+function CompteurAlerte({
+  Icone,
+  valeur,
+  libelle,
+  teinte,
+  pouls,
+  actif,
+  onClick,
+}: {
+  Icone: LucideIcon;
+  valeur: number;
+  libelle: string;
+  teinte: string;
+  pouls?: boolean;
+  actif?: boolean;
+  onClick?: () => void;
+}) {
+  const contenu = (
+    <>
+      <span className="alertes-anneau" data-pouls={pouls ? '' : undefined} aria-hidden="true">
+        <Icone className="size-5" />
+      </span>
+      <span>
+        <span className="block font-display text-[1.625rem] leading-none font-semibold tracking-[-0.02em] text-ink-900">
+          {formatNombre(valeur)}
+        </span>
+        <span className="mt-1 block text-corps text-steel-500">{libelle}</span>
+      </span>
+    </>
+  );
+  const style = { '--teinte': teinte } as CSSProperties;
+  if (!onClick) {
+    return (
+      <div className="alertes-compteur max-sm:col-span-2" style={style}>
+        {contenu}
+      </div>
+    );
+  }
+  return (
+    <button type="button" className="alertes-compteur" aria-pressed={actif} onClick={onClick} style={style}>
+      {contenu}
+    </button>
+  );
+}
+
 export function AlertesPage() {
   const navigate = useNavigate();
   const [statut, setStatut] = useState<Statut>('ACTIVE');
+  const [filtre, setFiltre] = useState<Exclude<StatutStock, 'ok'> | null>(null);
+  const [maintenant] = useState(() => Date.now());
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['alertes', statut],
@@ -144,6 +204,17 @@ export function AlertesPage() {
   }
 
   const totalRuptures = groupes.reduce((n, g) => n + g.ruptures, 0);
+  const totalLignes = groupes.reduce((n, g) => n + g.lignes.length, 0);
+  // Filtre des compteurs : ne garde que les lignes de cet état, et les groupes qui en ont.
+  const groupesVisibles = filtre
+    ? groupes
+        .map((g) => ({
+          ...g,
+          lignes: g.lignes.filter((l) => statutStock(l.quantite, l.alerte.produit.seuilAlerte) === filtre),
+        }))
+        .filter((g) => g.lignes.length > 0)
+        .map((g) => ({ ...g, ruptures: g.lignes.filter((l) => l.quantite <= 0).length }))
+    : groupes;
 
   return (
     <div className="flex flex-col gap-5">
@@ -154,22 +225,60 @@ export function AlertesPage() {
           statut === 'ACTIVE' &&
           data &&
           data.length > 0 && (
-            <Link to="/stock" className={boutonClasses('secondary')}>
-              <PackagePlus className="size-4" aria-hidden="true" />
+            <Link to="/stock" state={{ nouveauMouvement: true }} className={boutonClasses('secondary')}>
+              <ArrowDown className="size-4" aria-hidden="true" />
               Enregistrer une réception
             </Link>
           )
         }
       />
 
+      {statut === 'ACTIVE' && groupes.length > 0 && (
+        <section aria-label="Résumé" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <CompteurAlerte
+            Icone={PackageX}
+            valeur={totalRuptures}
+            libelle="En rupture"
+            teinte="var(--color-rupture)"
+            pouls={totalRuptures > 0}
+            actif={filtre === 'rupture'}
+            onClick={() => setFiltre((f) => (f === 'rupture' ? null : 'rupture'))}
+          />
+          <CompteurAlerte
+            Icone={ArrowDown}
+            valeur={totalLignes - totalRuptures}
+            libelle="Sous le seuil"
+            teinte="var(--color-faible)"
+            actif={filtre === 'faible'}
+            onClick={() => setFiltre((f) => (f === 'faible' ? null : 'faible'))}
+          />
+          <CompteurAlerte
+            Icone={Truck}
+            valeur={groupes.filter((g) => g.fournisseur).length}
+            libelle={pluriel('Fournisseur à contacter', groupes.filter((g) => g.fournisseur).length, 'Fournisseurs à contacter')}
+            teinte="var(--color-action)"
+          />
+        </section>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Onglets onglets={filtres} actif={statut} onChange={setStatut} libelle="Statut des alertes" />
         {statut === 'ACTIVE' && data && data.length > 0 && (
           <p className="text-corps text-steel-500">
-            <span className="font-semibold text-ink-900">{data.length}</span> {pluriel('référence', data.length)} chez{' '}
-            <span className="font-semibold text-ink-900">{groupes.length}</span>{' '}
-            {pluriel('fournisseur', groupes.length)}, dont{' '}
-            <span className="font-semibold text-rupture">{totalRuptures}</span> en rupture
+            {filtre ? (
+              <>
+                Filtre « {filtre === 'rupture' ? 'En rupture' : 'Sous le seuil'} » ·{' '}
+                <button type="button" onClick={() => setFiltre(null)} className="font-semibold text-action hover:underline">
+                  Tout afficher
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="font-semibold text-ink-900">{data.length}</span> {pluriel('référence', data.length)}{' '}
+                chez <span className="font-semibold text-ink-900">{groupes.length}</span>{' '}
+                {pluriel('fournisseur', groupes.length)}
+              </>
+            )}
           </p>
         )}
       </div>
@@ -198,19 +307,45 @@ export function AlertesPage() {
           </Card>
         ) : statut === 'ACTIVE' ? (
           <div className="flex flex-col gap-4">
-            {groupes.map((groupe) => (
-              <PanneauFournisseur key={groupe.cle} groupe={groupe} onCommander={() => commander(groupe)} />
+            {groupesVisibles.length === 0 && (
+              <Card>
+                <EmptyState
+                  titre={filtre === 'rupture' ? 'Aucune rupture' : 'Aucun produit sous le seuil'}
+                  description="Les autres alertes restent visibles sans filtre."
+                  action={
+                    <Button variant="secondary" onClick={() => setFiltre(null)}>
+                      Tout afficher
+                    </Button>
+                  }
+                />
+              </Card>
+            )}
+            {groupesVisibles.map((groupe) => (
+              <PanneauFournisseur
+                key={groupe.cle}
+                groupe={groupe}
+                maintenant={maintenant}
+                onCommander={() => commander(groupe)}
+              />
             ))}
           </div>
         ) : (
-          <HistoriqueResolues alertes={data} />
+          <HistoriqueResolues alertes={data} maintenant={maintenant} />
         )}
       </div>
     </div>
   );
 }
 
-function PanneauFournisseur({ groupe, onCommander }: { groupe: Groupe; onCommander: () => void }) {
+function PanneauFournisseur({
+  groupe,
+  maintenant,
+  onCommander,
+}: {
+  groupe: Groupe;
+  maintenant: number;
+  onCommander: () => void;
+}) {
   const { fournisseur, lignes, ruptures } = groupe;
   const sousSeuil = lignes.length - ruptures;
   const titreId = `groupe-${groupe.cle}`;
@@ -218,9 +353,9 @@ function PanneauFournisseur({ groupe, onCommander }: { groupe: Groupe; onCommand
   return (
     <section aria-labelledby={titreId}>
       <Card>
-        <header className="flex flex-col gap-3 border-b border-rule bg-entete-groupe px-4 py-3.5 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
+        <header className="alertes-entete flex flex-col gap-3 border-b border-rule px-4 py-4 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <Vignette nom={fournisseur?.nom ?? '?'} photoUrl={fournisseur?.photoUrl} taille={38} />
+            <Vignette nom={fournisseur?.nom ?? '?'} photoUrl={fournisseur?.photoUrl} taille={44} />
             <div className="min-w-0">
               <h2 id={titreId} className="truncate text-panneau text-ink-900">
                 {fournisseur ? (
@@ -276,7 +411,7 @@ function PanneauFournisseur({ groupe, onCommander }: { groupe: Groupe; onCommand
 
         {/* En-têtes de colonnes visibles seulement quand les colonnes existent. */}
         <div
-          className="hidden grid-cols-[minmax(0,1fr)_150px_108px_120px] gap-4 border-b border-rule px-5 py-2 text-meta font-medium text-steel-500 md:grid"
+          className="alertes-ligne alertes-colonnes border-b border-rule py-2 text-meta font-medium text-steel-500"
           aria-hidden="true"
         >
           <span>Produit</span>
@@ -286,38 +421,44 @@ function PanneauFournisseur({ groupe, onCommander }: { groupe: Groupe; onCommand
         </div>
 
         <ul className="divide-y divide-rule">
-          {lignes.map(({ alerte, quantite, suggestion }) => {
+          {lignes.map(({ alerte, quantite, suggestion }, rang) => {
             const { produit } = alerte;
             const s = statutStock(quantite, produit.seuilAlerte);
+            const jours = joursEntre(alerte.createdAt, maintenant);
+            const unite = produit.uniteMesure ?? pluriel('unité', suggestion);
             return (
               <li
                 key={alerte.id}
-                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2.5 px-4 py-3 sm:px-5 md:grid-cols-[minmax(0,1fr)_150px_108px_120px]"
+                className="alertes-ligne alertes-apparition"
+                style={{ animationDelay: `${Math.min(rang, 12) * 40}ms` }}
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <Vignette nom={produit.nom} photoUrl={produit.photoUrl} taille={32} />
+                  <Vignette nom={produit.nom} photoUrl={produit.photoUrl} taille={40} />
                   <div className="min-w-0">
                     <Link
                       to={`/produits/${produit.id}`}
-                      className="line-clamp-2 text-corps font-medium text-ink-900 hover:underline"
+                      className="line-clamp-2 text-corps font-semibold text-ink-900 hover:underline"
                     >
                       {produit.nom}
                     </Link>
-                    {produit.reference && (
-                      <p className="font-mono text-meta text-steel-500">{produit.reference}</p>
-                    )}
+                    <p className="flex min-w-0 gap-2 overflow-hidden text-meta whitespace-nowrap text-steel-400">
+                      {produit.reference && <span className="font-mono">{produit.reference}</span>}
+                      <span className={cn('font-semibold', s === 'rupture' ? 'text-rupture' : 'text-faible')}>
+                        {depuis(jours)}
+                      </span>
+                    </p>
                   </div>
                 </div>
-                <div className="col-start-1 row-start-2 md:col-start-auto md:row-start-auto">
-                  <NiveauStock quantite={quantite} seuil={produit.seuilAlerte} unite={produit.uniteMesure} />
-                </div>
-                <div className="col-start-2 row-start-1 justify-self-end md:col-start-auto md:row-start-auto md:justify-self-start">
+                <NiveauStock quantite={quantite} seuil={produit.seuilAlerte} unite={produit.uniteMesure} />
+                <span>
                   <Badge variant={varianteStatut[s]}>{libelleStatut[s]}</Badge>
-                </div>
-                <p className="col-start-2 row-start-2 text-right whitespace-nowrap md:col-start-auto md:row-start-auto">
-                  <span className="text-[15px] font-semibold text-ink-900">+{formatNombre(suggestion)}</span>{' '}
-                  <span className="text-meta text-steel-400">{produit.uniteMesure ?? pluriel('unité', suggestion)}</span>
-                  <span className="sr-only"> à commander</span>
+                </span>
+                <p className="text-right whitespace-nowrap">
+                  <span className="font-display text-[17px] font-semibold text-ink-900">+{formatNombre(suggestion)}</span>
+                  <span className="block text-meta text-steel-400">
+                    {unite}
+                    <span className="max-sm:hidden"> à commander</span>
+                  </span>
                 </p>
               </li>
             );
@@ -328,25 +469,36 @@ function PanneauFournisseur({ groupe, onCommander }: { groupe: Groupe; onCommand
   );
 }
 
-function HistoriqueResolues({ alertes }: { alertes: Alerte[] }) {
+const dateHeure = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const heure = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+function HistoriqueResolues({ alertes, maintenant }: { alertes: Alerte[]; maintenant: number }) {
   return (
     <Card>
       <ul className="divide-y divide-rule">
-        {alertes.map((alerte) => (
-          <li key={alerte.id} className="flex items-center gap-3 px-4 py-3 sm:px-5">
-            <Vignette nom={alerte.produit.nom} photoUrl={alerte.produit.photoUrl} taille={32} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-corps font-medium text-ink-900">{alerte.produit.nom}</p>
-              <p className="text-meta text-steel-500">
-                Résolue le {new Date(alerte.resolvedAt ?? alerte.createdAt).toLocaleDateString('fr-FR')}, était à{' '}
-                {alerte.quantiteAuDeclenchement} pour un seuil de {alerte.produit.seuilAlerte}
+        {alertes.map((alerte) => {
+          const resolue = alerte.resolvedAt ?? alerte.createdAt;
+          const duree = joursEntre(alerte.createdAt, new Date(resolue).getTime());
+          return (
+            <li key={alerte.id} className="flex items-center gap-3 px-4 py-3 sm:px-5">
+              <Vignette nom={alerte.produit.nom} photoUrl={alerte.produit.photoUrl} taille={36} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-corps font-semibold text-ink-900">{alerte.produit.nom}</p>
+                <p className="text-meta text-steel-500">
+                  {alerte.type === 'RUPTURE' ? 'Rupture' : 'Sous le seuil'} · était à {alerte.quantiteAuDeclenchement}{' '}
+                  pour un seuil de {alerte.produit.seuilAlerte}
+                </p>
+              </div>
+              <p className="shrink-0 text-right text-meta whitespace-nowrap text-steel-500">
+                <span className="block font-semibold text-ok">Résolue</span>
+                {new Date(resolue).toDateString() === new Date(maintenant).toDateString()
+                  ? `Aujourd’hui, ${heure.format(new Date(resolue))}`
+                  : dateHeure.format(new Date(resolue))}
+                <span className="max-sm:hidden"> · en {duree === 0 ? 'moins d’un jour' : `${duree} ${pluriel('jour', duree)}`}</span>
               </p>
-            </div>
-            <Badge variant={alerte.type === 'RUPTURE' ? 'rupture' : 'faible'}>
-              {alerte.type === 'RUPTURE' ? 'Rupture' : 'Sous le seuil'}
-            </Badge>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
     </Card>
   );
