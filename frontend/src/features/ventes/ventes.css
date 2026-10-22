@@ -1,0 +1,152 @@
+/* Écran Ventes : mesures, encaissement par mode, période, ventes groupées par jour. */
+.ventes-mesure {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  transition:
+    transform 200ms var(--ease-sortie),
+    box-shadow 200ms;
+}
+.ventes-mesure:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-pop);
+}
+.ventes-du {
+  border-color: color-mix(in oklab, var(--color-faible) 30%, var(--color-rule));
+  background: color-mix(in oklab, var(--color-faible) 7%, var(--color-surface));
+}
+
+.ventes-repartition {
+  display: flex;
+  flex: 1 1 260px;
+  gap: 2px;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--color-rule);
+}
+.ventes-repartition > span {
+  transform-origin: left;
+  animation: ventes-pousse 800ms var(--ease-sortie) 200ms both;
+}
+@keyframes ventes-pousse {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.ventes-periode {
+  display: inline-flex;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 3px;
+  border: 1px solid var(--color-rule);
+  border-radius: 11px;
+  background: var(--color-entete-tableau);
+  scrollbar-width: none;
+}
+.ventes-periode button {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 0.84375rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-steel-500);
+  transition:
+    background 200ms,
+    color 200ms;
+}
+.ventes-periode button[aria-pressed='true'] {
+  background: var(--color-surface);
+  color: var(--color-ink-900);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+}
+
+/* Ligne de vente : heure, mode, client, paiement, montant, flèche. */
+.ventes-ligne {
+  display: grid;
+  grid-template-columns: 46px 40px minmax(0, 1fr) minmax(140px, 180px) 160px 16px;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px 12px 14px;
+  transition: background 150ms;
+}
+.ventes-ligne:hover {
+  background: var(--color-survol);
+}
+.ventes-mode {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+}
+.ventes-heure-mobile {
+  display: none;
+}
+.ventes-apparition {
+  animation: ventes-arrive 400ms var(--ease-sortie) both;
+}
+@keyframes ventes-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (max-width: 1023px) {
+  .ventes-ligne {
+    grid-template-columns: 40px minmax(0, 1fr) 160px 16px;
+  }
+  .ventes-ligne > :nth-child(1),
+  .ventes-ligne > :nth-child(4) {
+    display: none;
+  }
+  .ventes-heure-mobile {
+    display: inline;
+  }
+}
+@media (max-width: 639px) {
+  .ventes-periode button {
+    flex: 1;
+  }
+  .ventes-ligne {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 12px 14px;
+  }
+  .ventes-ligne > :nth-child(6) {
+    display: none;
+  }
+  .ventes-mode {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* Version douce : un simple fondu, sans déplacement. */
+@keyframes ventes-fondu {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ventes-mesure {
+    transition-duration: 150ms;
+  }
+  .ventes-mesure:hover {
+    transform: none;
+  }
+  .ventes-repartition > span {
+    animation: none;
+  }
+  .ventes-apparition {
+    animation: ventes-fondu 250ms ease-out both;
+  }
+}
