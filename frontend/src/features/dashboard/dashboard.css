@@ -1,0 +1,170 @@
+/* Tableau de bord : raccourcis, ventes de la semaine, journal des derniers mouvements. */
+.tdb-raccourci {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  transition:
+    transform 200ms var(--ease-sortie),
+    border-color 200ms;
+}
+.tdb-raccourci:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-rule-strong);
+}
+.tdb-tuile {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  color: var(--teinte);
+  background: color-mix(in oklab, var(--teinte) 13%, var(--color-surface));
+}
+
+/* Graphique des ventes : une barre par jour, aujourd'hui en cuivre. */
+.tdb-graphe {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--jours), minmax(0, 1fr));
+  align-items: end;
+  gap: 10px;
+  height: 150px;
+  padding-top: 22px;
+  border-bottom: 1px solid var(--color-rule);
+}
+.tdb-graphe::before,
+.tdb-graphe::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  left: 0;
+  border-top: 1px dashed var(--color-rule);
+}
+.tdb-graphe::before {
+  top: 22px;
+}
+.tdb-graphe::after {
+  top: calc(22px + (100% - 22px) / 2);
+}
+.tdb-barre {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 100%;
+  border-radius: 6px;
+}
+.tdb-barre i {
+  width: min(100%, 44px);
+  height: var(--h);
+  min-height: 3px;
+  border-radius: 6px 6px 2px 2px;
+  background: color-mix(in oklab, var(--color-action) 26%, var(--color-surface));
+  transform-origin: bottom;
+  animation: tdb-pousse 800ms var(--ease-sortie) both;
+  animation-delay: calc(var(--n) * 60ms + 150ms);
+  transition: background 200ms;
+}
+.tdb-barre:hover i,
+.tdb-barre:focus-visible i {
+  background: color-mix(in oklab, var(--color-action) 55%, var(--color-surface));
+}
+.tdb-barre[data-jour] i {
+  background: var(--color-action);
+}
+.tdb-barre b {
+  position: absolute;
+  bottom: calc(var(--h) + 6px);
+  font-family: var(--font-mono);
+  font-size: 0.71875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-steel-500);
+  opacity: 0;
+  transition: opacity 200ms;
+}
+.tdb-barre[data-jour] b,
+.tdb-barre:hover b,
+.tdb-barre:focus-visible b {
+  opacity: 1;
+}
+.tdb-barre[data-jour] b {
+  color: var(--color-action);
+}
+@keyframes tdb-pousse {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+/* Derniers mouvements : un fil vertical relie les pastilles d'un même jour. */
+.tdb-mvt {
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 20px;
+}
+.tdb-mvt::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  left: 34px;
+  width: 2px;
+  background: var(--color-rule);
+}
+.tdb-mvt:first-of-type::before {
+  top: 50%;
+}
+.tdb-mvt:last-of-type::before {
+  bottom: 50%;
+}
+.tdb-mvt:only-of-type::before {
+  display: none;
+}
+.tdb-pastille {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px var(--color-surface);
+}
+
+@media (max-width: 639px) {
+  .tdb-graphe {
+    gap: 6px;
+    height: 130px;
+  }
+  .tdb-barre b {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tdb-raccourci {
+    transition-duration: 150ms;
+  }
+  .tdb-raccourci:hover {
+    transform: none;
+  }
+  .tdb-barre i {
+    animation: tdb-fondu 300ms ease-out both;
+  }
+}
+@keyframes tdb-fondu {
+  from {
+    opacity: 0;
+  }
+}

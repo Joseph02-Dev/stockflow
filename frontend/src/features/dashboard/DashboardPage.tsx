@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeftRight,
   CheckCircle2,
+  ClipboardCheck,
   MapPin,
   Package,
   Plus,
@@ -12,10 +13,13 @@ import {
   TrendingUp,
   Truck,
   Wallet,
+  Warehouse,
   type LucideIcon,
 } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
-import { formatNombre, pluriel, tempsRelatif } from '@/lib/format';
+import { formatNombre, pluriel } from '@/lib/format';
+import { trajetMouvement } from '@/lib/natureEmplacement';
+import { useModules } from '@/lib/useModules';
 import { cn } from '@/lib/cn';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -28,6 +32,8 @@ import { NiveauStock } from '@/components/patterns/NiveauStock';
 import { Vignette } from '@/components/patterns/Vignette';
 import { libelleStatut, statutStock, varianteStatut } from '@/components/patterns/statutStock';
 import { libelleMouvement, presentationMouvement, quantiteSignee, type TypeMouvement } from '@/components/patterns/typeMouvement';
+import { VentesSemaine } from './VentesSemaine';
+import './dashboard.css';
 
 interface Overview {
   kpi: {
@@ -95,12 +101,22 @@ function EnteteMesure({ Icone, children }: { Icone: LucideIcon; children: string
 }
 
 const jourLong = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+const heure = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+function libelleJour(date: Date): string {
+  const veille = new Date();
+  veille.setDate(veille.getDate() - 1);
+  if (date.toDateString() === new Date().toDateString()) return 'Aujourd’hui';
+  if (date.toDateString() === veille.toDateString()) return 'Hier';
+  return jourLong.format(date);
+}
 
 export function DashboardPage() {
   const navigate = useNavigate();
   const session = useSession();
   const [aujourdhui] = useState(() => jourLong.format(new Date()));
   const prenom = session?.utilisateur.nom.split(' ')[0];
+  const modules = useModules();
 
   const overview = useQuery({
     queryKey: ['dashboard'],
@@ -124,10 +140,6 @@ export function DashboardPage() {
     queryKey: ['mouvements', 'recents'],
     queryFn: async () => (await api.get<Mouvement[]>('/mouvements?limite=7')).data,
   });
-
-  // Instant de référence des « il y a … » : dernière récupération, stable
-  // d'un rendu à l'autre.
-  const maintenant = mouvements.dataUpdatedAt || indicateurs.dataUpdatedAt;
 
   const calculs = useMemo(() => {
     const ind = indicateurs.data;
@@ -178,8 +190,55 @@ export function DashboardPage() {
     });
   }
 
+  const urgents = calculs.aReapprovisionner.slice(0, 3);
+  const raccourcis = [
+    {
+      libelle: 'Entrée de stock',
+      aide: 'Réception, transfert',
+      Icone: Warehouse,
+      teinte: 'var(--color-ok)',
+      vers: '/stock',
+      etat: { nouveauMouvement: true },
+    },
+    {
+      libelle: 'Commande fournisseur',
+      aide: 'Réapprovisionner',
+      Icone: Truck,
+      teinte: 'var(--color-accent)',
+      vers: '/commandes/nouvelle',
+    },
+    {
+      libelle: 'Ajouter un produit',
+      aide: 'Au catalogue',
+      Icone: Package,
+      teinte: '#2f6fb3',
+      vers: '/produits/nouveau',
+    },
+    ...(modules.inventaires
+      ? [
+          {
+            libelle: 'Inventaire',
+            aide: 'Compter un emplacement',
+            Icone: ClipboardCheck,
+            teinte: 'var(--color-action)',
+            vers: '/stock',
+            etat: { onglet: 'inventaires' },
+          },
+        ]
+      : []),
+  ];
+
+  // Derniers mouvements regroupés par jour, du plus récent au plus ancien.
+  const joursMouvements: { cle: string; date: Date; liste: Mouvement[] }[] = [];
+  for (const m of mouvements.data ?? []) {
+    const date = new Date(m.createdAt);
+    const dernier = joursMouvements.at(-1);
+    if (dernier?.cle === date.toDateString()) dernier.liste.push(m);
+    else joursMouvements.push({ cle: date.toDateString(), date, liste: [m] });
+  }
+
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       {/* Accueil : à qui l'on parle, où, quel jour ; les deux gestes les plus fréquents. */}
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
@@ -188,26 +247,55 @@ export function DashboardPage() {
             {[aujourdhui, session?.entreprise.nom].filter(Boolean).join(' · ')}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link to="/statistiques" className={boutonClasses('secondary')}>
+        <div className="flex w-full gap-2 sm:w-auto">
+          <Link to="/statistiques" className={cn(boutonClasses('secondary'), 'flex-1 sm:flex-none')}>
             Statistiques
           </Link>
-          <Link to="/ventes/nouvelle" className={boutonClasses('primary')}>
+          <Link to="/ventes/nouvelle" className={cn(boutonClasses('primary'), 'flex-1 sm:flex-none')}>
             <Plus className="size-4" aria-hidden="true" />
             Nouvelle vente
           </Link>
         </div>
       </header>
 
-      {/* a) Bandeau d'action — répond à « qu'est-ce qui va me manquer aujourd'hui ? » */}
-      <section
-        className="bandeau-action flex flex-col gap-6 rounded-lg px-5 py-6 text-white sm:px-[26px] sm:py-6 lg:flex-row lg:items-end lg:justify-between"
-        aria-labelledby="titre-bandeau"
+      {/* Raccourcis vers les gestes de tous les jours, après la vente. */}
+      <nav
+        aria-label="Raccourcis"
+        className={cn('grid grid-cols-2 gap-2.5', raccourcis.length === 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3')}
       >
-        <span className="trame-grille pointer-events-none absolute inset-0 -z-10" aria-hidden="true" />
-        <div className="flex min-w-0 flex-col gap-5">
+        {raccourcis.map(({ libelle, aide, Icone, teinte, vers, etat }) => (
+          <Link
+            key={libelle}
+            to={vers}
+            state={etat}
+            className="tdb-raccourci text-corps font-semibold text-ink-900"
+            style={{ '--teinte': teinte } as CSSProperties}
+          >
+            <span className="tdb-tuile" aria-hidden="true">
+              <Icone className="size-[18px]" />
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate">{libelle}</span>
+              <span className="hidden truncate text-meta font-medium text-steel-400 sm:block">{aide}</span>
+            </span>
+          </Link>
+        ))}
+      </nav>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+        <VentesSemaine />
+
+        {/* Bandeau d'action — répond à « qu'est-ce qui va me manquer aujourd'hui ? » */}
+        <section
+          className="bandeau-action flex flex-col gap-5 rounded-xl px-5 py-6 text-white sm:px-6"
+          aria-labelledby="titre-bandeau"
+        >
+          <span className="trame-grille pointer-events-none absolute inset-0 -z-10" aria-hidden="true" />
           <div>
-            <h2 id="titre-bandeau" className="text-[24px] leading-[30px] font-semibold tracking-[-0.01em]">
+            <h2
+              id="titre-bandeau"
+              className="font-display text-[1.375rem] leading-[1.2] font-semibold tracking-[-0.02em]"
+            >
               {nbAction > 0
                 ? `${nbAction} ${pluriel('référence', nbAction)} ${nbAction > 1 ? 'demandent' : 'demande'} une action`
                 : 'Aucune référence ne demande d’action'}
@@ -219,58 +307,101 @@ export function DashboardPage() {
             </p>
           </div>
 
-          <dl className="grid grid-cols-3 gap-4 sm:flex sm:gap-8">
+          <dl className="grid grid-cols-3 gap-2.5">
             {[
-              { libelle: pluriel('Rupture', calculs.ruptures), valeur: calculs.ruptures, filet: 'border-rupture-vif' },
-              { libelle: 'Sous le seuil', valeur: sousSeuil, filet: 'border-faible-vif' },
-              { libelle: 'Commandes en route', valeur: calculs.enRoute, filet: 'border-white/14' },
+              {
+                libelle: pluriel('Rupture', calculs.ruptures),
+                valeur: calculs.ruptures,
+                point: 'bg-rupture-vif',
+              },
+              {
+                libelle: 'Sous le seuil',
+                valeur: sousSeuil,
+                point: 'bg-faible-vif',
+              },
+              {
+                libelle: 'En route',
+                valeur: calculs.enRoute,
+                point: 'bg-white/50',
+              },
             ].map((mesure) => (
-              <div key={mesure.libelle} className={cn('flex flex-col-reverse border-l-2 pl-3', mesure.filet)}>
-                <dt className="text-meta text-white/65">{mesure.libelle}</dt>
+              <div
+                key={mesure.libelle}
+                className="flex flex-col-reverse rounded-lg border border-white/8 bg-white/6 px-3 py-2.5"
+              >
+                <dt className="mt-1.5 flex items-center gap-1.5 text-meta text-white/65">
+                  <i className={cn('size-[7px] shrink-0 rounded-full', mesure.point)} aria-hidden="true" />
+                  {mesure.libelle}
+                </dt>
                 <dd className="text-chiffre">
                   <Compteur valeur={mesure.valeur} format={formatNombre} />
                 </dd>
               </div>
             ))}
           </dl>
-        </div>
 
-        <Link
-          to="/commandes/nouvelle"
-          className={cn(boutonClasses('primary'), 'self-start focus-visible:outline-white lg:self-end')}
-        >
-          <ShoppingCart className="size-4" aria-hidden="true" />
-          Préparer les commandes
-        </Link>
-      </section>
+          {urgents.length > 0 && (
+            <ul className="flex flex-col gap-1.5" aria-label="Les plus urgents">
+              {urgents.map(({ alerte, quantite }) => (
+                <li key={alerte.id} className="flex items-center justify-between gap-3 text-corps text-white/85">
+                  <Link to={`/produits/${alerte.produit.id}`} className="truncate hover:underline">
+                    {alerte.produit.nom}
+                  </Link>
+                  <span
+                    className={cn(
+                      'shrink-0 text-meta font-semibold whitespace-nowrap',
+                      quantite <= 0 ? 'text-rupture-vif' : 'text-faible-vif',
+                    )}
+                  >
+                    {formatNombre(quantite)} / seuil {alerte.produit.seuilAlerte}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
 
-      {/* b) Mesures — une carte par indicateur, qui se soulève au survol. */}
-      <section
-        aria-label="Mesures"
-        className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-[1.5fr_1fr_1fr_1fr]"
-      >
-        <div className={cn(CARTE_MESURE, 'col-span-2 flex items-end justify-between gap-4 lg:col-span-1')}>
-          <div className="min-w-0">
-            <EnteteMesure Icone={Wallet}>Valeur immobilisée</EnteteMesure>
-            <p className="mt-2.5 text-chiffre text-ink-900">
+          <Link
+            to="/commandes/nouvelle"
+            className={cn(boutonClasses('primary'), 'mt-auto self-start focus-visible:outline-white')}
+          >
+            <ShoppingCart className="size-4" aria-hidden="true" />
+            Préparer les commandes
+          </Link>
+        </section>
+      </div>
+
+      {/* Mesures — une carte par indicateur, qui se soulève au survol. */}
+      <section aria-label="Mesures" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+        <div className={cn(CARTE_MESURE, 'col-span-2 lg:col-span-1')}>
+          <EnteteMesure Icone={Wallet}>Valeur immobilisée</EnteteMesure>
+          <div className="mt-2.5 flex items-end justify-between gap-3">
+            <p className="text-chiffre whitespace-nowrap text-ink-900">
               <Compteur valeur={calculs.valeur} format={formatNombre} />{' '}
               <span className="text-corps font-medium text-steel-400">GNF</span>
             </p>
-            <p className="mt-1 text-meta text-steel-400">
-              {calculs.sansPrix > 0
-                ? `Au prix d’achat, ${calculs.sansPrix} ${pluriel('ligne', calculs.sansPrix)} sans prix`
-                : 'Au prix d’achat, sur 9 jours'}
-            </p>
+            <div className="flex h-9 shrink-0 items-end gap-[3px]" aria-hidden="true">
+              {calculs.serie.map((v, i) => (
+                <span
+                  key={i}
+                  className={cn(
+                    'barre-croissance w-[5px] rounded-[2px]',
+                    i === NB_BARRES - 1 ? 'bg-action' : 'bg-action/25',
+                  )}
+                  style={
+                    {
+                      height: `${Math.max(12, (v / maxSerie) * 100)}%`,
+                      '--i': i,
+                    } as CSSProperties
+                  }
+                />
+              ))}
+            </div>
           </div>
-          <div className="flex h-10 shrink-0 items-end gap-[3px]" aria-hidden="true">
-            {calculs.serie.map((v, i) => (
-              <span
-                key={i}
-                className={cn('barre-croissance w-[6px] rounded-[2px]', i === NB_BARRES - 1 ? 'bg-action' : 'bg-action/25')}
-                style={{ height: `${Math.max(12, (v / maxSerie) * 100)}%`, '--i': i } as CSSProperties}
-              />
-            ))}
-          </div>
+          <p className="mt-1 text-meta text-steel-400">
+            {calculs.sansPrix > 0
+              ? `Au prix d’achat, ${calculs.sansPrix} ${pluriel('ligne', calculs.sansPrix)} sans prix`
+              : 'Au prix d’achat, sur 9 jours'}
+          </p>
         </div>
 
         <div className={CARTE_MESURE}>
@@ -285,9 +416,9 @@ export function DashboardPage() {
             )}
           >
             {calculs.ecartSemaine >= 0 ? (
-              <TrendingUp className="size-3.5" aria-hidden="true" />
+              <TrendingUp className="size-3.5 shrink-0" aria-hidden="true" />
             ) : (
-              <TrendingDown className="size-3.5" aria-hidden="true" />
+              <TrendingDown className="size-3.5 shrink-0" aria-hidden="true" />
             )}
             {calculs.ecartSemaine >= 0 ? '+' : '−'}
             {Math.abs(calculs.ecartSemaine)} vs semaine précédente
@@ -311,7 +442,9 @@ export function DashboardPage() {
               '—'
             ) : (
               <>
-                {calculs.delaiMoyen.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}{' '}
+                {calculs.delaiMoyen.toLocaleString('fr-FR', {
+                  maximumFractionDigits: 1,
+                })}{' '}
                 <span className="text-corps font-medium text-steel-400">{pluriel('jour', calculs.delaiMoyen)}</span>
               </>
             )}
@@ -324,8 +457,8 @@ export function DashboardPage() {
         </div>
       </section>
 
-      {/* c) Deux colonnes : ce qu'il faut commander, ce qui vient de bouger. */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.35fr_1fr]">
+      {/* Deux colonnes : ce qu'il faut commander, ce qui vient de bouger. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <Card>
           <PanneauEntete
             titre="À réapprovisionner"
@@ -403,49 +536,55 @@ export function DashboardPage() {
         <Card>
           <PanneauEntete
             titre="Derniers mouvements"
-            meta="Entrées, sorties et transferts récents"
+            meta="Entrées, ventes et transferts récents"
             action={
-              <Link to="/stock" className="shrink-0 text-corps font-medium text-action hover:underline">
+              <Link
+                to="/stock"
+                state={{ onglet: 'mouvements' }}
+                className="shrink-0 text-corps font-medium text-action hover:underline"
+              >
                 Historique
               </Link>
             }
           />
           {mouvements.isError ? (
             <p className="px-5 py-8 text-center text-corps text-steel-500">Mouvements indisponibles.</p>
-          ) : (mouvements.data ?? []).length === 0 ? (
+          ) : joursMouvements.length === 0 ? (
             <p className="px-5 py-8 text-center text-corps text-steel-500">Aucun mouvement enregistré.</p>
           ) : (
-            <ul className="divide-y divide-rule">
-              {(mouvements.data ?? []).slice(0, 7).map((m) => {
-                const p = presentationMouvement[m.type];
-                const lieu =
-                  m.type === 'TRANSFERT' && m.emplacementDestination
-                    ? `${m.emplacement.nom} vers ${m.emplacementDestination.nom}`
-                    : m.emplacement.nom;
-                return (
-                  <li key={m.id} className="flex items-center gap-3 px-5 py-3">
-                    <span
-                      className={cn('flex size-[26px] shrink-0 items-center justify-center rounded-sm', p.fond)}
-                      aria-hidden="true"
-                    >
-                      <p.Icone className="size-3.5" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-corps font-medium text-ink-900">{m.produit.nom}</p>
-                      <p className="truncate text-meta text-steel-500">
-                        {libelleMouvement(m)}, {lieu}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className={cn('text-corps font-semibold', p.couleur)}>
-                        {quantiteSignee(m.type, m.quantite)}
-                      </p>
-                      <p className="text-meta whitespace-nowrap text-steel-400">{tempsRelatif(m.createdAt, maintenant)}</p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="pt-1 pb-2">
+              {joursMouvements.map((jour) => (
+                <section key={jour.cle} aria-label={libelleJour(jour.date)}>
+                  <h3 className="px-5 pt-2.5 pb-1 text-meta font-semibold tracking-[0.04em] text-steel-400 uppercase">
+                    {libelleJour(jour.date)}
+                  </h3>
+                  <ul>
+                    {jour.liste.map((m) => {
+                      const p = presentationMouvement[m.type];
+                      return (
+                        <li key={m.id} className="tdb-mvt">
+                          <span className={cn('tdb-pastille', p.fond)} aria-hidden="true">
+                            <p.Icone className="size-[15px]" />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate text-corps font-semibold text-ink-900">{m.produit.nom}</p>
+                            <p className="truncate text-meta text-steel-500">
+                              {m.vente ? `${libelleMouvement(m)} · ${m.emplacement.nom}` : trajetMouvement(m)}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className={cn('font-mono text-corps font-semibold', p.couleur)}>
+                              {quantiteSignee(m.type, m.quantite)}
+                            </p>
+                            <p className="font-mono text-meta text-steel-400">{heure.format(new Date(m.createdAt))}</p>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ))}
+            </div>
           )}
         </Card>
       </div>
@@ -460,26 +599,51 @@ export function DashboardPage() {
  */
 function SqueletteTableauDeBord() {
   return (
-    <div className="flex flex-col gap-5" role="status" aria-live="polite">
+    <div className="flex flex-col gap-4" role="status" aria-live="polite">
       <span className="sr-only">Chargement du tableau de bord…</span>
-      <div className="bandeau-action flex flex-col gap-6 rounded-lg px-5 py-6 sm:px-[26px]">
-        <div className="flex flex-col gap-2.5">
-          <span className="block h-6 w-72 max-w-full rounded-sm bg-white/10" />
-          <span className="block h-3 w-56 max-w-full rounded-sm bg-white/[0.07]" />
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="flex items-center gap-3 rounded-lg border border-rule bg-surface px-3.5 py-3 shadow-card"
+          >
+            <Squelette className="size-9 rounded-[10px]" />
+            <Squelette className="h-3 w-28" />
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+        <div className="rounded-xl border border-rule bg-surface p-5 shadow-card">
+          <Squelette className="h-3 w-32" />
+          <Squelette className="mt-3 h-9 w-48" />
+          <Squelette className="mt-6 h-[150px] w-full" />
         </div>
-        <div className="flex gap-8">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="flex flex-col gap-2 border-l-2 border-white/14 pl-3">
-              <span className="block h-6 w-8 rounded-sm bg-white/10" />
-              <span className="block h-2.5 w-20 rounded-sm bg-white/[0.07]" />
-            </div>
-          ))}
+        <div className="bandeau-action flex flex-col gap-6 rounded-xl px-5 py-6 sm:px-6">
+          <div className="flex flex-col gap-2.5">
+            <span className="block h-6 w-72 max-w-full rounded-sm bg-white/10" />
+            <span className="block h-3 w-56 max-w-full rounded-sm bg-white/[0.07]" />
+          </div>
+          <div className="flex gap-8">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex flex-col gap-2 border-l-2 border-white/14 pl-3">
+                <span className="block h-6 w-8 rounded-sm bg-white/10" />
+                <span className="block h-2.5 w-20 rounded-sm bg-white/[0.07]" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className={cn('rounded-lg border border-rule bg-surface px-5 py-4 shadow-card', i === 0 && 'col-span-2 lg:col-span-1')}>
+          <div
+            key={i}
+            className={cn(
+              'rounded-lg border border-rule bg-surface px-5 py-4 shadow-card',
+              i === 0 && 'col-span-2 lg:col-span-1',
+            )}
+          >
             <Squelette className="h-2.5 w-24" />
             <Squelette className="mt-3 h-6 w-28" />
             <Squelette className="mt-3 h-2.5 w-32" />
@@ -487,7 +651,7 @@ function SqueletteTableauDeBord() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.35fr_1fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         {[6, 5].map((lignes, i) => (
           <Card key={i}>
             <div className="border-b border-rule px-5 py-4">

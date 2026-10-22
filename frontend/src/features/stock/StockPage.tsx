@@ -1,4 +1,5 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Boxes, Download, MapPin, Plus } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
@@ -29,15 +30,29 @@ type CleOnglet = (typeof onglets)[number]['cle'];
 /** Une teinte par emplacement, dans l'ordre de la liste ; les couleurs de statut restent aux états du stock. */
 const TEINTES_LIEUX = ['var(--color-action)', 'var(--color-accent)', '#2f6fb3', '#8a6d3b', '#5b7083', '#b0487a'];
 
+/** Ouverture depuis un raccourci (tableau de bord) : onglet à afficher, saisie à ouvrir. */
+interface EtatArrivee {
+  onglet?: CleOnglet;
+  nouveauMouvement?: boolean;
+}
+
 export function StockPage() {
-  const [actif, setActif] = useState<CleOnglet>('stock');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [arrivee] = useState(() => (location.state ?? {}) as EtatArrivee);
+  const [actif, setActif] = useState<CleOnglet>(arrivee.onglet ?? 'stock');
   // Module « inventaires » désactivé par un opérateur : l'onglet disparaît.
   const modules = useModules();
   const ongletsVisibles = onglets.filter((o) => o.cle !== 'inventaires' || modules.inventaires);
   const actifVisible: CleOnglet = actif === 'inventaires' && !modules.inventaires ? 'stock' : actif;
   const [emplacementFiltre, setEmplacementFiltre] = useState('');
   const [famille, setFamille] = useState<CleFamille>('tous');
-  const [modaleOuverte, setModaleOuverte] = useState(false);
+  const [modaleOuverte, setModaleOuverte] = useState(arrivee.nouveauMouvement === true);
+
+  // L'état d'arrivée ne sert qu'une fois : un rechargement ne rouvre pas la saisie.
+  useEffect(() => {
+    if (location.state) navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
   const [exportEnCours, setExportEnCours] = useState(false);
 
   const emplacements = useQuery({
