@@ -1,0 +1,107 @@
+/* Écran Pertes : bilan du mois, motifs, déclarations par jour, dépôts. */
+.pertes-bilan {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(110% 90% at 100% 0%, rgb(224 90 75 / 0.38), transparent 60%),
+    linear-gradient(150deg, var(--color-ink-800), var(--color-ink-900));
+}
+[data-theme='dark'] .pertes-bilan {
+  background:
+    radial-gradient(110% 90% at 100% 0%, rgb(224 90 75 / 0.32), transparent 60%),
+    linear-gradient(150deg, #1b1c21, #121317);
+}
+.pertes-mois i {
+  transform-origin: bottom;
+  animation: pertes-monte 800ms var(--ease-sortie) both;
+  animation-delay: calc(var(--n) * 70ms + 150ms);
+}
+@keyframes pertes-monte {
+  from {
+    transform: scaleY(0);
+  }
+}
+.pertes-barre i {
+  transform-origin: left;
+  animation: pertes-pousse 800ms var(--ease-sortie) 300ms both;
+}
+@keyframes pertes-pousse {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.pertes-puce {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: 99px;
+  background: var(--color-surface);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-steel-700);
+  transition:
+    background 200ms,
+    color 200ms,
+    border-color 200ms;
+}
+.pertes-puce:hover {
+  border-color: var(--color-steel-400);
+}
+.pertes-puce[aria-pressed='true'] {
+  border-color: var(--color-ink-900);
+  background: var(--color-ink-900);
+  color: var(--color-surface);
+}
+
+.pertes-ligne {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 20px;
+}
+.pertes-apparition {
+  animation: pertes-arrive 400ms var(--ease-sortie) both;
+}
+@keyframes pertes-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (max-width: 639px) {
+  .pertes-ligne {
+    grid-template-columns: 40px minmax(0, 1fr);
+    padding: 12px 14px;
+  }
+  .pertes-ligne > :nth-child(3) {
+    grid-column: 2;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+  }
+}
+
+/* Version douce : un simple fondu, sans barres qui poussent. */
+@keyframes pertes-fondu {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pertes-mois i,
+  .pertes-barre i {
+    animation: none;
+  }
+  .pertes-apparition {
+    animation: pertes-fondu 250ms ease-out both;
+  }
+}
