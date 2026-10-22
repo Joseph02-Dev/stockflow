@@ -75,3 +75,31 @@ export const MODES_APPARENCE: { valeur: PreferenceTheme; libelle: string; aide: 
   { valeur: 'dark', libelle: 'Sombre', aide: 'Repose les yeux le soir' },
   { valeur: 'auto', libelle: 'Automatique', aide: 'Suit votre téléphone ou ordinateur' },
 ];
+
+/** Ce que chaque rôle permet : Paramètres › Équipe et la fenêtre « Mon profil ». */
+export const DROITS: { role: 'ADMIN' | 'GESTIONNAIRE'; libelle: string; teinte: string; droits: string[] }[] = [
+  {
+    role: 'ADMIN',
+    libelle: 'Administrateur',
+    teinte: 'var(--color-action)',
+    droits: [
+      'Tout ce que fait un gestionnaire',
+      'Inviter, changer de rôle, retirer un accès',
+      'Modifier l’entreprise, les modules et les intégrations',
+      'Gérer emplacements, catégories et marques',
+      'Règles de réapprovisionnement et de rangement',
+      'Annuler une perte déclarée',
+    ],
+  },
+  {
+    role: 'GESTIONNAIRE',
+    libelle: 'Gestionnaire',
+    teinte: 'var(--color-steel-500)',
+    droits: [
+      'Vendre, encaisser, gérer les clients',
+      'Entrées, sorties, transferts et inventaires',
+      'Produits, commandes et fournisseurs',
+      'Déclarer une perte',
+    ],
+  },
+];

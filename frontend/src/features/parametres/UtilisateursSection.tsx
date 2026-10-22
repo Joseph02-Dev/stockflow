@@ -17,7 +17,7 @@ import { useSession } from '@/lib/useSession';
 import { getSession, setSession, sessionActuelleEstPersistante } from '@/lib/session';
 import { dateCourte } from '@/lib/montant';
 import { formatNombre } from '@/lib/format';
-import { useUtilisateurs, type UtilisateurListe } from './donnees';
+import { DROITS, useUtilisateurs, type UtilisateurListe } from './donnees';
 import { EnteteCarte, EnteteSection } from './EnteteSection';
 
 const schema = z.object({
@@ -31,30 +31,6 @@ type Formulaire = z.infer<typeof schema>;
  * Droits de chaque rôle, d'après les routes réservées à l'administrateur
  * côté serveur (@Roles('ADMIN')) ; tout le reste est ouvert au gestionnaire.
  */
-const DROITS: { role: string; teinte: string; droits: string[] }[] = [
-  {
-    role: 'Administrateur',
-    teinte: 'var(--color-action)',
-    droits: [
-      'Tout ce que fait un gestionnaire',
-      'Inviter, changer de rôle, retirer un accès',
-      'Modifier l’entreprise, les modules et les intégrations',
-      'Gérer emplacements, catégories et marques',
-      'Règles de réapprovisionnement et de rangement',
-      'Annuler une perte déclarée',
-    ],
-  },
-  {
-    role: 'Gestionnaire',
-    teinte: 'var(--color-steel-500)',
-    droits: [
-      'Vendre, encaisser, gérer les clients',
-      'Entrées, sorties, transferts et inventaires',
-      'Produits, commandes et fournisseurs',
-      'Déclarer une perte',
-    ],
-  },
-];
 
 export function UtilisateursSection() {
   const session = useSession();
@@ -275,7 +251,7 @@ export function UtilisateursSection() {
             <div key={d.role} className={i > 0 ? 'border-t border-rule p-4 sm:border-t-0 sm:border-l sm:p-5' : 'p-4 sm:p-5'}>
               <p className="mb-2.5 flex items-center gap-2 text-[14.5px] font-semibold text-ink-900">
                 <span className="size-2.5 rounded-full" style={{ background: d.teinte }} aria-hidden="true" />
-                {d.role}
+                {d.libelle}
               </p>
               <ul className="flex flex-col gap-1.5 text-corps text-steel-700">
                 {d.droits.map((droit) => (

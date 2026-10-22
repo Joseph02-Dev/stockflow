@@ -1009,7 +1009,7 @@ export function AppLayout() {
         </div>
       )}
 
-      <ProfilModal ouvert={profilOuvert} onFermer={() => setProfilOuvert(false)} />
+      <ProfilModal ouvert={profilOuvert} onFermer={() => setProfilOuvert(false)} onDeconnecter={seDeconnecter} />
       {modules.assistant && <AssistantPanel ouvert={assistantOuvert} onFermer={() => setAssistantOuvert(false)} />}
     </div>
   );
