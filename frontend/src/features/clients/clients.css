@@ -1,0 +1,332 @@
+/* Écrans Clients et Créances : chiffres, fiches clients, jauge de crédit, débiteurs. */
+.clients-page {
+  --clients-detail: #2f6fb3;
+}
+[data-theme='dark'] .clients-page {
+  --clients-detail: #6ea8e8;
+}
+
+.clients-chiffres {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.clients-chiffre {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  color: inherit;
+  text-align: left;
+  animation: clients-arrive 400ms var(--ease-sortie) both;
+}
+button.clients-chiffre {
+  cursor: pointer;
+  transition:
+    transform 200ms var(--ease-sortie),
+    border-color 200ms,
+    box-shadow 200ms;
+}
+button.clients-chiffre:hover {
+  transform: translateY(-2px);
+}
+.clients-chiffre[aria-pressed='true'] {
+  border-color: var(--teinte);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--teinte) 18%, transparent);
+}
+.clients-chiffre small {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-steel-500);
+}
+.clients-chiffre small i {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--teinte);
+}
+.clients-chiffre b {
+  font: 650 24px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-900);
+}
+.clients-chiffre b em {
+  font: 600 13px var(--font-sans);
+  font-style: normal;
+  color: var(--color-steel-400);
+}
+
+.clients-puces {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.clients-puce {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: 99px;
+  background: var(--color-surface);
+  color: var(--color-steel-700);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.clients-puce i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c);
+}
+.clients-puce em {
+  font: 500 11.5px var(--font-mono);
+  font-style: normal;
+  color: var(--color-steel-400);
+}
+.clients-puce[aria-pressed='true'] {
+  border-color: var(--color-ink-900);
+  background: var(--color-ink-900);
+  color: var(--color-paper);
+}
+
+.clients-grille {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.clients-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  animation: clients-arrive 400ms var(--ease-sortie) both;
+}
+.clients-categorie {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--c);
+  background: color-mix(in oklab, var(--c) 13%, var(--color-surface));
+}
+.clients-pied {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px dashed var(--color-rule);
+}
+
+.clients-credit-ligne {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--color-steel-400);
+  font-variant-numeric: tabular-nums;
+}
+.clients-jauge {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--color-rule);
+}
+.clients-jauge i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transform-origin: left;
+  animation: clients-pousse 800ms var(--ease-sortie) 200ms both;
+}
+
+/* Créances */
+.creances-bandeau {
+  animation: clients-arrive 400ms var(--ease-sortie) both;
+}
+.creances-case {
+  padding: 10px 14px;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.06);
+}
+.creances-case dd {
+  font: 650 19px/1 var(--font-display);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.creances-case dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgb(255 255 255 / 0.6);
+}
+.creances-age {
+  display: flex;
+  gap: 3px;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgb(255 255 255 / 0.08);
+}
+.creances-age span {
+  transform-origin: left;
+  animation: clients-pousse 900ms var(--ease-sortie) 200ms both;
+}
+.creances-tranches {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.creances-tranche {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 200ms,
+    border-color 200ms;
+}
+.creances-tranche:hover {
+  background: rgb(255 255 255 / 0.05);
+}
+.creances-tranche[aria-pressed='true'] {
+  border-color: rgb(255 255 255 / 0.18);
+  background: rgb(255 255 255 / 0.08);
+}
+
+.creances-liste {
+  container-type: inline-size;
+}
+.creances-debiteur {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 260px 150px auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 20px;
+}
+.creances-solde {
+  text-align: right;
+}
+
+@keyframes clients-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes clients-pousse {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes clients-fondu {
+  from {
+    opacity: 0;
+  }
+}
+
+/* La liste s'adapte à sa propre largeur (barre latérale ouverte ou non). */
+@container (max-width: 1099px) {
+  .creances-debiteur {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+  }
+  .creances-debiteur > .clients-credit {
+    grid-row: 2;
+    grid-column: 2;
+  }
+  .creances-debiteur > .creances-actions {
+    grid-row: 2;
+    grid-column: 3;
+    justify-content: flex-end;
+  }
+}
+@media (max-width: 979px) {
+  .clients-chiffres,
+  .clients-grille {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 639px) {
+  .clients-grille {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .creances-tranches {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container (max-width: 599px) {
+  .creances-debiteur {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 12px;
+    padding: 14px 16px;
+  }
+  .creances-debiteur > .creances-solde {
+    display: flex;
+    grid-row: 2;
+    grid-column: 1 / -1;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+  }
+  .creances-debiteur > .clients-credit {
+    grid-row: 3;
+    grid-column: 1 / -1;
+  }
+  .creances-debiteur > .creances-actions {
+    grid-row: 4;
+    grid-column: 1 / -1;
+  }
+  .creances-actions > * {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clients-chiffre,
+  .clients-carte,
+  .creances-bandeau {
+    animation: clients-fondu 300ms ease-out both;
+  }
+  .clients-jauge i,
+  .creances-age span {
+    animation: none;
+  }
+  button.clients-chiffre:hover {
+    transform: none;
+  }
+}
