@@ -4,7 +4,7 @@ import { formatCompact, formatNombre } from '@/lib/format';
 
 /**
  * Graphiques de l'écran Statistiques, dessinés sans bibliothèque : SVG pour
- * les courbes, CSS pour les chandeliers et les anneaux. Chacun a sa version
+ * les courbes, CSS pour les chandeliers. Chacun a sa version
  * tableau pour les lecteurs d'écran (sr-only).
  */
 
@@ -16,40 +16,17 @@ function plafondRond(max: number): number {
   return pas * puissance;
 }
 
-/** Mini-courbe d'un indicateur (décorative : la valeur et la variation sont écrites à côté). */
-export function Sparkline({ valeurs, hausse }: { valeurs: number[]; hausse: boolean }) {
-  if (valeurs.length < 2) return null;
-  const min = Math.min(...valeurs);
-  const max = Math.max(...valeurs);
-  const d = valeurs
-    .map(
-      (v, i) =>
-        `${i ? 'L' : 'M'}${((i / (valeurs.length - 1)) * 120).toFixed(1)} ${(32 - ((v - min) / (max - min || 1)) * 28).toFixed(1)}`,
-    )
-    .join(' ');
-  return (
-    <svg width="96" height="32" viewBox="0 0 120 36" preserveAspectRatio="none" aria-hidden="true" className="shrink-0">
-      <path
-        d={d}
-        fill="none"
-        className={hausse ? 'stroke-ok' : 'stroke-rupture'}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
-  );
-}
-
 export interface PointCourbe {
   court: string;
   long: string;
   valeur: number;
 }
 
-/** Courbe de tendance avec curseur : survol (souris) ou flèches (clavier). */
-export function CourbeTendance({ points, unite }: { points: PointCourbe[]; unite: string }) {
+/**
+ * Courbe de tendance avec curseur : survol (souris) ou flèches (clavier).
+ * « sombre » : posée sur un bandeau foncé (écran Statistiques).
+ */
+export function CourbeTendance({ points, unite, sombre = false }: { points: PointCourbe[]; unite: string; sombre?: boolean }) {
   const [actif, setActif] = useState<number | null>(null);
   const n = points.length;
   const plafond = plafondRond(Math.max(...points.map((p) => p.valeur)));
@@ -77,11 +54,11 @@ export function CourbeTendance({ points, unite }: { points: PointCourbe[]; unite
         {[0, 0.25, 0.5, 0.75, 1].map((f) => (
           <div
             key={f}
-            className="absolute inset-x-0 border-t border-dashed border-rule-strong"
+            className={cn('absolute inset-x-0 border-t border-dashed', sombre ? 'border-white/10' : 'border-rule-strong')}
             style={{ top: `${100 - (f * 230) / 2.4}%` }}
             aria-hidden="true"
           >
-            <span className="absolute right-[calc(100%+8px)] -top-2 font-mono text-[11px] text-steel-500">
+            <span className={cn('absolute right-[calc(100%+8px)] -top-2 font-mono text-[11px]', sombre ? 'text-white/45' : 'text-steel-500')}>
               {formatCompact(plafond * f)}
             </span>
           </div>
@@ -92,11 +69,11 @@ export function CourbeTendance({ points, unite }: { points: PointCourbe[]; unite
           className="absolute inset-0 size-full overflow-visible"
           aria-hidden="true"
         >
-          <path d={`${ligne} L800 240 L0 240 Z`} className="fill-action/10" />
+          <path d={`${ligne} L800 240 L0 240 Z`} className={sombre ? 'fill-action-clair/15' : 'fill-action/10'} />
           <path
             d={ligne}
             fill="none"
-            className="stroke-action"
+            className={sombre ? 'stroke-action-clair' : 'stroke-action'}
             strokeWidth="2"
             strokeLinejoin="round"
             strokeLinecap="round"
@@ -104,17 +81,23 @@ export function CourbeTendance({ points, unite }: { points: PointCourbe[]; unite
           />
         </svg>
         <div
-          className="pointer-events-none absolute inset-y-0 border-l border-steel-500"
+          className={cn('pointer-events-none absolute inset-y-0 border-l', sombre ? 'border-white/30' : 'border-steel-500')}
           style={{ left: `${gauche}%` }}
           aria-hidden="true"
         />
         <div
-          className="pointer-events-none absolute -mt-[5px] -ml-[5px] size-2.5 rounded-full bg-action ring-2 ring-surface"
+          className={cn(
+            'pointer-events-none absolute -mt-[5px] -ml-[5px] size-2.5 rounded-full ring-2',
+            sombre ? 'bg-action-clair ring-ink-800' : 'bg-action ring-surface',
+          )}
           style={{ left: `${gauche}%`, top: `${y(points[i].valeur) / 2.4}%` }}
           aria-hidden="true"
         />
         <div
-          className="pointer-events-none absolute top-2 rounded-md bg-ink-900 px-2.5 py-1.5 text-meta whitespace-nowrap text-paper"
+          className={cn(
+            'pointer-events-none absolute top-2 rounded-md px-2.5 py-1.5 text-meta whitespace-nowrap',
+            sombre ? 'bg-white text-[#15161a] shadow-lg' : 'bg-ink-900 text-paper',
+          )}
           style={gauche > 70 ? { right: `calc(${100 - gauche}% + 12px)` } : { left: `calc(${gauche}% + 12px)` }}
           aria-live="polite"
         >
@@ -124,7 +107,10 @@ export function CourbeTendance({ points, unite }: { points: PointCourbe[]; unite
           </div>
         </div>
         <div
-          className="absolute inset-0 cursor-crosshair rounded-sm focus-visible:outline-2 focus-visible:outline-action"
+          className={cn(
+            'absolute inset-0 cursor-crosshair rounded-sm focus-visible:outline-2',
+            sombre ? 'focus-visible:outline-white' : 'focus-visible:outline-action',
+          )}
           onMouseMove={survoler}
           onKeyDown={clavier}
           tabIndex={0}
@@ -136,7 +122,7 @@ export function CourbeTendance({ points, unite }: { points: PointCourbe[]; unite
           aria-valuetext={`${points[i].long} : ${formatNombre(points[i].valeur)} ${unite}`}
         />
       </div>
-      <div className="ml-12 flex justify-between font-mono text-[11px] text-steel-500" aria-hidden="true">
+      <div className={cn('ml-12 flex justify-between font-mono text-[11px]', sombre ? 'text-white/45' : 'text-steel-500')} aria-hidden="true">
         {points.map((p, index) => (
           <span
             key={p.long}
@@ -238,7 +224,14 @@ export function Chandeliers({
       </div>
       <div className="ml-10 flex gap-1 font-mono text-[11px] text-steel-500" aria-hidden="true">
         {bougies.map((b, index) => (
-          <span key={b.long} className={cn('flex-1 text-center', index % 2 === 1 && 'max-sm:invisible')}>
+          <span
+            key={b.long}
+            className={cn(
+              'min-w-0 flex-1 text-center whitespace-nowrap',
+              // Une date sur deux quand la place manque (mobile, ou plus de 8 semaines côte à côte).
+              index % 2 === 1 && (bougies.length > 8 ? 'invisible' : 'max-sm:invisible'),
+            )}
+          >
             {b.court}
           </span>
         ))}
@@ -248,71 +241,6 @@ export function Chandeliers({
         colonnes={['Semaine', 'Ouverture', 'Plus haut', 'Plus bas', 'Clôture']}
         lignes={bougies.map((b) => [b.long, b.ouverture, b.haut, b.bas, b.cloture].map(String))}
       />
-    </div>
-  );
-}
-
-export interface PartAnneau {
-  libelle: string;
-  valeur: number;
-  /** Classe de fond Tailwind de la part (pastille et anneau). */
-  couleur: string;
-  /** Variable CSS de la couleur, pour le dégradé conique. */
-  variable: string;
-}
-
-/** Anneau de répartition (conic-gradient), séparé par de fins traits de fond, avec légende chiffrée. */
-export function Anneau({
-  titre,
-  parts,
-  total,
-  uniteTotal,
-  formatPart,
-}: {
-  titre: string;
-  parts: PartAnneau[];
-  total: string;
-  uniteTotal: string;
-  formatPart: (part: PartAnneau, pourcent: number) => string;
-}) {
-  const somme = parts.reduce((t, p) => t + p.valeur, 0);
-  let angle = 0;
-  const arrets = parts.flatMap((p) => {
-    const fin = angle + (p.valeur / somme) * 360;
-    const segment = [
-      `var(${p.variable}) ${angle + 1}deg ${fin - 1}deg`,
-      `var(--color-surface) ${fin - 1}deg ${fin}deg`,
-    ];
-    angle = fin;
-    return segment;
-  });
-  const pourcent = (v: number) => Math.round((v / somme) * 100);
-
-  return (
-    <div className="flex flex-wrap items-center gap-5">
-      <div
-        className="relative size-[152px] shrink-0 rounded-full"
-        style={{
-          background:
-            somme > 0 ? `conic-gradient(var(--color-surface) 0deg 1deg, ${arrets.join(', ')})` : 'var(--color-rule)',
-        }}
-        role="img"
-        aria-label={`${titre} : ${parts.map((p) => `${p.libelle} ${pourcent(p.valeur)} %`).join(', ')}`}
-      >
-        <div className="absolute inset-[26px] flex flex-col items-center justify-center rounded-full bg-surface text-center">
-          <span className="font-mono text-[17px] font-medium text-ink-900">{total}</span>
-          <span className="text-[11px] text-steel-500">{uniteTotal}</span>
-        </div>
-      </div>
-      <ul className="flex min-w-0 grow basis-[190px] flex-col gap-2">
-        {parts.map((p) => (
-          <li key={p.libelle} className="grid grid-cols-[12px_minmax(0,1fr)_auto] items-center gap-2 text-meta">
-            <span className={cn('size-2.5 rounded-[3px]', p.couleur)} aria-hidden="true" />
-            <span className="truncate text-ink-900">{p.libelle}</span>
-            <span className="font-mono text-steel-700">{formatPart(p, pourcent(p.valeur))}</span>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

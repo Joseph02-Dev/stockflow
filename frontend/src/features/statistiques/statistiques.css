@@ -1,0 +1,169 @@
+/* Écran Statistiques : bandeau du chiffre d'affaires, cartes, répartitions. */
+.statistiques-bandeau {
+  padding: 20px 16px 16px;
+  border-radius: 18px;
+  animation: statistiques-arrive 450ms var(--ease-sortie) both;
+}
+@media (min-width: 640px) {
+  .statistiques-bandeau {
+    padding: 22px 24px 18px;
+  }
+}
+.statistiques-pilule {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 99px;
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #5fd6ad;
+  background: rgb(62 190 148 / 0.18);
+}
+.statistiques-pilule[data-baisse] {
+  color: #f08a7c;
+  background: rgb(224 90 75 / 0.2);
+}
+.statistiques-periodes {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 11px;
+  background: rgb(255 255 255 / 0.07);
+}
+.statistiques-periodes button {
+  height: 32px;
+  padding: 0 13px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(255 255 255 / 0.7);
+}
+.statistiques-periodes button[aria-pressed='true'] {
+  color: #15161a;
+  background: #fff;
+}
+.statistiques-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+.statistiques-kpi {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.06);
+}
+.statistiques-carte {
+  position: relative;
+  /* Contient aussi les tableaux réservés aux lecteurs d'écran (sr-only). */
+  overflow: hidden;
+  min-width: 0;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  animation: statistiques-arrive 450ms var(--ease-sortie) both;
+}
+.statistiques-rang {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  font: 650 13px var(--font-display);
+  color: var(--teinte);
+  background: color-mix(in oklab, var(--teinte) 13%, var(--color-surface));
+}
+.statistiques-jauge,
+.statistiques-barre {
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--color-rule);
+}
+.statistiques-jauge {
+  flex: 1;
+  height: 5px;
+}
+.statistiques-jauge i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--teinte);
+  transform-origin: left;
+  animation: statistiques-pousse 800ms var(--ease-sortie) 200ms both;
+}
+.statistiques-barre {
+  display: flex;
+  gap: 3px;
+  height: 12px;
+}
+.statistiques-barre i {
+  transform-origin: left;
+  animation: statistiques-pousse 900ms var(--ease-sortie) 200ms both;
+}
+.statistiques-encart {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-steel-700);
+  background: color-mix(in oklab, var(--teinte) 10%, var(--color-surface));
+}
+.statistiques-encart b,
+.statistiques-encart > svg {
+  color: var(--teinte);
+}
+
+@keyframes statistiques-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes statistiques-pousse {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes statistiques-fondu {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 639px) {
+  .statistiques-periodes {
+    display: flex;
+    width: 100%;
+  }
+  .statistiques-periodes button {
+    flex: 1;
+  }
+  .statistiques-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .statistiques-kpis > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .statistiques-bandeau,
+  .statistiques-carte {
+    animation: statistiques-fondu 300ms ease-out both;
+  }
+  .statistiques-jauge i,
+  .statistiques-barre i {
+    animation: none;
+  }
+}
