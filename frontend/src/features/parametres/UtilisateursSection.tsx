@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, UserCheck, UserX } from 'lucide-react';
+import { Check, Plus, UserCheck, UserX } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -11,21 +11,14 @@ import { Selecteur } from '@/components/ui/Selecteur';
 import { SelecteurChamp } from '@/components/ui/SelecteurChamp';
 import { Alert } from '@/components/ui/Alert';
 import { Modal } from '@/components/ui/Modal';
-import { Card } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
+import { Vignette } from '@/components/patterns/Vignette';
 import { useSession } from '@/lib/useSession';
 import { getSession, setSession, sessionActuelleEstPersistante } from '@/lib/session';
-import { Badge } from '@/components/ui/Badge';
 import { dateCourte } from '@/lib/montant';
-
-interface UtilisateurListe {
-  id: string;
-  email: string;
-  nom: string;
-  role: 'ADMIN' | 'GESTIONNAIRE';
-  desactiveAt: string | null;
-  desactivePar: { nom: string } | null;
-}
+import { formatNombre } from '@/lib/format';
+import { useUtilisateurs, type UtilisateurListe } from './donnees';
+import { EnteteCarte, EnteteSection } from './EnteteSection';
 
 const schema = z.object({
   email: z.string().min(1, 'L’email est requis.').email('Adresse email invalide.'),
@@ -33,6 +26,35 @@ const schema = z.object({
 });
 
 type Formulaire = z.infer<typeof schema>;
+
+/**
+ * Droits de chaque rôle, d'après les routes réservées à l'administrateur
+ * côté serveur (@Roles('ADMIN')) ; tout le reste est ouvert au gestionnaire.
+ */
+const DROITS: { role: string; teinte: string; droits: string[] }[] = [
+  {
+    role: 'Administrateur',
+    teinte: 'var(--color-action)',
+    droits: [
+      'Tout ce que fait un gestionnaire',
+      'Inviter, changer de rôle, retirer un accès',
+      'Modifier l’entreprise, les modules et les intégrations',
+      'Gérer emplacements, catégories et marques',
+      'Règles de réapprovisionnement et de rangement',
+      'Annuler une perte déclarée',
+    ],
+  },
+  {
+    role: 'Gestionnaire',
+    teinte: 'var(--color-steel-500)',
+    droits: [
+      'Vendre, encaisser, gérer les clients',
+      'Entrées, sorties, transferts et inventaires',
+      'Produits, commandes et fournisseurs',
+      'Déclarer une perte',
+    ],
+  },
+];
 
 export function UtilisateursSection() {
   const session = useSession();
@@ -42,10 +64,7 @@ export function UtilisateursSection() {
   const [succes, setSucces] = useState<string | null>(null);
   const [aDesactiver, setADesactiver] = useState<UtilisateurListe | null>(null);
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['utilisateurs'],
-    queryFn: async () => (await api.get<UtilisateurListe[]>('/users')).data,
-  });
+  const { data, isLoading, isError, error, refetch } = useUtilisateurs();
 
   const { register, handleSubmit, reset, control, formState } = useForm<Formulaire>({
     resolver: zodResolver(schema),
@@ -108,107 +127,168 @@ export function UtilisateursSection() {
     },
   });
 
+  const actifs = data?.filter((u) => !u.desactiveAt) ?? [];
+  const retires = data?.filter((u) => u.desactiveAt) ?? [];
+
+  const ligne = (utilisateur: UtilisateurListe) => {
+    const vous = utilisateur.id === session?.utilisateur.id;
+    return (
+      <li
+        key={utilisateur.id}
+        className="grid grid-cols-[40px_minmax(0,1fr)] items-center gap-x-3.5 gap-y-2 px-4 py-3 sm:grid-cols-[40px_minmax(0,1fr)_auto_auto] sm:px-5"
+      >
+        <Vignette
+          nom={utilisateur.nom}
+          taille={40}
+          teinte={utilisateur.desactiveAt ? undefined : utilisateur.role === 'ADMIN' ? 'var(--color-action)' : 'var(--color-accent)'}
+          className="rounded-full! font-display text-[13px]!"
+        />
+        <div className={utilisateur.desactiveAt ? 'min-w-0 opacity-70' : 'min-w-0'}>
+          <p className="truncate text-[14.5px] font-semibold text-ink-900">
+            {utilisateur.nom}
+            {vous && <span className="font-normal text-steel-400"> (vous)</span>}
+          </p>
+          <p className="truncate text-[12.5px] text-steel-400">
+            {utilisateur.email}
+            {utilisateur.desactiveAt &&
+              ` · retiré le ${dateCourte(utilisateur.desactiveAt)}${utilisateur.desactivePar ? ` par ${utilisateur.desactivePar.nom}` : ''}`}
+          </p>
+        </div>
+        {utilisateur.desactiveAt ? (
+          <span className="hidden sm:block" />
+        ) : (
+          <Selecteur
+            aria-label={`Rôle de ${utilisateur.nom}`}
+            taille="sm"
+            className="col-start-2 sm:col-start-auto sm:w-40"
+            options={[
+              { valeur: 'GESTIONNAIRE', libelle: 'Gestionnaire' },
+              { valeur: 'ADMIN', libelle: 'Administrateur' },
+            ]}
+            value={utilisateur.role}
+            disabled={changerRole.isPending}
+            onChange={(role) =>
+              // Comme le <select> d'avant : rien n'est envoyé si le rôle ne change pas.
+              role !== utilisateur.role && changerRole.mutate({ id: utilisateur.id, role: role as 'ADMIN' | 'GESTIONNAIRE' })
+            }
+          />
+        )}
+        <div className="col-start-2 flex sm:col-start-auto sm:justify-end">
+          {!vous &&
+            (utilisateur.desactiveAt ? (
+              <Button
+                variant="secondary"
+                taille="sm"
+                loading={acces.isPending && acces.variables?.utilisateur.id === utilisateur.id}
+                onClick={() => acces.mutate({ utilisateur, action: 'reactiver' })}
+              >
+                <UserCheck className="size-4" aria-hidden="true" />
+                Rendre l’accès
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                taille="sm"
+                className="-ml-2 text-rupture hover:bg-rupture-wash sm:ml-0"
+                onClick={() => {
+                  setSucces(null);
+                  setADesactiver(utilisateur);
+                }}
+              >
+                <UserX className="size-4" aria-hidden="true" />
+                Retirer l’accès
+              </Button>
+            ))}
+        </div>
+      </li>
+    );
+  };
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="min-w-0 flex-1 basis-56 text-corps text-steel-500">Les personnes qui peuvent saisir et consulter le stock.</p>
-        <Button
-          onClick={() => {
-            setErreur(null);
-            setSucces(null);
-            setModaleOuverte(true);
-          }}
-        >
-          <Plus className="size-4" aria-hidden="true" />
-          Inviter un utilisateur
-        </Button>
-      </div>
+      <EnteteSection
+        titre="Équipe"
+        description="Les personnes qui peuvent saisir et consulter le stock."
+        action={
+          <Button
+            onClick={() => {
+              setErreur(null);
+              setSucces(null);
+              setModaleOuverte(true);
+            }}
+          >
+            <Plus className="size-4" aria-hidden="true" />
+            Inviter un utilisateur
+          </Button>
+        }
+      />
 
       {succes && <Alert variant="success">{succes}</Alert>}
       {erreur && !modaleOuverte && <Alert variant="error">{erreur}</Alert>}
 
-      <Card>
-        {isLoading ? (
+      {isLoading ? (
+        <div className="parametres-carte">
           <LoadingState />
-        ) : isError ? (
+        </div>
+      ) : isError || !data ? (
+        <div className="parametres-carte">
           <ErrorState message={messageErreur(error)} onRetry={() => refetch()} />
-        ) : data && data.length > 0 ? (
-          <ul className="divide-y divide-rule">
-            {data.map((utilisateur) => (
-              <li key={utilisateur.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5">
-                <div className={utilisateur.desactiveAt ? 'min-w-0 opacity-60' : 'min-w-0'}>
-                  <p className="truncate text-corps font-medium text-ink-900">
-                    {utilisateur.nom}
-                    {utilisateur.id === session?.utilisateur.id && (
-                      <span className="ml-2 text-corps font-normal text-steel-500">(vous)</span>
-                    )}
-                  </p>
-                  <p className="truncate text-corps text-steel-500">{utilisateur.email}</p>
-                  {utilisateur.desactiveAt && (
-                    <p className="truncate text-meta text-steel-500">
-                      Accès retiré le {dateCourte(utilisateur.desactiveAt)}
-                      {utilisateur.desactivePar && ` par ${utilisateur.desactivePar.nom}`}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end sm:gap-3">
-                  {utilisateur.desactiveAt ? (
-                    <Badge variant="rupture">Accès retiré</Badge>
-                  ) : (
-                    <Badge variant={utilisateur.role === 'ADMIN' ? 'action' : 'neutral'}>
-                      {utilisateur.role === 'ADMIN' ? 'Administrateur' : 'Gestionnaire'}
-                    </Badge>
-                  )}
-                  <Selecteur
-                    aria-label={`Rôle de ${utilisateur.nom}`}
-                    taille="sm"
-                    className="w-40"
-                    options={[
-                      { valeur: 'GESTIONNAIRE', libelle: 'Gestionnaire' },
-                      { valeur: 'ADMIN', libelle: 'Administrateur' },
-                    ]}
-                    value={utilisateur.role}
-                    disabled={changerRole.isPending}
-                    onChange={(role) =>
-                      // Comme le <select> d'avant : rien n'est envoyé si le rôle ne change pas.
-                      role !== utilisateur.role &&
-                      changerRole.mutate({ id: utilisateur.id, role: role as 'ADMIN' | 'GESTIONNAIRE' })
-                    }
-                  />
-                  {utilisateur.id !== session?.utilisateur.id &&
-                    (utilisateur.desactiveAt ? (
-                      <Button
-                        variant="secondary"
-                        taille="sm"
-                        loading={acces.isPending && acces.variables?.utilisateur.id === utilisateur.id}
-                        onClick={() => acces.mutate({ utilisateur, action: 'reactiver' })}
-                      >
-                        <UserCheck className="size-4" aria-hidden="true" />
-                        Rendre l’accès
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        taille="sm"
-                        className="text-rupture hover:bg-rupture-wash"
-                        onClick={() => {
-                          setSucces(null);
-                          setADesactiver(utilisateur);
-                        }}
-                      >
-                        <UserX className="size-4" aria-hidden="true" />
-                        Retirer l’accès
-                      </Button>
-                    ))}
-                </div>
-              </li>
+        </div>
+      ) : (
+        <>
+          <dl className="grid grid-cols-3 gap-2 sm:gap-3">
+            {[
+              { libelle: 'Membres actifs', nombre: actifs.length, teinte: 'var(--color-ok)' },
+              { libelle: 'Administrateurs', nombre: actifs.filter((u) => u.role === 'ADMIN').length, teinte: 'var(--color-action)' },
+              { libelle: 'Accès retirés', nombre: retires.length, teinte: 'var(--color-steel-400)' },
+            ].map((c) => (
+              <div key={c.libelle} className="parametres-carte flex flex-col-reverse px-3 py-3 sm:px-4 sm:py-3.5">
+                <dt className="flex items-center gap-1.5 text-[12px] font-semibold text-steel-500 sm:text-[13px]">
+                  <span className="size-2 shrink-0 rounded-full" style={{ background: c.teinte }} aria-hidden="true" />
+                  {c.libelle}
+                </dt>
+                <dd className="mb-1.5 font-display text-[22px] leading-none font-semibold text-ink-900 tabular-nums sm:text-[24px]">
+                  {formatNombre(c.nombre)}
+                </dd>
+              </div>
             ))}
-          </ul>
-        ) : (
-          <EmptyState titre="Aucun utilisateur" />
-        )}
-      </Card>
+          </dl>
+
+          <div className="parametres-carte">
+            <EnteteCarte titre="Membres" meta="Une invitation acceptée apparaît ici." />
+            {actifs.length > 0 ? <ul className="divide-y divide-rule">{actifs.map(ligne)}</ul> : <EmptyState titre="Aucun utilisateur" />}
+          </div>
+
+          {retires.length > 0 && (
+            <div className="parametres-carte">
+              <EnteteCarte titre="Accès retirés" meta="Leur nom reste sur l’historique : ventes, mouvements, déclarations." />
+              <ul className="divide-y divide-rule">{retires.map(ligne)}</ul>
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="parametres-carte">
+        <EnteteCarte titre="Qui peut faire quoi" meta="Les deux rôles de NimbaFlow." />
+        <div className="grid sm:grid-cols-2">
+          {DROITS.map((d, i) => (
+            <div key={d.role} className={i > 0 ? 'border-t border-rule p-4 sm:border-t-0 sm:border-l sm:p-5' : 'p-4 sm:p-5'}>
+              <p className="mb-2.5 flex items-center gap-2 text-[14.5px] font-semibold text-ink-900">
+                <span className="size-2.5 rounded-full" style={{ background: d.teinte }} aria-hidden="true" />
+                {d.role}
+              </p>
+              <ul className="flex flex-col gap-1.5 text-corps text-steel-700">
+                {d.droits.map((droit) => (
+                  <li key={droit} className="flex gap-2">
+                    <Check className="mt-0.5 size-[15px] shrink-0" style={{ color: d.teinte }} aria-hidden="true" />
+                    {droit}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <Modal
         ouvert={aDesactiver !== null}

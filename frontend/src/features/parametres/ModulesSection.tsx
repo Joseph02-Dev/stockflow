@@ -1,103 +1,42 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, messageErreur } from '@/lib/api';
-import { cn } from '@/lib/cn';
 import { useModules } from '@/lib/useModules';
 import { Alert } from '@/components/ui/Alert';
-import { Card, PanneauEntete } from '@/components/patterns/Page';
 import { LoadingState } from '@/components/patterns/States';
-import { Selecteur } from '@/components/ui/Selecteur';
 import { STRATEGIES } from '@/lib/strategieSortie';
+import { FAMILLES, ICONES_MODULE, MODULES, type CleModule } from './modulesMetier';
+import { EnteteSection } from './EnteteSection';
 
-type CleModule =
-  | 'lots'
-  | 'arborescence'
-  | 'variantes'
-  | 'conditionnements'
-  | 'numerosSerie'
-  | 'strategiesSortie'
-  | 'reapprovisionnement'
-  | 'rangement'
-  | 'valorisation'
-  | 'rotation'
-  | 'webhooks'
-  | 'assistant';
+/** Réglage propre à un module, affiché dans sa carte quand il est activé. */
+interface ReglageModule {
+  titre: string;
+  aide: string;
+  champ: 'methodeValorisation' | 'strategieSortie';
+  options: { valeur: string; libelle: string }[];
+}
 
-/** Modules métier : l'administrateur n'affiche que ce dont son activité a besoin. */
-const MODULES: { cle: CleModule; champ: string; libelle: string; aide: string }[] = [
-  {
-    cle: 'lots',
-    champ: 'moduleLots',
-    libelle: 'Lots et péremptions',
-    aide: 'Numéros de lot, dates de péremption et sorties « premier périmé, premier sorti ». Pharmacie, alimentaire, cosmétique…',
+const REGLAGES: Partial<Record<CleModule, ReglageModule>> = {
+  valorisation: {
+    titre: 'Coût des sorties',
+    aide: 'La valeur des entrées est toujours leur coût d’achat.',
+    champ: 'methodeValorisation',
+    options: [
+      { valeur: 'PMP', libelle: 'Coût moyen pondéré' },
+      { valeur: 'FIFO', libelle: 'Premier entré, premier sorti' },
+    ],
   },
-  {
-    cle: 'arborescence',
-    champ: 'moduleArborescence',
-    libelle: 'Arborescence des emplacements',
-    aide: 'Ranger les emplacements les uns dans les autres : Dépôt › Zone › Allée › Étagère.',
+  strategiesSortie: {
+    titre: 'Ordre de sortie par défaut',
+    aide: 'Chaque emplacement peut en choisir un autre.',
+    champ: 'strategieSortie',
+    // « FEFO — premier périmé, premier sorti » → « Premier périmé, premier sorti »
+    options: STRATEGIES.map((s) => {
+      const libelle = s.libelle.split(' — ')[1] ?? s.libelle;
+      return { valeur: s.valeur, libelle: libelle.charAt(0).toUpperCase() + libelle.slice(1) };
+    }),
   },
-  {
-    cle: 'variantes',
-    champ: 'moduleVariantes',
-    libelle: 'Variantes de produits',
-    aide: 'Un modèle décliné en tailles, couleurs… : chaque combinaison a son propre stock. Habillement, chaussures, peinture…',
-  },
-  {
-    cle: 'conditionnements',
-    champ: 'moduleConditionnements',
-    libelle: 'Conditionnements',
-    aide: 'Acheter en palettes, stocker en cartons, vendre à l’unité : les saisies en cartons sont converties automatiquement.',
-  },
-  {
-    cle: 'numerosSerie',
-    champ: 'moduleNumerosSerie',
-    libelle: 'Numéros de série',
-    aide: 'Chaque unité reçue avec son numéro, suivie jusqu’à sa vente. Téléphonie, informatique, électroménager, matériel médical…',
-  },
-  {
-    cle: 'strategiesSortie',
-    champ: 'moduleStrategiesSortie',
-    libelle: 'Stratégies de sortie',
-    aide: 'Choisir l’ordre de sortie des lots : FEFO (péremption), FIFO (ancienneté) ou LIFO, pour l’entreprise ou par emplacement.',
-  },
-  {
-    cle: 'reapprovisionnement',
-    champ: 'moduleReapprovisionnement',
-    libelle: 'Réapprovisionnement automatique',
-    aide: 'Stock minimum et maximum par produit : chaque matin, les brouillons de commande fournisseur sont préparés pour vous.',
-  },
-  {
-    cle: 'rangement',
-    champ: 'moduleRangement',
-    libelle: 'Règles de rangement',
-    aide: 'À la réception, chaque produit (ou catégorie) est dirigé vers son emplacement de rangement.',
-  },
-  {
-    cle: 'valorisation',
-    champ: 'moduleValorisation',
-    libelle: 'Valorisation du stock',
-    aide: 'Valeur réelle du stock au coût d’achat, en FIFO ou en coût moyen pondéré. À l’activation, le stock présent est valorisé au prix d’achat actuel.',
-  },
-  {
-    cle: 'rotation',
-    champ: 'moduleRotation',
-    libelle: 'Rotation et stock dormant',
-    aide: 'Ce qui se vend, ce qui dort et combien d’argent est immobilisé, par produit et par catégorie.',
-  },
-  {
-    cle: 'webhooks',
-    champ: 'moduleWebhooks',
-    libelle: 'Webhooks',
-    aide: 'Prévenir un autre logiciel (comptabilité, site marchand…) à chaque mouvement, alerte ou lot proche de péremption.',
-  },
-  {
-    cle: 'assistant',
-    champ: 'moduleAssistant',
-    libelle: 'Assistant IA',
-    aide: 'Poser des questions sur le stock et les ventes. Lecture seule ; les données utiles à la réponse sont transmises au fournisseur d’IA (Anthropic).',
-  },
-];
+};
 
 export function ModulesSection() {
   const queryClient = useQueryClient();
@@ -120,71 +59,90 @@ export function ModulesSection() {
 
   if (!modules.charge) return <LoadingState />;
 
+  const nombreActifs = MODULES.filter((m) => modules[m.cle]).length;
+  const valeurReglage = (champ: ReglageModule['champ']) =>
+    champ === 'methodeValorisation' ? modules.methodeValorisation : modules.strategieSortie;
+
   return (
-    <div className="flex max-w-[720px] flex-col gap-4">
+    <div className="flex flex-col gap-4">
+      <div>
+        <EnteteSection
+          titre="Modules métier"
+          description={
+            <>
+              <b className="font-semibold text-ink-900 tabular-nums">
+                {nombreActifs} {nombreActifs > 1 ? 'modules activés' : 'module activé'} sur {MODULES.length}
+              </b>{' '}
+              — un module désactivé disparaît de l’application : l’interface reste simple.
+            </>
+          }
+        />
+        <div className="parametres-jauge mt-3" aria-hidden="true">
+          {MODULES.map((m) => (
+            <i key={m.cle} data-actif={modules[m.cle] || undefined} />
+          ))}
+        </div>
+      </div>
+
       {resultat && <Alert variant={resultat.ok ? 'success' : 'error'}>{resultat.texte}</Alert>}
-      <Card>
-        <PanneauEntete titre="Modules métier" meta="Un module désactivé disparaît de l’application : l’interface reste simple." />
-        <ul className="divide-y divide-rule">
-          {MODULES.map(({ cle, champ, libelle, aide }) => {
-            const actif = modules[cle];
-            return (
-              <li key={cle} className="flex items-center justify-between gap-6 px-5 py-4">
-                <div className="min-w-0">
-                  <p className="text-corps font-medium text-ink-900">{libelle}</p>
-                  <p className="text-meta text-steel-500">{aide}</p>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={actif}
-                  aria-label={libelle}
-                  disabled={basculer.isPending}
-                  onClick={() => basculer.mutate({ champ, valeur: !actif })}
-                  className={cn(
-                    'inline-flex h-7 shrink-0 items-center gap-2 rounded-full border px-1 pr-3 text-meta font-medium transition-colors disabled:opacity-60',
-                    actif ? 'border-action bg-action-wash text-action' : 'border-rule-strong bg-paper text-steel-500',
+
+      {FAMILLES.map((famille) => (
+        <section key={famille.titre} aria-label={famille.titre}>
+          <h3 className="parametres-famille">{famille.titre}</h3>
+          <div className="parametres-modules">
+            {famille.modules.map((cle) => {
+              const { champ, libelle, aide } = MODULES.find((m) => m.cle === cle)!;
+              const actif = modules[cle];
+              const Icone = ICONES_MODULE[cle];
+              const reglage = REGLAGES[cle];
+              return (
+                <div key={cle} className="parametres-carte parametres-module" data-actif={actif || undefined}>
+                  <div className="flex items-start gap-3">
+                    <span className="parametres-module-icone" aria-hidden="true">
+                      <Icone className="size-[18px]" />
+                    </span>
+                    <div className="min-w-0">
+                      <h4 className="text-[14.5px] font-semibold text-ink-900">{libelle}</h4>
+                      <p className="mt-0.5 text-[12.5px] leading-[1.5] text-steel-500">{aide}</p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={actif}
+                      aria-label={libelle}
+                      disabled={basculer.isPending}
+                      onClick={() => basculer.mutate({ champ, valeur: !actif })}
+                      className="parametres-interrupteur"
+                    />
+                  </div>
+                  {reglage && actif && (
+                    <div className="border-t border-dashed border-rule pt-2.5" role="group" aria-label={reglage.titre}>
+                      <p className="mb-1.5 text-[12px] font-semibold text-steel-500">{reglage.titre}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {reglage.options.map((o) => (
+                          <button
+                            key={o.valeur}
+                            type="button"
+                            className="parametres-segment"
+                            aria-pressed={valeurReglage(reglage.champ) === o.valeur}
+                            disabled={basculer.isPending}
+                            onClick={() =>
+                              valeurReglage(reglage.champ) !== o.valeur && basculer.mutate({ champ: reglage.champ, valeur: o.valeur })
+                            }
+                          >
+                            <span className="font-mono">{o.valeur}</span> · {o.libelle}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="mt-1.5 text-[12px] text-steel-400">{reglage.aide}</p>
+                    </div>
                   )}
-                >
-                  <span className={cn('size-5 rounded-full transition-colors', actif ? 'bg-action' : 'bg-steel-400')} aria-hidden="true" />
-                  {actif ? 'Activé' : 'Désactivé'}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </Card>
-
-      {modules.valorisation && (
-        <Card>
-          <PanneauEntete titre="Méthode de valorisation" meta="Le coût des sorties ; la valeur des entrées est toujours leur coût d’achat." />
-          <div className="p-5">
-            <Selecteur
-              label="Coût des sorties"
-              value={modules.methodeValorisation}
-              onChange={(valeur) => basculer.mutate({ champ: 'methodeValorisation', valeur })}
-              options={[
-                { valeur: 'PMP', libelle: 'Coût moyen pondéré (PMP)', sousTitre: 'Simple et stable : chaque sortie au coût moyen du stock' },
-                { valeur: 'FIFO', libelle: 'FIFO — premier entré, premier sorti', sousTitre: 'Chaque sortie au coût des achats les plus anciens' },
-              ]}
-            />
+                </div>
+              );
+            })}
           </div>
-        </Card>
-      )}
-
-      {modules.strategiesSortie && (
-        <Card>
-          <PanneauEntete titre="Stratégie de sortie par défaut" meta="Chaque emplacement peut en choisir une autre." />
-          <div className="p-5">
-            <Selecteur
-              label="Ordre de sortie des lots"
-              value={modules.strategieSortie}
-              onChange={(valeur) => basculer.mutate({ champ: 'strategieSortie', valeur })}
-              options={STRATEGIES.map((s) => ({ valeur: s.valeur, libelle: s.libelle, sousTitre: s.aide }))}
-            />
-          </div>
-        </Card>
-      )}
+        </section>
+      ))}
     </div>
   );
 }
