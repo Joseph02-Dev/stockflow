@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
+import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,16 +12,44 @@ import { Alert } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import { Drawer } from '@/components/ui/Drawer';
 import { Modal } from '@/components/ui/Modal';
-import { Card, PageHeader, PanneauEntete } from '@/components/patterns/Page';
+import { Card, PageHeader } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { Vignette } from '@/components/patterns/Vignette';
+import { BoutonWhatsApp } from '@/components/patterns/BoutonWhatsApp';
 import { useDebounce } from '@/lib/useDebounce';
 import { cn } from '@/lib/cn';
 import { formatNombre, pluriel } from '@/lib/format';
+import { gnf } from '@/lib/montant';
+import { useCreances, type Debiteur } from '@/features/creances/types';
+import { JaugeCredit } from './JaugeCredit';
 import { FORMAT_TELEPHONE, LIBELLES_CATEGORIE } from './types';
 import type { CategorieTarifaire, Client } from './types';
+import './clients.css';
 
 const CATEGORIES: CategorieTarifaire[] = ['DETAIL', 'DEMI_GROS', 'GROS'];
+/** Ordre d'affichage des filtres : du plus gros volume au détail. */
+const CATEGORIES_FILTRE: CategorieTarifaire[] = ['GROS', 'DEMI_GROS', 'DETAIL'];
+
+/** Une teinte par catégorie tarifaire : avatar, pastille et filtre la partagent. */
+const TEINTE_CATEGORIE: Record<CategorieTarifaire, string> = {
+  GROS: 'var(--color-action)',
+  DEMI_GROS: 'var(--color-accent)',
+  DETAIL: 'var(--clients-detail)',
+};
+
+/** Filtre de la liste : une catégorie, ou une situation de crédit. */
+type Filtre = CategorieTarifaire | 'DOIVENT' | 'DEPASSE' | null;
+
+function depassePlafond(client: Pick<Client, 'plafondCredit'>, debiteur: Debiteur | undefined): boolean {
+  return debiteur !== undefined && client.plafondCredit !== null && debiteur.solde > client.plafondCredit;
+}
+
+async function chargerClients(recherche: string, afficherArchives: boolean) {
+  const parametres = new URLSearchParams();
+  if (recherche) parametres.set('search', recherche);
+  if (afficherArchives) parametres.set('archive', 'true');
+  return (await api.get<Client[]>(`/clients?${parametres}`)).data;
+}
 
 const schema = z.object({
   nom: z.string().trim().min(1, 'Le nom du client est requis.'),
@@ -42,19 +71,22 @@ export function ClientsPage() {
   const [recherche, setRecherche] = useState('');
   const rechercheRetardee = useDebounce(recherche.trim(), 250);
   const [afficherArchives, setAfficherArchives] = useState(false);
+  const [filtre, setFiltre] = useState<Filtre>(null);
   const [edition, setEdition] = useState<Client | 'nouveau' | null>(null);
   const [aArchiver, setAArchiver] = useState<Client | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['clients', { recherche: rechercheRetardee, afficherArchives }],
-    queryFn: async () => {
-      const parametres = new URLSearchParams();
-      if (rechercheRetardee) parametres.set('search', rechercheRetardee);
-      if (afficherArchives) parametres.set('archive', 'true');
-      return (await api.get<Client[]>(`/clients?${parametres}`)).data;
-    },
+    queryFn: () => chargerClients(rechercheRetardee, afficherArchives),
   });
+  // Les chiffres portent sur tous les clients actifs, quelle que soit la recherche
+  // (même clé que la liste sans filtre : une seule requête dans le cas courant).
+  const actifs = useQuery({
+    queryKey: ['clients', { recherche: '', afficherArchives: false }],
+    queryFn: () => chargerClients('', false),
+  });
+  const creances = useCreances();
 
   const { register, handleSubmit, reset, control, formState } = useForm<Formulaire>({
     resolver: zodResolver(schema),
@@ -101,6 +133,8 @@ export function ClientsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      // Le plafond de crédit est aussi lu par l'écran Créances.
+      queryClient.invalidateQueries({ queryKey: ['creances'] });
       setEdition(null);
     },
     onError: (err) => setErreur(messageErreur(err, 'L’enregistrement a échoué.')),
@@ -119,9 +153,21 @@ export function ClientsPage() {
   });
 
   const clients = data ?? [];
+  const debiteurs = creances.data?.debiteurs ?? [];
+  const debiteurParClient = new Map(debiteurs.map((d) => [d.client.id, d]));
+  const resume = creances.data?.resume;
+  const nombreDepasses = debiteurs.filter((d) => depassePlafond(d.client, d)).length;
+  const parCategorie = (liste: Client[], categorie: CategorieTarifaire) => liste.filter((c) => c.categorie === categorie).length;
+  const visibles = clients.filter((c) => {
+    if (filtre === null) return true;
+    if (filtre === 'DOIVENT') return debiteurParClient.has(c.id);
+    if (filtre === 'DEPASSE') return depassePlafond(c, debiteurParClient.get(c.id));
+    return c.categorie === filtre;
+  });
+  const basculer = (valeur: Exclude<Filtre, null>) => setFiltre((actuel) => (actuel === valeur ? null : valeur));
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="clients-page flex flex-col gap-5">
       <PageHeader
         titre="Clients"
         description="À qui vous vendez, à quel tarif, et jusqu’où vous leur faites crédit."
@@ -133,8 +179,62 @@ export function ClientsPage() {
         }
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <label className="relative flex-1">
+      <div className="clients-chiffres">
+        <div className="clients-chiffre" style={{ '--teinte': 'var(--color-ink-900)' } as CSSProperties}>
+          <small>
+            <i aria-hidden="true" />
+            Clients actifs
+          </small>
+          <b>{actifs.data ? formatNombre(actifs.data.length) : '—'}</b>
+          <span className="text-meta text-steel-400">
+            {actifs.data &&
+              CATEGORIES_FILTRE.filter((c) => parCategorie(actifs.data, c) > 0)
+                .map((c) => `${parCategorie(actifs.data, c)} ${LIBELLES_CATEGORIE[c].toLowerCase()}`)
+                .join(' · ')}
+          </span>
+        </div>
+        <button
+          type="button"
+          className="clients-chiffre"
+          aria-pressed={filtre === 'DOIVENT'}
+          onClick={() => basculer('DOIVENT')}
+          style={{ '--teinte': 'var(--color-faible)' } as CSSProperties}
+        >
+          <small>
+            <i aria-hidden="true" />
+            Doivent de l’argent
+          </small>
+          <b>{resume ? formatNombre(resume.nombreClients) : '—'}</b>
+          <span className="text-meta text-steel-400">{resume && `${gnf(resume.totalDu)} au total`}</span>
+        </button>
+        <button
+          type="button"
+          className="clients-chiffre"
+          aria-pressed={filtre === 'DEPASSE'}
+          onClick={() => basculer('DEPASSE')}
+          style={{ '--teinte': 'var(--color-rupture)' } as CSSProperties}
+        >
+          <small>
+            <i aria-hidden="true" />
+            Plafond dépassé
+          </small>
+          <b>{creances.data ? formatNombre(nombreDepasses) : '—'}</b>
+          <span className="text-meta text-steel-400">Doivent plus que leur plafond de crédit</span>
+        </button>
+        <Link to="/creances" className="clients-chiffre" style={{ '--teinte': 'var(--color-action)' } as CSSProperties}>
+          <small>
+            <i aria-hidden="true" />
+            En retard de paiement
+          </small>
+          <b>
+            {resume ? formatNombre(resume.montantEnRetard) : '—'} <em>GNF</em>
+          </b>
+          <span className="text-meta font-semibold text-action">Voir les créances →</span>
+        </Link>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2.5">
+        <label className="relative min-w-0 flex-[1_1_280px]">
           <span className="sr-only">Rechercher un client</span>
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-steel-400" aria-hidden="true" />
           <input
@@ -142,9 +242,27 @@ export function ClientsPage() {
             value={recherche}
             onChange={(e) => setRecherche(e.target.value)}
             placeholder="Nom, commerce ou téléphone…"
-            className="h-9 w-full champ rounded-md border border-rule-strong bg-surface-elevee pr-3 pl-9 text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-action"
+            className="h-10 w-full champ rounded-lg border border-rule-strong bg-surface-elevee pr-3 pl-9 text-corps text-ink-900 placeholder:text-steel-400 hover:border-steel-400 focus:border-action"
           />
         </label>
+        <div className="clients-puces min-w-0" role="group" aria-label="Filtrer par catégorie">
+          <button type="button" className="clients-puce" aria-pressed={filtre === null} onClick={() => setFiltre(null)}>
+            Toutes <em>{clients.length}</em>
+          </button>
+          {CATEGORIES_FILTRE.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className="clients-puce"
+              aria-pressed={filtre === c}
+              onClick={() => basculer(c)}
+              style={{ '--c': TEINTE_CATEGORIE[c] } as CSSProperties}
+            >
+              <i aria-hidden="true" />
+              {LIBELLES_CATEGORIE[c]} <em>{parCategorie(clients, c)}</em>
+            </button>
+          ))}
+        </div>
         <label className="flex shrink-0 items-center gap-2 text-corps text-steel-700">
           <input
             type="checkbox"
@@ -152,76 +270,102 @@ export function ClientsPage() {
             onChange={(e) => setAfficherArchives(e.target.checked)}
             className="size-4 accent-action"
           />
-          Afficher les clients archivés
+          Archivés
         </label>
       </div>
 
       {erreur && !edition && <Alert variant="error">{erreur}</Alert>}
 
-      <Card>
-        {isLoading ? (
+      {isLoading ? (
+        <Card>
           <LoadingState />
-        ) : isError ? (
+        </Card>
+      ) : isError ? (
+        <Card>
           <ErrorState message={messageErreur(error)} onRetry={() => refetch()} />
-        ) : clients.length === 0 ? (
-          <EmptyState
-            titre={rechercheRetardee ? 'Aucun client trouvé' : 'Aucun client'}
-            description={
-              rechercheRetardee
-                ? 'Essayez un autre nom, commerce ou numéro.'
-                : 'Ajoutez vos clients pour leur vendre au bon tarif et suivre leur crédit.'
-            }
-            action={!rechercheRetardee && <Button onClick={() => ouvrir('nouveau')}>Créer un client</Button>}
-          />
-        ) : (
-          <>
-            <PanneauEntete titre={`${clients.length} ${pluriel('client', clients.length)}`} />
-            <ul className="divide-y divide-rule">
-              {clients.map((client) => (
-                <li key={client.id} className="flex items-center gap-3 px-4 py-3 sm:px-5">
-                  <Vignette nom={client.nom} taille={36} className="rounded-full" />
+        </Card>
+      ) : visibles.length === 0 ? (
+        <Card>
+          {clients.length > 0 ? (
+            <EmptyState
+              titre="Aucun client dans ce filtre"
+              description="Aucun client ne correspond à ce filtre pour le moment."
+              action={
+                <Button variant="secondary" onClick={() => setFiltre(null)}>
+                  Afficher tous les clients
+                </Button>
+              }
+            />
+          ) : (
+            <EmptyState
+              titre={rechercheRetardee ? 'Aucun client trouvé' : 'Aucun client'}
+              description={
+                rechercheRetardee
+                  ? 'Essayez un autre nom, commerce ou numéro.'
+                  : 'Ajoutez vos clients pour leur vendre au bon tarif et suivre leur crédit.'
+              }
+              action={!rechercheRetardee && <Button onClick={() => ouvrir('nouveau')}>Créer un client</Button>}
+            />
+          )}
+        </Card>
+      ) : (
+        <ul className="clients-grille" aria-label={`${visibles.length} ${pluriel('client', visibles.length)}`}>
+          {visibles.map((client, i) => {
+            const debiteur = debiteurParClient.get(client.id);
+            const solde = debiteur?.solde ?? 0;
+            return (
+              <li key={client.id} className="clients-carte" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
+                <div className="flex items-center gap-3">
+                  <Vignette nom={client.nom} taille={44} teinte={TEINTE_CATEGORIE[client.categorie]} className="rounded-full! font-display text-[14px]!" />
                   <div className="min-w-0 flex-1">
-                    <p className="flex min-w-0 items-center gap-2">
-                      <span className="truncate text-corps font-medium text-ink-900">{client.nom}</span>
-                      {client.archive && <Badge variant="neutral">Archivé</Badge>}
-                    </p>
-                    <p className="flex flex-wrap items-center gap-x-3 text-meta text-steel-500">
-                      {client.nomCommerce && <span className="truncate">{client.nomCommerce}</span>}
-                      {client.telephone ? (
-                        <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                          <Phone className="size-3 text-steel-400" aria-hidden="true" />
-                          {client.telephone}
-                        </span>
-                      ) : (
-                        <span className="text-steel-400">Pas de téléphone</span>
-                      )}
-                    </p>
+                    <h2 className="truncate text-[15px] font-semibold text-ink-900">{client.nom}</h2>
+                    {client.nomCommerce && <p className="truncate text-meta text-steel-500">{client.nomCommerce}</p>}
                   </div>
-                  <div className="hidden shrink-0 text-right sm:block">
-                    <p className="text-meta text-steel-500">Plafond de crédit</p>
-                    <p className="text-corps text-ink-900">
-                      {client.plafondCredit === null ? '—' : `${formatNombre(client.plafondCredit)} GNF`}
-                    </p>
-                  </div>
-                  <Badge variant={client.categorie === 'GROS' ? 'action' : client.categorie === 'DEMI_GROS' ? 'accent' : 'neutral'}>
-                    {LIBELLES_CATEGORIE[client.categorie]}
-                  </Badge>
-                  <div className="flex shrink-0 gap-0.5">
-                    <Button variant="ghost" taille="sm" icone aria-label={`Modifier ${client.nom}`} title="Modifier" onClick={() => ouvrir(client)}>
-                      <Pencil className="size-4" aria-hidden="true" />
+                  {client.archive ? (
+                    <Badge variant="neutral">Archivé</Badge>
+                  ) : (
+                    <span className="clients-categorie" style={{ '--c': TEINTE_CATEGORIE[client.categorie] } as CSSProperties}>
+                      {LIBELLES_CATEGORIE[client.categorie]}
+                    </span>
+                  )}
+                </div>
+
+                {client.telephone ? (
+                  <p className="inline-flex items-center gap-1.5 text-corps text-steel-700">
+                    <Phone className="size-3.5 text-steel-400" aria-hidden="true" />
+                    {client.telephone}
+                  </p>
+                ) : (
+                  <p className="text-corps text-steel-400">Pas de téléphone</p>
+                )}
+
+                {client.plafondCredit !== null ? (
+                  <JaugeCredit solde={solde} plafond={client.plafondCredit} />
+                ) : solde > 0 ? (
+                  <p className="text-meta text-steel-500">
+                    Doit <b className="font-semibold text-ink-900">{gnf(solde)}</b> · sans plafond de crédit
+                  </p>
+                ) : (
+                  <p className="text-meta text-steel-400">Pas de plafond de crédit</p>
+                )}
+
+                <div className="clients-pied">
+                  <BoutonWhatsApp compact libelle="WhatsApp" telephone={client.telephone} texte={`Bonjour ${client.nom},`} />
+                  <span className="flex-1" />
+                  <Button variant="ghost" taille="sm" icone aria-label={`Modifier ${client.nom}`} title="Modifier" onClick={() => ouvrir(client)}>
+                    <Pencil className="size-4" aria-hidden="true" />
+                  </Button>
+                  {!client.archive && (
+                    <Button variant="ghost" taille="sm" icone aria-label={`Archiver ${client.nom}`} title="Archiver" onClick={() => setAArchiver(client)}>
+                      <Archive className="size-4" aria-hidden="true" />
                     </Button>
-                    {!client.archive && (
-                      <Button variant="ghost" taille="sm" icone aria-label={`Archiver ${client.nom}`} title="Archiver" onClick={() => setAArchiver(client)}>
-                        <Archive className="size-4" aria-hidden="true" />
-                      </Button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </Card>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       <Drawer
         ouvert={edition !== null}
