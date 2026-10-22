@@ -1,9 +1,22 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Clock, Mail, Pencil, Phone, Plus, ShoppingCart, X } from 'lucide-react';
+import {
+  ArrowDownToLine,
+  Clock,
+  Mail,
+  Pencil,
+  Phone,
+  Plus,
+  ShoppingCart,
+  Timer,
+  TriangleAlert,
+  Truck,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api, messageErreur } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
@@ -15,11 +28,14 @@ import { ImageUploadField } from '@/components/patterns/ImageUploadField';
 import { Card } from '@/components/patterns/Page';
 import { Onglets } from '@/components/patterns/Onglets';
 import { Vignette } from '@/components/patterns/Vignette';
-import { tableau } from '@/components/patterns/tableau';
 import { boutonClasses } from '@/components/ui/boutonClasses';
 import { pluriel } from '@/lib/format';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { cn } from '@/lib/cn';
+import { Badge } from '@/components/ui/Badge';
+import { BoutonWhatsApp } from '@/components/patterns/BoutonWhatsApp';
+import { libelleStatut, statutStock, varianteStatut } from '@/components/patterns/statutStock';
+import { teinteFournisseur, useActiviteFournisseurs } from './activite';
 
 interface Fournisseur {
   id: string;
@@ -44,13 +60,44 @@ interface Reception {
   emplacement: { nom: string };
 }
 
-const onglets = [
-  { cle: 'informations', libelle: 'Informations' },
-  { cle: 'produits', libelle: 'Produits fournis' },
-  { cle: 'receptions', libelle: 'Réceptions' },
-] as const;
+type CleOnglet = 'produits' | 'receptions' | 'informations';
 
-type CleOnglet = (typeof onglets)[number]['cle'];
+interface LigneStock {
+  produitId: string;
+  quantite: number;
+  produit: { seuilAlerte: number };
+}
+
+const formatJours = (n: number) => n.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+
+function Indicateur({
+  Icone,
+  teinte,
+  titre,
+  valeur,
+  unite,
+  detail,
+}: {
+  Icone: LucideIcon;
+  teinte: string;
+  titre: string;
+  valeur: string;
+  unite?: string;
+  detail: ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-rule bg-surface p-3.5 shadow-card">
+      <p className="flex items-center gap-1.5 text-meta font-semibold text-steel-500">
+        <Icone className={cn('size-3.5', teinte)} aria-hidden="true" />
+        {titre}
+      </p>
+      <p className="mt-2 font-display text-[1.375rem] leading-none font-semibold text-ink-900">
+        {valeur} {unite && <span className="font-sans text-meta font-semibold text-steel-400">{unite}</span>}
+      </p>
+      <p className="mt-1.5 text-meta text-steel-400">{detail}</p>
+    </div>
+  );
+}
 
 const schemaEdition = z.object({
   nom: z.string().min(1, 'Le nom du fournisseur est requis.'),
@@ -63,7 +110,8 @@ type FormulaireEdition = z.infer<typeof schemaEdition>;
 
 export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) {
   const queryClient = useQueryClient();
-  const [actif, setActif] = useState<CleOnglet>('informations');
+  const [actif, setActif] = useState<CleOnglet>('produits');
+  const activite = useActiviteFournisseurs()(fournisseurId);
   const [modaleOuverte, setModaleOuverte] = useState(false);
   const [editionOuverte, setEditionOuverte] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined);
@@ -82,7 +130,11 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
   const receptions = useQuery({
     queryKey: ['fournisseur', fournisseurId, 'receptions'],
     queryFn: async () => (await api.get<Reception[]>(`/fournisseurs/${fournisseurId}/receptions`)).data,
-    enabled: actif === 'receptions',
+  });
+  // État de stock des produits fournis : même cache que les écrans Stock et Produits.
+  const stock = useQuery({
+    queryKey: ['stock', ''],
+    queryFn: async () => (await api.get<LigneStock[]>('/stock')).data,
   });
 
   const catalogue = useQuery({
@@ -157,46 +209,66 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
   }
   if (!fournisseur.data) return null;
 
+  const annonce = fournisseur.data.delaiLivraisonJours;
+  const ecart = annonce !== null && activite.delaiReel !== null ? Math.round((activite.delaiReel - annonce) * 10) / 10 : null;
+  // Quantité totale et seuil de chaque produit, tous emplacements confondus.
+  const niveaux = new Map<string, { quantite: number; seuil: number }>();
+  for (const ligne of stock.data ?? []) {
+    const n = niveaux.get(ligne.produitId) ?? { quantite: 0, seuil: ligne.produit.seuilAlerte };
+    n.quantite += ligne.quantite;
+    niveaux.set(ligne.produitId, n);
+  }
   const dejaAssocies = new Set((produitsAssocies.data ?? []).map((p) => p.id));
   const produitsDisponibles = (catalogue.data ?? []).filter((p) => !dejaAssocies.has(p.id));
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <Vignette nom={fournisseur.data.nom} photoUrl={fournisseur.data.photoUrl} taille={44} />
-          <div className="min-w-0">
-            <h2 className="truncate text-[20px] leading-7 font-semibold tracking-[-0.006em] text-ink-900">
-              {fournisseur.data.nom}
-            </h2>
-            <p className="flex flex-wrap items-center gap-x-3 text-meta text-steel-500">
-              <span className="inline-flex items-center gap-1">
-                <Clock className="size-3 text-steel-400" aria-hidden="true" />
-                {fournisseur.data.delaiLivraisonJours !== null
-                  ? `Délai moyen ${fournisseur.data.delaiLivraisonJours} ${pluriel('jour', fournisseur.data.delaiLivraisonJours)}`
-                  : 'Délai non renseigné'}
-              </span>
-              {fournisseur.data.telephone && (
-                <a
-                  href={`tel:${fournisseur.data.telephone.replace(/\s/g, '')}`}
-                  className="inline-flex items-center gap-1 hover:text-ink-900"
-                >
-                  <Phone className="size-3 text-steel-400" aria-hidden="true" />
-                  {fournisseur.data.telephone}
-                </a>
-              )}
-            </p>
-          </div>
+      <div className="flex flex-wrap items-center gap-4 rounded-xl border border-rule bg-surface p-5 shadow-card">
+        <Vignette
+          nom={fournisseur.data.nom}
+          photoUrl={fournisseur.data.photoUrl}
+          taille={64}
+          teinte={teinteFournisseur(fournisseurId)}
+          className="rounded-full! text-[1.25rem]!"
+        />
+        <div className="min-w-0 flex-1 basis-56">
+          <h2 className="truncate font-display text-[1.375rem] leading-tight font-semibold tracking-[-0.02em] text-ink-900">
+            {fournisseur.data.nom}
+          </h2>
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-corps text-steel-500">
+            {fournisseur.data.telephone && (
+              <a
+                href={`tel:${fournisseur.data.telephone.replace(/\s/g, '')}`}
+                className="inline-flex items-center gap-1.5 hover:text-action"
+              >
+                <Phone className="size-3.5 text-steel-400" aria-hidden="true" />
+                {fournisseur.data.telephone}
+              </a>
+            )}
+            {fournisseur.data.emailContact && (
+              <a href={`mailto:${fournisseur.data.emailContact}`} className="inline-flex min-w-0 items-center gap-1.5 hover:text-action">
+                <Mail className="size-3.5 shrink-0 text-steel-400" aria-hidden="true" />
+                <span className="truncate">{fournisseur.data.emailContact}</span>
+              </a>
+            )}
+            {!fournisseur.data.telephone && !fournisseur.data.emailContact && <span>Aucun contact renseigné</span>}
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={ouvrirEdition}>
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+          <BoutonWhatsApp
+            telephone={fournisseur.data.telephone}
+            texte={`Bonjour ${fournisseur.data.nom},`}
+            libelle="WhatsApp"
+            className="h-10! max-sm:flex-1"
+          />
+          <Button variant="secondary" onClick={ouvrirEdition} className="max-sm:flex-1">
             <Pencil className="size-4" aria-hidden="true" />
             Modifier
           </Button>
           <Link
             to="/commandes/nouvelle"
             state={{ fournisseurId }}
-            className={boutonClasses('primary')}
+            className={boutonClasses('primary', 'max-sm:w-full')}
           >
             <ShoppingCart className="size-4" aria-hidden="true" />
             Commander
@@ -204,7 +276,68 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
         </div>
       </div>
 
-      <Onglets onglets={onglets} actif={actif} onChange={setActif} libelle="Sections du fournisseur" />
+      <section aria-label="Indicateurs du fournisseur" className="grid grid-cols-2 gap-2.5 xl:grid-cols-4">
+        <Indicateur
+          Icone={Clock}
+          teinte="text-action"
+          titre="Délai annoncé"
+          valeur={annonce === null ? '—' : String(annonce)}
+          unite={annonce === null ? undefined : pluriel('jour', annonce)}
+          detail={annonce === null ? 'Non renseigné' : 'Selon le fournisseur'}
+        />
+        <Indicateur
+          Icone={Timer}
+          teinte="text-[#2f6fb3]"
+          titre="Délai réel"
+          valeur={activite.delaiReel === null ? '—' : formatJours(activite.delaiReel)}
+          unite={activite.delaiReel === null ? undefined : pluriel('jour', activite.delaiReel)}
+          detail={
+            activite.delaiReel === null ? (
+              'Aucune commande reçue'
+            ) : ecart === null ? (
+              'Envoi → réception, en moyenne'
+            ) : ecart > 0 ? (
+              <>
+                <span className="font-semibold text-rupture">+{formatJours(ecart)} j</span> sur l’annonce
+              </>
+            ) : ecart < 0 ? (
+              <>
+                <span className="font-semibold text-ok">−{formatJours(-ecart)} j</span> sur l’annonce
+              </>
+            ) : (
+              <span className="font-semibold text-ok">Conforme à l’annonce</span>
+            )
+          }
+        />
+        <Indicateur
+          Icone={Truck}
+          teinte="text-[#2f6fb3]"
+          titre="Commandes en route"
+          valeur={String(activite.enRoute)}
+          detail={activite.enRoute > 0 ? 'À réceptionner' : 'Rien en attente'}
+        />
+        <Indicateur
+          Icone={TriangleAlert}
+          teinte="text-rupture"
+          titre="Produits en alerte"
+          valeur={String(activite.produitsEnAlerte.size)}
+          detail={activite.produitsEnAlerte.size > 0 ? 'À recommander' : 'Tout est au-dessus du seuil'}
+        />
+      </section>
+
+      <Onglets
+        onglets={[
+          {
+            cle: 'produits',
+            libelle: produitsAssocies.data ? `Produits fournis (${produitsAssocies.data.length})` : 'Produits fournis',
+          },
+          { cle: 'receptions', libelle: receptions.data ? `Réceptions (${receptions.data.length})` : 'Réceptions' },
+          { cle: 'informations', libelle: 'Informations' },
+        ]}
+        actif={actif}
+        onChange={setActif}
+        libelle="Sections du fournisseur"
+      />
 
       {erreur && !editionOuverte && !modaleOuverte && <Alert variant="error">{erreur}</Alert>}
 
@@ -287,6 +420,12 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
                           <p className="truncate font-mono text-meta text-steel-500">{produit.reference}</p>
                         )}
                       </div>
+                      {stock.data &&
+                        (() => {
+                          const n = niveaux.get(produit.id);
+                          const statut = statutStock(n?.quantite ?? 0, n?.seuil ?? 0);
+                          return <Badge variant={varianteStatut[statut]}>{libelleStatut[statut]}</Badge>;
+                        })()}
                       <Button
                         variant="ghost"
                         taille="sm"
@@ -317,44 +456,23 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
             ) : receptions.isError ? (
               <ErrorState message={messageErreur(receptions.error)} onRetry={() => receptions.refetch()} />
             ) : receptions.data && receptions.data.length > 0 ? (
-              <>
-                <table className={cn(tableau.table, 'hidden md:table')}>
-                  <thead className={tableau.thead}>
-                    <tr>
-                      <th scope="col" className={tableau.th}>Produit</th>
-                      <th scope="col" className={tableau.th}>Emplacement</th>
-                      <th scope="col" className={tableau.th}>Date</th>
-                      <th scope="col" className={cn(tableau.th, 'text-right')}>Quantité</th>
-                    </tr>
-                  </thead>
-                  <tbody className={tableau.tbody}>
-                    {receptions.data.map((reception) => (
-                      <tr key={reception.id} className={tableau.tr}>
-                        <td className={cn(tableau.td, 'font-medium text-ink-900')}>{reception.produit.nom}</td>
-                        <td className={cn(tableau.td, 'text-steel-700')}>{reception.emplacement.nom}</td>
-                        <td className={cn(tableau.td, 'whitespace-nowrap text-steel-500')}>
-                          {new Date(reception.createdAt).toLocaleDateString('fr-FR')}
-                        </td>
-                        <td className={cn(tableau.td, 'text-right font-semibold text-ok')}>+{reception.quantite}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                <ul className="divide-y divide-rule md:hidden">
-                  {receptions.data.map((reception) => (
-                    <li key={reception.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-corps font-medium text-ink-900">{reception.produit.nom}</p>
-                        <p className="truncate text-meta text-steel-500">
-                          {reception.emplacement.nom}, le {new Date(reception.createdAt).toLocaleDateString('fr-FR')}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-corps font-semibold text-ok">+{reception.quantite}</span>
-                    </li>
-                  ))}
-                </ul>
-              </>
+              <ul className="divide-y divide-rule">
+                {receptions.data.map((reception) => (
+                  <li key={reception.id} className="flex items-center gap-3 px-4 py-2.5 sm:px-5">
+                    <span className="flex size-[30px] shrink-0 items-center justify-center rounded-full bg-ok-wash text-ok" aria-hidden="true">
+                      <ArrowDownToLine className="size-[15px]" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-corps font-semibold text-ink-900">{reception.produit.nom}</p>
+                      <p className="truncate text-meta text-steel-400">
+                        {reception.emplacement.nom} ·{' '}
+                        {new Date(reception.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                    </div>
+                    <span className="shrink-0 font-mono text-corps font-semibold text-ok">+{reception.quantite}</span>
+                  </li>
+                ))}
+              </ul>
             ) : (
               <EmptyState
                 titre="Aucune réception"
