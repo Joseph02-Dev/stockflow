@@ -338,4 +338,52 @@ describe('Mouvements de stock (MVT-001 à MVT-004) — intégration réelle, bas
     expect(response.body).toHaveLength(1);
     expect(response.body[0].quantite).toBe(42);
   });
+
+  it('un mouvement renvoyé avec le même idClient n’est appliqué qu’une fois', async () => {
+    const { accessToken, produitId, emplacementId } = await creerContexte();
+    const idClient = crypto.randomUUID();
+    const envoyer = () =>
+      request(app.getHttpServer())
+        .post('/mouvements/entree')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ produitId, emplacementId, quantite: 25, idClient });
+
+    const premier = await envoyer();
+    expect(premier.status).toBe(201);
+    expect(premier.body.type).toBe('ENTREE');
+
+    // Réponse perdue côté appareil : la file renvoie le même mouvement.
+    const renvoi = await envoyer();
+    expect(renvoi.status).toBe(201);
+    expect(renvoi.body).toEqual({ dejaEnregistre: true });
+
+    // Deux onglets qui renvoient en même temps : un seul l'applique.
+    const sortieId = crypto.randomUUID();
+    const sorties = await Promise.all(
+      [1, 2].map(() =>
+        request(app.getHttpServer())
+          .post('/mouvements/sortie')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ produitId, emplacementId, quantite: 5, idClient: sortieId }),
+      ),
+    );
+    expect(sorties.map((r) => r.status)).toEqual([201, 201]);
+    expect(sorties.filter((r) => r.body.dejaEnregistre === true)).toHaveLength(1);
+
+    const stock = await prisma.stock.findUnique({
+      where: { produitId_emplacementId: { produitId, emplacementId } },
+    });
+    expect(stock?.quantite).toBe(20);
+    const mouvements = await prisma.mouvement.count({ where: { produitId } });
+    expect(mouvements).toBe(2);
+  });
+
+  it('refuse un idClient qui n’est pas un identifiant valide', async () => {
+    const { accessToken, produitId, emplacementId } = await creerContexte();
+    const response = await request(app.getHttpServer())
+      .post('/mouvements/entree')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ produitId, emplacementId, quantite: 1, idClient: 'pas-un-uuid' });
+    expect(response.status).toBe(400);
+  });
 });

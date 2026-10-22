@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { ArrowDownToLine, ArrowRightLeft, Receipt, WifiOff } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
-import { ajouterMouvementEnAttente } from '@/lib/mouvementsHorsLigne';
+import { ajouterMouvementEnAttente, nouvelIdClient } from '@/lib/mouvementsHorsLigne';
 import { useEnLigne } from '@/lib/useEnLigne';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -194,9 +194,13 @@ export function MouvementModal({
     mutationFn: async (valeurs: Formulaire): Promise<{ horsLigne: boolean }> => {
       const route = type === 'ENTREE' ? '/mouvements/entree' : '/mouvements/transfert';
       const typeFile = type === 'ENTREE' ? 'entree' : 'transfert';
+      // idClient créé avant le premier envoi : si la réponse se perd et que
+      // le mouvement part en file, son renvoi ne sera pas compté deux fois.
+      const idClient = nouvelIdClient();
       const corps =
         type === 'ENTREE'
           ? {
+              idClient,
               produitId: valeurs.produitId,
               emplacementId: valeurs.emplacementId,
               ...(entreeSerie
@@ -218,6 +222,7 @@ export function MouvementModal({
                 : {}),
             }
           : {
+              idClient,
               produitId: valeurs.produitId,
               emplacementSourceId: valeurs.emplacementId,
               emplacementDestinationId: valeurs.emplacementDestinationId,

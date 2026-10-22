@@ -1,11 +1,15 @@
 import { api, messageErreur } from './api';
+import { ecrireValeur, lireValeur } from './stockageLocal';
 
+/** Clé de la file dans IndexedDB, et dans localStorage en repli (et avant migration). */
 const CLE_STOCKAGE = 'stockflow.mouvements-en-attente';
 /** Dernier refus du serveur sur un mouvement de la file (il bloque les suivants). */
 const CLE_ECHEC = 'stockflow.synchro-echec';
 /** Date ISO de la dernière synchronisation complète (file vide, données rechargées). */
 const CLE_DERNIERE = 'stockflow.derniere-synchro';
 const CLES_SUIVIES = [CLE_STOCKAGE, CLE_ECHEC, CLE_DERNIERE];
+/** Prévient les autres onglets qu'une file a changé dans IndexedDB. */
+const CANAL = 'stockflow.file-hors-ligne';
 
 export type TypeMouvementHorsLigne = 'entree' | 'sortie' | 'transfert';
 
@@ -33,8 +37,12 @@ function notifier() {
 }
 
 function surStockage(evenement: StorageEvent) {
-  // Un autre onglet a modifié la file : le compteur doit suivre.
-  if (evenement.key && CLES_SUIVIES.includes(evenement.key)) notifier();
+  // Un autre onglet a modifié l'échec, la dernière synchro ou la file de
+  // repli (localStorage) : l'affichage doit suivre.
+  if (evenement.key && CLES_SUIVIES.includes(evenement.key)) {
+    if (evenement.key === CLE_STOCKAGE && !indexedDbActif) memoire = lireRepli();
+    notifier();
+  }
 }
 
 /** Abonnement aux changements de la file et de l'état de synchronisation. */
@@ -47,27 +55,127 @@ export function souscrireFile(rappel: () => void): () => void {
   };
 }
 
-function lire(): MouvementEnAttente[] {
+/**
+ * Identifiant d'opération créé sur l'appareil, envoyé avec le mouvement :
+ * le serveur n'applique jamais deux fois le même (réponse perdue, renvoi
+ * depuis deux onglets).
+ */
+export function nouvelIdClient(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  // Contexte non sécurisé (http hors localhost) : UUID v4 construit à la main.
+  const octets = crypto.getRandomValues(new Uint8Array(16));
+  octets[6] = (octets[6] & 0x0f) | 0x40;
+  octets[8] = (octets[8] & 0x3f) | 0x80;
+  const hex = [...octets].map((o) => o.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/** Chaque mouvement de la file porte un idClient (les anciens en reçoivent un). */
+function avecIdClient(mouvements: MouvementEnAttente[]): MouvementEnAttente[] {
+  return mouvements.map((m) =>
+    typeof m.corps.idClient === 'string' ? m : { ...m, corps: { ...m.corps, idClient: nouvelIdClient() } },
+  );
+}
+
+// La file vit en mémoire (lecture synchrone pour l'affichage) et est
+// recopiée dans IndexedDB à chaque changement. Sans IndexedDB, repli sur
+// localStorage, comme avant.
+let memoire: MouvementEnAttente[] = [];
+let indexedDbActif = true;
+let ecritures: Promise<void> = Promise.resolve();
+const canal = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(CANAL) : null;
+
+function lireRepli(): MouvementEnAttente[] {
   try {
     const brut = localStorage.getItem(CLE_STOCKAGE);
     return brut ? (JSON.parse(brut) as MouvementEnAttente[]) : [];
   } catch {
-    // Stockage corrompu ou indisponible (navigation privée stricte, quota
-    // dépassé) : on repart d'une file vide plutôt que de faire planter
-    // l'application.
+    // Stockage corrompu ou indisponible : on repart d'une file vide
+    // plutôt que de faire planter l'application.
     return [];
   }
 }
 
-function ecrire(mouvements: MouvementEnAttente[]) {
+function ecrireRepli(mouvements: MouvementEnAttente[]) {
   try {
     localStorage.setItem(CLE_STOCKAGE, JSON.stringify(mouvements));
-    notifier();
   } catch {
     // Écriture impossible : la file en mémoire reste correcte pour cette
-    // session, mais ne survivra pas à un rechargement. Acceptable en
-    // dernier recours plutôt que de bloquer la saisie.
+    // session, mais ne survivra pas à un rechargement.
   }
+}
+
+async function lireStockage(): Promise<MouvementEnAttente[]> {
+  if (indexedDbActif) {
+    try {
+      return (await lireValeur<MouvementEnAttente[]>(CLE_STOCKAGE)) ?? [];
+    } catch {
+      indexedDbActif = false;
+    }
+  }
+  return lireRepli();
+}
+
+/** Recopie la file actuelle (et non celle du moment de l'appel) dans le stockage. */
+async function persister(): Promise<void> {
+  if (indexedDbActif) {
+    try {
+      await ecrireValeur(CLE_STOCKAGE, memoire);
+      canal?.postMessage('maj');
+      return;
+    } catch {
+      indexedDbActif = false;
+    }
+  }
+  ecrireRepli(memoire);
+}
+
+/** Relit la file quand un autre onglet l'a changée (nos écritures d'abord). */
+async function recharger(): Promise<void> {
+  await ecritures;
+  memoire = await lireStockage();
+  notifier();
+}
+
+/**
+ * Démarrage : charge la file d'IndexedDB et y reprend une éventuelle file
+ * laissée dans localStorage par la version précédente, ainsi que les
+ * mouvements saisis pendant le chargement (sans doublon). Les écritures
+ * demandées entre-temps attendent la fin de ce chargement.
+ */
+function initialiser(): Promise<void> {
+  const ancienne = lireRepli();
+  ecritures = lireStockage().then(async (stockee) => {
+    const connus = new Set<string>();
+    const fusion = [...stockee, ...ancienne, ...memoire].filter((m) => !connus.has(m.idLocal) && connus.add(m.idLocal));
+    memoire = avecIdClient(fusion);
+    notifier();
+    if (!indexedDbActif) return;
+    if (fusion.length !== stockee.length) await persister();
+    if (ancienne.length > 0) {
+      try {
+        localStorage.removeItem(CLE_STOCKAGE);
+      } catch {
+        // Sans effet : la file est déjà dans IndexedDB.
+      }
+    }
+  });
+  return ecritures;
+}
+
+const pret = typeof window === 'undefined' ? Promise.resolve() : initialiser();
+canal?.addEventListener('message', () => void recharger());
+
+function lire(): MouvementEnAttente[] {
+  return memoire;
+}
+
+function ecrire(mouvements: MouvementEnAttente[]) {
+  memoire = avecIdClient(mouvements);
+  notifier();
+  // Écritures en série, chacune recopiant la file du moment : la dernière
+  // version gagne toujours, même si un changement arrive pendant l'écriture.
+  ecritures = ecritures.then(persister, persister);
 }
 
 export function listerMouvementsEnAttente(): MouvementEnAttente[] {
@@ -86,7 +194,7 @@ export function ajouterMouvementEnAttente(
   const mouvement: MouvementEnAttente = {
     idLocal: `local-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     type,
-    corps,
+    corps: { ...corps, idClient: typeof corps.idClient === 'string' ? corps.idClient : nouvelIdClient() },
     resume,
     creeAt: new Date().toISOString(),
   };
@@ -143,16 +251,16 @@ export interface EtatFile {
   derniere: string | null;
 }
 
-let cacheEtat: { cle: string; valeur: EtatFile } | null = null;
+let cacheEtat: { file: MouvementEnAttente[]; cle: string; valeur: EtatFile } | null = null;
 
 /**
  * Instantané de la file pour useSyncExternalStore : même référence tant
  * que le stockage n'a pas changé, sinon React boucle sur les rendus.
  */
 export function etatFile(): EtatFile {
-  const cle = CLES_SUIVIES.map(lireCle).join('\u0000');
-  if (cacheEtat?.cle !== cle) {
-    cacheEtat = { cle, valeur: { mouvements: lire(), echec: lireEchec(), derniere: lireCle(CLE_DERNIERE) } };
+  const cle = [CLE_ECHEC, CLE_DERNIERE].map(lireCle).join('\u0000');
+  if (cacheEtat?.file !== memoire || cacheEtat.cle !== cle) {
+    cacheEtat = { file: memoire, cle, valeur: { mouvements: memoire, echec: lireEchec(), derniere: lireCle(CLE_DERNIERE) } };
   }
   return cacheEtat.valeur;
 }
@@ -171,6 +279,8 @@ export interface ResultatSynchronisation {
  */
 async function rejouerFile(): Promise<ResultatSynchronisation> {
   // Relue sous verrou : un autre onglet a pu vider la file entre-temps.
+  await pret;
+  await recharger();
   const enAttente = lire();
   const resultat: ResultatSynchronisation = { reussis: 0, echecs: [] };
 
