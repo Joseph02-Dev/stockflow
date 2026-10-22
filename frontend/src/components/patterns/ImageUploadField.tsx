@@ -1,19 +1,17 @@
 import { useRef, useState } from 'react';
 import { ImagePlus, Loader2, X } from 'lucide-react';
-import { api, messageErreur } from '@/lib/api';
+import { messageErreur } from '@/lib/api';
+import { ErreurImage, televerserImage, type DossierImage } from '@/lib/televerserImage';
 import { cn } from '@/lib/cn';
 
 interface ImageUploadFieldProps {
   label: string;
   valeur?: string;
-  dossier: 'produits' | 'fournisseurs' | 'utilisateurs' | 'pertes' | 'entreprise';
+  dossier: DossierImage;
   onChange: (url: string | undefined) => void;
   /** Forme ronde pour les avatars, carrée pour produits/fournisseurs. */
   forme?: 'carre' | 'rond';
 }
-
-const TAILLE_MAX_OCTETS = 5 * 1024 * 1024;
-const TYPES_ACCEPTES = ['image/jpeg', 'image/png', 'image/webp'];
 
 /**
  * Téléverse directement vers le backend (qui relaie vers Cloudinary) dès
@@ -30,26 +28,12 @@ export function ImageUploadField({ label, valeur, dossier, onChange, forme = 'ca
     event.target.value = ''; // permet de resélectionner le même fichier ensuite
     if (!fichier) return;
 
-    if (!TYPES_ACCEPTES.includes(fichier.type)) {
-      setErreur('Seules les images JPEG, PNG ou WEBP sont acceptées.');
-      return;
-    }
-    if (fichier.size > TAILLE_MAX_OCTETS) {
-      setErreur('Image trop volumineuse (5 Mo maximum).');
-      return;
-    }
-
     setErreur(null);
     setEnCours(true);
     try {
-      const formData = new FormData();
-      formData.append('fichier', fichier);
-      const { data } = await api.post<{ url: string }>(`/uploads/image?type=${dossier}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      onChange(data.url);
+      onChange(await televerserImage(fichier, dossier));
     } catch (error) {
-      setErreur(messageErreur(error, 'L’envoi de l’image a échoué.'));
+      setErreur(error instanceof ErreurImage ? error.message : messageErreur(error, 'L’envoi de l’image a échoué.'));
     } finally {
       setEnCours(false);
     }
