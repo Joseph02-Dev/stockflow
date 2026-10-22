@@ -1,0 +1,93 @@
+/* Menu mobile : panneau qui remonte du bas, pages en tuiles groupées. */
+.menu-mobile-voile {
+  animation: menu-mobile-fondu 250ms ease-out both;
+}
+.menu-mobile-panneau {
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -20px 50px -20px rgba(0, 0, 0, 0.45);
+  animation: menu-mobile-monte 380ms var(--ease-sortie) both;
+}
+.menu-mobile-tuiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.menu-mobile-tuile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 84px;
+  padding: 10px 6px;
+  border: 1px solid var(--color-rule);
+  border-radius: 14px;
+  background: var(--color-paper);
+  color: var(--color-ink-900);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  transition: background-color 150ms;
+  animation: menu-mobile-tuile 400ms var(--ease-sortie) both;
+}
+.menu-mobile-tuile:hover {
+  background: var(--color-survol);
+}
+.menu-mobile-tuile[aria-current='page'] {
+  border-color: var(--color-action);
+  background: var(--color-action-wash);
+}
+.menu-mobile-pastille {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  color: var(--teinte);
+  background: color-mix(in oklab, var(--teinte) 14%, var(--color-surface));
+}
+.menu-mobile-badges {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  display: flex;
+  gap: 3px;
+}
+.menu-mobile-badges > span {
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 99px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--color-sur-couleur);
+}
+
+@keyframes menu-mobile-monte {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes menu-mobile-tuile {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
+@keyframes menu-mobile-fondu {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-mobile-panneau,
+  .menu-mobile-tuile {
+    animation: menu-mobile-fondu 250ms ease-out both;
+  }
+}
