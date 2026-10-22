@@ -1,0 +1,127 @@
+/* Écran Commandes : parcours, brouillons, trajet des commandes en route. */
+.commandes-etape {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  transition:
+    transform 200ms var(--ease-sortie),
+    border-color 200ms;
+}
+.commandes-etape:hover {
+  transform: translateY(-2px);
+  border-color: var(--teinte);
+}
+.commandes-rond {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  color: var(--teinte);
+  background: color-mix(in oklab, var(--teinte) 13%, var(--color-surface));
+}
+/* Le camion roule doucement tant qu'il y a des commandes en route. */
+.commandes-rond[data-roule] svg {
+  animation: commandes-roule 1.6s ease-in-out infinite;
+}
+@keyframes commandes-roule {
+  0%,
+  100% {
+    transform: translateX(-2px);
+  }
+  50% {
+    transform: translateX(2px);
+  }
+}
+
+.commandes-brouillon {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border: 1px dashed var(--color-rule-strong);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+}
+
+.commandes-route {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) minmax(220px, 300px) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+}
+.commandes-piste i {
+  transform-origin: left;
+  animation: commandes-pousse 900ms var(--ease-sortie) 200ms both;
+}
+@keyframes commandes-pousse {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.commandes-historique {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) 96px 16px;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  transition: background 150ms;
+}
+.commandes-historique:hover {
+  background: var(--color-survol);
+}
+
+@media (max-width: 979px) {
+  .commandes-route {
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+  }
+  .commandes-route > :nth-child(3) {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+  .commandes-historique {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+  }
+  .commandes-historique > :nth-child(3),
+  .commandes-historique > :nth-child(4),
+  .commandes-historique > :nth-child(6) {
+    display: none;
+  }
+}
+@media (max-width: 639px) {
+  .commandes-etape {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px;
+  }
+  .commandes-rond {
+    width: 36px;
+    height: 36px;
+  }
+  .commandes-route,
+  .commandes-historique {
+    padding: 12px 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .commandes-etape {
+    transition-duration: 150ms;
+  }
+  .commandes-etape:hover {
+    transform: none;
+  }
+  .commandes-rond[data-roule] svg,
+  .commandes-piste i {
+    animation: none;
+  }
+}
