@@ -1,7 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeftRight, Download, ExternalLink, FileSpreadsheet, FileText, PackageX, Receipt, Warehouse } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeftRight,
+  ArrowRight,
+  Check,
+  Download,
+  ExternalLink,
+  FileSpreadsheet,
+  FileText,
+  MessageCircle,
+  PackageX,
+  Receipt,
+  Warehouse,
+} from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { pluriel } from '@/lib/format';
@@ -12,15 +26,19 @@ import { lienWhatsApp } from '@/lib/whatsapp';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Selecteur } from '@/components/ui/Selecteur';
-import { Card, PageHeader, PanneauEntete } from '@/components/patterns/Page';
-import { Onglets } from '@/components/patterns/Onglets';
+import { PageHeader } from '@/components/patterns/Page';
+import { CHAMPS_IDENTITE, useEntreprise } from '@/features/parametres/donnees';
 import { nomDeFichier, rendrePremierePage, telecharger } from './apercuPdf';
 import type { ApercuRapport, ParametresRapport, Periode, TypeRapport } from './types';
+import './rapports.css';
 
 interface DefinitionRapport {
   type: TypeRapport;
   titre: string;
   usage: string;
+  /** À qui le document est destiné. */
+  pour: string;
+  teinte: string;
   Icone: typeof Warehouse;
   periode: boolean;
   options: ('detail' | 'graphiques' | 'signature')[];
@@ -35,7 +53,9 @@ const RAPPORTS: DefinitionRapport[] = [
   {
     type: 'stock',
     titre: 'État du stock',
-    usage: 'Valeur et quantités par catégorie et par dépôt. À montrer à un banquier pour un crédit, ou à un associé.',
+    usage: 'Valeur et quantités par catégorie et par dépôt. Pour un crédit ou un associé.',
+    pour: 'Banquier · associé',
+    teinte: 'var(--color-action)',
     Icone: Warehouse,
     periode: false,
     options: ['detail', 'graphiques', 'signature'],
@@ -43,7 +63,9 @@ const RAPPORTS: DefinitionRapport[] = [
   {
     type: 'mouvements',
     titre: 'Journal des mouvements',
-    usage: 'Chaque entrée et sortie avec le solde après opération. Pour un contrôleur : le calcul se refait à la main.',
+    usage: 'Chaque entrée et sortie avec le solde après opération : le calcul se refait à la main.',
+    pour: 'Contrôleur',
+    teinte: '#2f6fb3',
     Icone: ArrowLeftRight,
     periode: true,
     options: ['signature'],
@@ -51,7 +73,9 @@ const RAPPORTS: DefinitionRapport[] = [
   {
     type: 'client',
     titre: 'Relevé de compte client',
-    usage: 'Ventes, règlements et solde dû, comme un relevé bancaire. À remettre au client qui vous doit de l’argent.',
+    usage: 'Ventes, règlements et solde dû, comme un relevé bancaire.',
+    pour: 'Client',
+    teinte: 'var(--color-accent)',
     Icone: Receipt,
     periode: true,
     options: [],
@@ -59,7 +83,9 @@ const RAPPORTS: DefinitionRapport[] = [
   {
     type: 'pertes',
     titre: 'Rapport de pertes',
-    usage: 'Ce que vous avez perdu, pourquoi et où. Pour décider où agir avec vos responsables de dépôt.',
+    usage: 'Ce que vous avez perdu, pourquoi et où, pour décider où agir.',
+    pour: 'Responsables de dépôt',
+    teinte: 'var(--color-rupture)',
     Icone: PackageX,
     periode: true,
     options: ['detail', 'graphiques', 'signature'],
@@ -179,6 +205,7 @@ export function RapportsPage() {
     queryFn: async () => (await api.get<{ id: string; nom: string; nomCommerce: string | null; telephone: string | null }[]>('/clients')).data,
     enabled: p.type === 'client',
   });
+  const entreprise = useEntreprise();
   const creances = useQuery({
     queryKey: ['creances'],
     queryFn: async () =>
@@ -243,15 +270,65 @@ export function RapportsPage() {
   const pret = requete(p) !== null;
   const actifs = (emplacements.data ?? []).filter((e) => !e.archive);
 
+  // En-tête des documents : mêmes mentions que dans Paramètres › Entreprise.
+  const manquantes = entreprise.data ? CHAMPS_IDENTITE.filter(({ champ }) => !entreprise.data[champ]) : [];
+  const estAdmin = session?.utilisateur.role === 'ADMIN';
+
+  // Ce que couvrira le document, en une ligne.
+  const formatJour = (iso: string) =>
+    new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+  const bornes = p.periode === 'perso' ? [p.debut, p.fin] : [jourIso(1 - Number(p.periode)), jourIso()];
+  const couverture: string[] = [
+    def.periode ? `Du ${formatJour(bornes[0])} au ${formatJour(bornes[1])}` : 'Stock à l’instant de l’édition',
+  ];
+  if (p.type === 'client') couverture.push(client ? client.nom : 'Aucun client choisi');
+  if (p.type === 'stock' || p.type === 'mouvements') {
+    couverture.push(actifs.find((e) => e.id === p.emplacementId)?.nom ?? 'Tous les emplacements');
+  }
+  if (p.type === 'stock') couverture.push(categories.data?.find((c) => c.id === p.categorieId)?.nom ?? 'Toutes les catégories');
+  if (p.type === 'mouvements') {
+    couverture.push(TYPES_MOUVEMENT.find(([v]) => v === p.typeMouvement)?.[1] ?? 'Tous les types de mouvement');
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <PageHeader titre="Rapports" description="Des documents d’entreprise, générés par le serveur : identiques quel que soit le poste qui les imprime." />
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
-        <div className="flex min-w-0 flex-col gap-5">
-          <Card>
-            <PanneauEntete titre="Quel rapport ?" />
-            <div role="radiogroup" aria-label="Type de rapport" className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5">
+      {manquantes.length > 0 && (
+        <div className="rapports-identite" role="note">
+          <AlertTriangle className="size-4 shrink-0 text-faible" aria-hidden="true" />
+          <span>
+            <b className="font-semibold text-ink-900">
+              En-tête incomplet : {CHAMPS_IDENTITE.length - manquantes.length} {pluriel('mention', CHAMPS_IDENTITE.length - manquantes.length)} sur {CHAMPS_IDENTITE.length}.
+            </b>{' '}
+            Manquent sur vos documents :
+          </span>
+          <span className="flex flex-wrap gap-1">
+            {manquantes.map(({ champ, libelle }) => (
+              <span key={champ} className="rapports-manque">
+                {libelle}
+              </span>
+            ))}
+          </span>
+          {estAdmin ? (
+            <Link to="/parametres" className="inline-flex items-center gap-1 text-[13px] font-semibold text-action hover:underline sm:ml-auto">
+              Compléter dans Paramètres
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+          ) : (
+            <span className="text-[13px] text-steel-500 sm:ml-auto">Un administrateur peut les compléter.</span>
+          )}
+        </div>
+      )}
+
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="flex min-w-0 flex-col gap-4">
+          <section className="rapports-carte p-4 sm:p-5" aria-labelledby="etape-1">
+            <div className="rapports-etape">
+              <span aria-hidden="true">1</span>
+              <h2 id="etape-1">Quel document ?</h2>
+            </div>
+            <div role="radiogroup" aria-labelledby="etape-1" className="grid gap-2.5 sm:grid-cols-2">
               {RAPPORTS.map((r) => (
                 <button
                   key={r.type}
@@ -259,30 +336,51 @@ export function RapportsPage() {
                   role="radio"
                   aria-checked={p.type === r.type}
                   onClick={() => maj({ type: r.type })}
-                  className={cn(
-                    'flex items-start gap-3 rounded-[10px] border p-3.5 text-left transition-colors',
-                    p.type === r.type ? 'border-action bg-action-wash/40 shadow-[0_0_0_1px_var(--color-action)]' : 'border-rule-strong hover:bg-survol',
-                  )}
+                  className="rapports-choix"
+                  style={{ '--teinte': r.teinte } as CSSProperties}
                 >
-                  <span className={cn('grid size-9 shrink-0 place-items-center rounded-md', p.type === r.type ? 'bg-action text-sur-couleur' : 'bg-paper text-steel-700')}>
-                    <r.Icone className="size-[18px]" aria-hidden="true" />
+                  <span className="rapports-coche" aria-hidden="true">
+                    <Check className="size-3" strokeWidth={3} />
                   </span>
-                  <span className="flex min-w-0 flex-col gap-0.5">
-                    <span className="text-corps font-semibold text-ink-900">{r.titre}</span>
-                    <span className="text-meta text-steel-500">{r.usage}</span>
+                  <span className="flex items-center gap-2.5 pr-6">
+                    <span className="rapports-pastille" aria-hidden="true">
+                      <r.Icone className="size-[18px]" />
+                    </span>
+                    <span className="text-[14.5px] font-semibold text-ink-900">{r.titre}</span>
+                  </span>
+                  <span className="text-[12.5px] leading-[1.5] text-steel-500">{r.usage}</span>
+                  <span className="inline-flex h-[22px] items-center self-start rounded-full border border-rule bg-paper px-2 text-[11.5px] font-semibold text-steel-500">
+                    Pour : {r.pour}
                   </span>
                 </button>
               ))}
             </div>
-          </Card>
+          </section>
 
-          <Card>
-            <PanneauEntete titre="Réglages" meta={def.periode ? undefined : 'Photographie du stock à l’instant de l’édition'} />
-            <div className="flex flex-col gap-4 p-4 sm:p-5">
+          <section className="rapports-carte p-4 sm:p-5" aria-labelledby="etape-2">
+            <div className="rapports-etape">
+              <span aria-hidden="true">2</span>
+              <h2 id="etape-2">Ce qu’il couvre</h2>
+            </div>
+            <div className="flex flex-col gap-4">
               {def.periode && (
                 <div className="flex flex-col gap-2">
-                  <span className="text-corps font-medium text-ink-900">Période</span>
-                  <Onglets onglets={PERIODES} actif={p.periode} onChange={(periode) => maj({ periode })} libelle="Période du rapport" />
+                  <span className="text-corps font-semibold text-ink-900" id="libelle-periode">
+                    Période
+                  </span>
+                  <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby="libelle-periode">
+                    {PERIODES.map((periode) => (
+                      <button
+                        key={periode.cle}
+                        type="button"
+                        aria-pressed={p.periode === periode.cle}
+                        onClick={() => maj({ periode: periode.cle })}
+                        className="rapports-puce"
+                      >
+                        {periode.libelle}
+                      </button>
+                    ))}
+                  </div>
                   {p.periode === 'perso' && (
                     <div className="grid grid-cols-2 gap-3">
                       {(['debut', 'fin'] as const).map((borne) => (
@@ -293,7 +391,7 @@ export function RapportsPage() {
                             value={p[borne]}
                             max={jourIso()}
                             onChange={(e) => maj({ [borne]: e.target.value })}
-                            className="h-10 champ rounded-md border border-rule-strong bg-surface-elevee px-3 text-corps text-ink-900"
+                            className="h-10 champ rounded-lg border border-rule-strong bg-surface-elevee px-3 text-corps text-ink-900"
                           />
                         </label>
                       ))}
@@ -341,6 +439,16 @@ export function RapportsPage() {
                 )}
               </div>
 
+              <p className="flex flex-wrap gap-x-2 gap-y-1 rounded-xl bg-paper px-3.5 py-2.5 text-corps text-steel-500" aria-live="polite">
+                <span className="sr-only">Le document couvrira :</span>
+                {couverture.map((morceau, i) => (
+                  <span key={morceau} className="font-semibold text-ink-900">
+                    {i > 0 && <span className="mr-2 font-normal text-steel-400" aria-hidden="true">·</span>}
+                    {morceau}
+                  </span>
+                ))}
+              </p>
+
               {def.options.length > 0 && (
                 <div className="flex flex-col divide-y divide-rule border-t border-rule">
                   {def.options.includes('detail') && (
@@ -367,35 +475,51 @@ export function RapportsPage() {
                 <p className="text-meta text-steel-500">Le relevé comporte toujours deux zones de signature : le client pour accord, et votre entreprise.</p>
               )}
             </div>
-          </Card>
+          </section>
         </div>
 
         <div className="flex flex-col gap-4 lg:sticky lg:top-4">
-          <Card className="overflow-hidden">
-            <PanneauEntete
-              titre="Aperçu de la première page"
-              meta={apercu.data && pret ? `${apercu.data.pages} ${pluriel('page', apercu.data.pages)} · A4` : 'À l’échelle du document réel'}
-            />
-            <div ref={conteneur} className="relative bg-paper p-4">
+          <section className="rapports-carte overflow-hidden" aria-labelledby="titre-apercu">
+            <div ref={conteneur} className="rapports-bureau">
+              <div className="mb-3.5 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 id="titre-apercu" className="truncate text-[14px] font-semibold text-white">
+                    {def.titre}
+                  </h2>
+                  <p className="text-[12.5px] text-white/60">Aperçu de la première page</p>
+                </div>
+                {apercu.data && pret && (
+                  <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-white/10 px-2.5 font-mono text-[11.5px] font-semibold text-white/85">
+                    {apercu.data.pages} {pluriel('page', apercu.data.pages)} · A4
+                  </span>
+                )}
+              </div>
               {!pret ? (
-                <div className="grid aspect-[210/297] place-items-center rounded-sm bg-surface px-6 text-center text-corps text-steel-500 shadow-card">
+                <div className="grid aspect-[210/297] place-items-center rounded-[4px] bg-white px-6 text-center text-corps text-[#5d616b]">
                   {p.type === 'client' ? 'Choisissez un client pour voir son relevé.' : 'Complétez la période pour voir l’aperçu.'}
                 </div>
               ) : apercu.isError ? (
                 <Alert variant="error">{messageErreur(apercu.error, 'L’aperçu n’a pas pu être généré.')}</Alert>
               ) : (
-                <div className={cn('relative transition-opacity', (apercu.isFetching || rendu === 'attente') && 'opacity-60')}>
-                  <canvas ref={setCanvas} className="mx-auto block aspect-[210/297] w-full rounded-sm bg-white shadow-card" aria-label="Aperçu de la première page du rapport" role="img" />
-                  {rendu === 'attente' && <div className="absolute inset-0 grid aspect-[210/297] place-items-center text-meta text-steel-500">Génération…</div>}
-                  {rendu === 'erreur' && <p className="text-meta text-rupture">Aperçu indisponible sur cet appareil ; le PDF reste téléchargeable.</p>}
+                <div className={cn('rapports-pile transition-opacity', (apercu.isFetching || rendu === 'attente') && 'opacity-60')}>
+                  <canvas
+                    ref={setCanvas}
+                    className="relative z-10 mx-auto block aspect-[210/297] w-full rounded-[4px] bg-white shadow-[0_18px_40px_-16px_rgb(0_0_0/0.6)]"
+                    aria-label="Aperçu de la première page du rapport"
+                    role="img"
+                  />
+                  {rendu === 'attente' && (
+                    <div className="absolute inset-0 z-20 grid aspect-[210/297] place-items-center text-meta text-steel-500">Génération…</div>
+                  )}
+                  {rendu === 'erreur' && <p className="mt-2 text-meta text-white/70">Aperçu indisponible sur cet appareil ; le PDF reste téléchargeable.</p>}
                 </div>
               )}
             </div>
-            <div className="flex flex-col gap-2 border-t border-rule p-4">
+            <div className="flex flex-col gap-2 p-4">
               {erreur && <Alert variant="error">{erreur}</Alert>}
               <Button disabled={!pret} loading={action === 'pdf'} onClick={() => exporter('pdf')} className="w-full">
                 <Download className="size-4" aria-hidden="true" />
-                Générer le PDF
+                Télécharger le PDF
               </Button>
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="secondary" disabled={!pret || !apercu.data} onClick={apercuComplet}>
@@ -407,14 +531,13 @@ export function RapportsPage() {
                   Export CSV
                 </Button>
               </div>
+              <p className="text-center text-[12px] text-steel-400">Le CSV s’ouvre dans Excel ou Google Sheets.</p>
             </div>
-          </Card>
 
-          {p.type === 'client' && client && (
-            <Card>
-              <div className="flex flex-col gap-3 p-4">
-                <p className="text-corps text-ink-900">
-                  <FileText className="mr-1.5 inline size-4 text-steel-500" aria-hidden="true" />
+            {p.type === 'client' && client && (
+              <div className="flex flex-col gap-3 border-t border-rule p-4">
+                <p className="text-corps text-steel-500">
+                  <FileText className="mr-1.5 inline size-4 text-steel-400" aria-hidden="true" />
                   WhatsApp ne transporte que du texte : téléchargez le PDF, puis joignez-le vous-même à la conversation.
                 </p>
                 {client.telephone && dette ? (
@@ -435,9 +558,11 @@ export function RapportsPage() {
                     )}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-whatsapp px-4 text-corps font-medium text-white hover:bg-whatsapp-dark"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-whatsapp px-4 text-corps font-semibold text-white hover:bg-whatsapp-dark"
                   >
-                    Envoyer un rappel du solde par WhatsApp
+                    <MessageCircle className="size-4" aria-hidden="true" />
+                    Envoyer un rappel du solde
+                    <span className="sr-only"> (ouvre WhatsApp dans un nouvel onglet)</span>
                   </a>
                 ) : (
                   <p className="text-meta text-steel-500">
@@ -445,8 +570,8 @@ export function RapportsPage() {
                   </p>
                 )}
               </div>
-            </Card>
-          )}
+            )}
+          </section>
         </div>
       </div>
     </div>

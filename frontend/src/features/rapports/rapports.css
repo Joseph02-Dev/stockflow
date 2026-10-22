@@ -1,0 +1,171 @@
+/* Écran Rapports : choix du document, étapes, aperçu posé sur un fond sombre. */
+.rapports-identite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 12px 16px;
+  border: 1px solid color-mix(in oklab, var(--color-faible) 30%, var(--color-rule));
+  border-radius: var(--radius-xl);
+  font-size: 13.5px;
+  color: var(--color-steel-700);
+  background: var(--color-faible-wash);
+}
+.rapports-manque {
+  padding: 1px 7px;
+  border: 1px dashed color-mix(in oklab, var(--color-faible) 60%, transparent);
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-faible);
+}
+.rapports-carte {
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  animation: rapports-arrive 400ms var(--ease-sortie) both;
+}
+.rapports-etape {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.rapports-etape span {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font: 700 13px var(--font-display);
+  color: var(--color-paper);
+  background: var(--color-ink-900);
+}
+.rapports-etape h2 {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--color-ink-900);
+}
+.rapports-choix {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: 13px;
+  text-align: left;
+  background: var(--color-surface);
+  transition:
+    border-color 200ms,
+    box-shadow 200ms,
+    transform 200ms var(--ease-sortie);
+}
+.rapports-choix:hover {
+  transform: translateY(-2px);
+}
+.rapports-choix[aria-checked='true'] {
+  border-color: var(--teinte);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--teinte) 16%, transparent);
+}
+.rapports-pastille {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  color: var(--teinte);
+  background: color-mix(in oklab, var(--teinte) 13%, var(--color-surface));
+}
+.rapports-choix[aria-checked='true'] .rapports-pastille {
+  color: #fff;
+  background: var(--teinte);
+}
+.rapports-coche {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--color-rule-strong);
+  border-radius: 50%;
+  color: transparent;
+}
+.rapports-choix[aria-checked='true'] .rapports-coche {
+  border-color: var(--teinte);
+  color: #fff;
+  background: var(--teinte);
+}
+.rapports-puce {
+  height: 34px;
+  padding: 0 13px;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: 99px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-steel-700);
+  background: var(--color-surface);
+}
+.rapports-puce[aria-pressed='true'] {
+  border-color: var(--color-ink-900);
+  color: var(--color-paper);
+  background: var(--color-ink-900);
+}
+/* Le document est posé sur un bureau sombre, quel que soit le thème. */
+.rapports-bureau {
+  padding: 20px 22px 18px;
+  background: radial-gradient(120% 80% at 50% 0%, #2a2b31, #17181c 70%);
+}
+.rapports-pile {
+  position: relative;
+}
+.rapports-pile::before,
+.rapports-pile::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  background: #e9eae6;
+  transform: translate(6px, 6px) rotate(1.2deg);
+}
+.rapports-pile::after {
+  background: #dcded8;
+  transform: translate(11px, 11px) rotate(2.4deg);
+}
+
+@keyframes rapports-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes rapports-fondu {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 1023px) {
+  .rapports-bureau {
+    padding: 18px 14% 16px;
+  }
+}
+@media (max-width: 639px) {
+  .rapports-bureau {
+    padding: 16px 10% 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rapports-carte {
+    animation: rapports-fondu 300ms ease-out both;
+  }
+  .rapports-choix:hover {
+    transform: none;
+  }
+}
