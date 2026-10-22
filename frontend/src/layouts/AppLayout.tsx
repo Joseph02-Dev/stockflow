@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -38,6 +38,8 @@ import { Logo } from '@/components/patterns/Logo';
 import { ProfilModal } from '@/features/profil/ProfilModal';
 import { IndicateurSynchro } from '@/features/synchronisation/IndicateurSynchro';
 import { useSynchronisation } from '@/lib/useSynchronisation';
+import { usePrechargementHorsLigne } from '@/lib/usePrechargementHorsLigne';
+import { prechargerEcrans } from '@/lib/prechargementHorsLigne';
 import { BarreProgression } from '@/components/patterns/BarreProgression';
 import { useModules } from '@/lib/useModules';
 import { ADRESSE_AIDE } from '@/lib/contact';
@@ -355,7 +357,16 @@ export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [profilOuvert, setProfilOuvert] = useState(false);
-  const { statut: statutSynchro, nombreEnAttente, file: fileSynchro, synchroniser } = useSynchronisation();
+  const admin = session?.utilisateur.role === 'ADMIN';
+  // Hors ligne : les écrans principaux sont préchargés au démarrage, au
+  // retour du réseau et à chaque « Synchroniser ».
+  usePrechargementHorsLigne(admin, modules.lots, modules.rangement, modules.charge);
+  const prechargerMaintenant = useCallback(
+    () => prechargerEcrans({ admin, lots: modules.lots, rangement: modules.rangement }, true),
+    [admin, modules.lots, modules.rangement],
+  );
+  const { statut: statutSynchro, nombreEnAttente, file: fileSynchro, synchroniser } =
+    useSynchronisation(prechargerMaintenant);
   const [plusOuvert, setPlusOuvert] = useState(false);
 
   const [recherche, setRecherche] = useState('');

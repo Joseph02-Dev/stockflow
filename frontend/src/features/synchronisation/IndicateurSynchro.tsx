@@ -1,10 +1,11 @@
-import { useCallback, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowDown, ArrowLeftRight, ArrowUp, ChevronDown, CircleCheck, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { usePanneauFlottant } from '@/lib/usePanneauFlottant';
 import { supprimerMouvementEnAttente, type EtatFile, type TypeMouvementHorsLigne } from '@/lib/mouvementsHorsLigne';
 import type { StatutSynchronisation } from '@/lib/useSynchronisation';
+import { dernierPrechargement, souscrirePrechargement } from '@/lib/prechargementHorsLigne';
 
 const LARGEUR_PANNEAU = 380;
 
@@ -43,6 +44,7 @@ export function IndicateurSynchro({ statut, file, libelleReseau, synchroniser, v
   const panneauRef = useRef<HTMLDivElement>(null);
   const idPanneau = useId();
 
+  const prechargement = useSyncExternalStore(souscrirePrechargement, dernierPrechargement, dernierPrechargement);
   const horsLigne = statut === 'hors-ligne';
   const enCours = statut === 'synchronisation';
   const nombre = file.mouvements.length;
@@ -216,6 +218,11 @@ export function IndicateurSynchro({ statut, file, libelleReseau, synchroniser, v
           {horsLigne
             ? 'Pas de réseau : l’envoi repartira tout seul dès le retour de la connexion.'
             : 'Les mouvements partent dans l’ordre où ils ont été saisis.'}
+        </p>
+        <p className="text-meta text-steel-400">
+          {prechargement
+            ? `Écrans disponibles hors ligne, avec les données de ${moment(prechargement)}.`
+            : 'Écrans hors ligne : pas encore préparés sur cet appareil.'}
         </p>
       </div>
     </div>

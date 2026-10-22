@@ -16,6 +16,7 @@ import { boutonClasses } from '@/components/ui/boutonClasses';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { MODES } from './modes';
 import type { ModePaiement, VenteResume } from './types';
+import { debutPeriode } from '@/lib/periode';
 import './ventes.css';
 
 const LIEN_NOUVELLE = boutonClasses('primary');
@@ -158,13 +159,6 @@ const PERIODES = [
 type ClePeriode = (typeof PERIODES)[number]['cle'];
 
 /** Minuit local, `jours - 1` jours avant aujourd'hui : « 7 jours » = aujourd'hui et les 6 précédents. */
-function debutPeriode(jours: number): string {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - (jours - 1));
-  return d.toISOString();
-}
-
 const jourLong = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 const heure = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
 const cleJour = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;

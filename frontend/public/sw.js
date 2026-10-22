@@ -6,6 +6,10 @@
 // file d'attente locale — ce service worker n'y touche pas.
 
 const CACHE = 'stockflow-v1';
+// Toutes les pages de l'application sont le même index.html (routage côté
+// client) : la dernière page chargée en ligne sert de coquille pour ouvrir
+// hors ligne n'importe quelle adresse, même jamais visitée.
+const COQUILLE = '/__coquille-application';
 
 self.addEventListener('install', () => {
   // Passe immédiatement à l'état actif : pas d'attente sur les anciens
@@ -37,15 +41,25 @@ self.addEventListener('fetch', (event) => {
   // le cross-origin exclurait précisément les réponses API qu'on veut
   // mettre en cache. Les réponses Cloudinary (photos) en profitent aussi,
   // sans effet indésirable.
+  const navigation = request.mode === 'navigate';
   event.respondWith(
     fetch(request)
       .then((reponse) => {
         if (reponse.ok) {
           const copie = reponse.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, copie));
+          const coquille = navigation ? reponse.clone() : null;
+          caches.open(CACHE).then((cache) => {
+            cache.put(request, copie);
+            if (coquille) cache.put(COQUILLE, coquille);
+          });
         }
         return reponse;
       })
-      .catch(() => caches.match(request).then((reponse) => reponse ?? Response.error())),
+      .catch(() =>
+        caches
+          .match(request)
+          .then((reponse) => reponse ?? (navigation ? caches.match(COQUILLE) : undefined))
+          .then((reponse) => reponse ?? Response.error()),
+      ),
   );
 });
