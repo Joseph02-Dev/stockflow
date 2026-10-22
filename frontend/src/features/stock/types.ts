@@ -18,3 +18,6 @@ export interface LieuAffiche {
   nom: string;
   teinte: string;
 }
+
+/** Une teinte par emplacement, dans l'ordre de la liste ; les couleurs de statut restent aux états du stock. */
+export const TEINTES_LIEUX = ['var(--color-action)', 'var(--color-accent)', '#2f6fb3', '#8a6d3b', '#5b7083', '#b0487a'];
