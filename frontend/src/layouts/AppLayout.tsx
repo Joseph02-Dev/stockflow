@@ -21,6 +21,7 @@ import {
   PanelLeftOpen,
   Plus,
   Receipt,
+  RefreshCw,
   Settings,
   Tag,
   Truck,
@@ -35,6 +36,7 @@ import { useSession } from '@/lib/useSession';
 import { cn } from '@/lib/cn';
 import { Logo } from '@/components/patterns/Logo';
 import { ProfilModal } from '@/features/profil/ProfilModal';
+import { IndicateurSynchro } from '@/features/synchronisation/IndicateurSynchro';
 import { useSynchronisation } from '@/lib/useSynchronisation';
 import { BarreProgression } from '@/components/patterns/BarreProgression';
 import { useModules } from '@/lib/useModules';
@@ -353,7 +355,7 @@ export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [profilOuvert, setProfilOuvert] = useState(false);
-  const { statut: statutSynchro, nombreEnAttente } = useSynchronisation();
+  const { statut: statutSynchro, nombreEnAttente, file: fileSynchro, synchroniser } = useSynchronisation();
   const [plusOuvert, setPlusOuvert] = useState(false);
 
   const [recherche, setRecherche] = useState('');
@@ -787,20 +789,14 @@ export function AppLayout() {
             </form>
             <SelecteurTheme className="hidden md:inline-flex" />
             <SelecteurTheme compact className="inline-flex md:hidden" />
-            <span className="hidden items-center gap-1.5 px-1.5 text-meta text-steel-500 md:inline-flex" role="status">
-              <span
-                className={cn(
-                  'inline-flex size-2 shrink-0 rounded-full',
-                  statutSynchro === 'hors-ligne'
-                    ? 'bg-rupture'
-                    : statutSynchro === 'synchronisation'
-                      ? 'animate-pulse bg-faible'
-                      : 'bg-reseau',
-                )}
-                aria-hidden="true"
-              />
-              {libelleReseau}
-            </span>
+            <IndicateurSynchro
+              variante="bureau"
+              className="hidden md:inline-flex"
+              statut={statutSynchro}
+              file={fileSynchro}
+              libelleReseau={libelleReseau}
+              synchroniser={synchroniser}
+            />
             {modules.assistant && (
               <button
                 type="button"
@@ -821,6 +817,17 @@ export function AppLayout() {
               <CircleHelp className="size-[18px]" aria-hidden="true" />
             </a>
             <ClocheNotifications />
+            {/* Mobile : la pastille n'apparaît que s'il y a quelque chose à signaler. */}
+            {(statutSynchro !== 'en-ligne' || nombreEnAttente > 0) && (
+              <IndicateurSynchro
+                variante="mobile"
+                className="md:hidden"
+                statut={statutSynchro}
+                file={fileSynchro}
+                libelleReseau={libelleReseau}
+                synchroniser={synchroniser}
+              />
+            )}
             <button
               type="button"
               onClick={() => setPlusOuvert(true)}
@@ -994,8 +1001,24 @@ export function AppLayout() {
                   )}
                   aria-hidden="true"
                 />
-                <span className="truncate">{libelleReseau}</span>
+                <span className="truncate">
+                  {libelleReseau}
+                  {nombreEnAttente > 0 && ` · ${nombreEnAttente} en attente`}
+                </span>
               </span>
+              <button
+                type="button"
+                onClick={() => void synchroniser()}
+                disabled={statutSynchro !== 'en-ligne'}
+                aria-label="Synchroniser maintenant"
+                title="Synchroniser maintenant"
+                className="ml-auto inline-flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-rule-strong bg-surface text-action hover:bg-survol disabled:text-steel-400"
+              >
+                <RefreshCw
+                  className={cn('size-4', statutSynchro === 'synchronisation' && 'animate-spin motion-reduce:animate-none')}
+                  aria-hidden="true"
+                />
+              </button>
               <button
                 type="button"
                 onClick={seDeconnecter}
