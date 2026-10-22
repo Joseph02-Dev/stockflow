@@ -1,0 +1,137 @@
+/* Écran Catégories & marques : synthèse, répartition de la valeur, cartes. */
+.referentiels-synthese {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 12px;
+}
+.referentiels-tuile,
+.referentiels-carte {
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  animation: referentiels-arrive 400ms var(--ease-sortie) both;
+}
+.referentiels-tuile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px;
+}
+.referentiels-jauge {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--color-rule);
+}
+.referentiels-jauge i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--teinte);
+  transform-origin: left;
+  animation: referentiels-pousse 800ms var(--ease-sortie) 150ms both;
+}
+.referentiels-barre {
+  display: flex;
+  gap: 3px;
+  height: 14px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--color-rule);
+}
+.referentiels-barre i {
+  background: var(--teinte);
+  transform-origin: left;
+  transition: opacity 200ms;
+  animation: referentiels-pousse 900ms var(--ease-sortie) 200ms both;
+}
+.referentiels-barre[data-survol] i:not([data-actif]) {
+  opacity: 0.3;
+}
+.referentiels-grille {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.referentiels-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+}
+.referentiels-carte[data-sans] {
+  border-style: dashed;
+  background: transparent;
+  box-shadow: none;
+}
+.referentiels-pastille {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid color-mix(in oklab, var(--teinte) 26%, transparent);
+  border-radius: 12px;
+  font: 650 16px var(--font-display);
+  color: var(--teinte);
+  background: color-mix(in oklab, var(--teinte) 14%, var(--color-surface));
+}
+.referentiels-carte[data-sans] .referentiels-pastille {
+  border: 1px dashed var(--color-rule-strong);
+  color: var(--color-steel-400);
+  background: var(--color-paper);
+}
+
+@keyframes referentiels-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes referentiels-pousse {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes referentiels-fondu {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 979px) {
+  .referentiels-synthese {
+    grid-template-columns: 1fr 1fr;
+  }
+  .referentiels-synthese > :first-child {
+    grid-column: 1 / -1;
+  }
+  .referentiels-grille {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 639px) {
+  .referentiels-synthese {
+    gap: 8px;
+  }
+  .referentiels-tuile {
+    padding: 13px;
+  }
+  .referentiels-grille {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .referentiels-tuile,
+  .referentiels-carte {
+    animation: referentiels-fondu 300ms ease-out both;
+  }
+  .referentiels-jauge i,
+  .referentiels-barre i {
+    animation: none;
+  }
+}

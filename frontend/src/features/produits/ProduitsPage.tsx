@@ -195,7 +195,11 @@ export function ProduitsPage() {
   const [aArchiver, setAArchiver] = useState<Produit | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
 
-  const [categorieFiltre, setCategorieFiltre] = useState(TOUTES);
+  // ?categorie= : filtre ouvert depuis Catégories & marques (« sans » : produits sans catégorie).
+  const [categorieFiltre, setCategorieFiltre] = useState(() => {
+    const categorieUrl = parametresUrl.get('categorie');
+    return categorieUrl === 'sans' ? SANS_CATEGORIE : (categorieUrl ?? TOUTES);
+  });
   const [statutFiltre, setStatutFiltre] = useState<StatutStock | null>(null);
   const [vue, setVue] = useState<Vue>(lireVue);
   const champRecherche = useRef<HTMLInputElement>(null);
