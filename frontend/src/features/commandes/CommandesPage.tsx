@@ -27,8 +27,11 @@ interface Commande {
   /** Brouillon préparé par le réapprovisionnement automatique. */
   automatique?: boolean;
   _count: { lignes: number };
-  /** Quantités × prix d'achat actuel (aucun prix n'est figé sur la commande). */
-  valeurEstimee: number;
+  /**
+   * Quantités × prix d'achat actuel (aucun prix n'est figé sur la commande).
+   * Absente d'un serveur pas encore à jour : la valeur n'est alors pas affichée.
+   */
+  valeurEstimee?: number;
   /** Un produit au moins n'a pas de prix d'achat : valeur sous-estimée. */
   valeurIncomplete: boolean;
 }
@@ -136,7 +139,8 @@ export function CommandesPage() {
   }).length;
 
   const ouvertes = [...brouillons, ...enRoute.map((r) => r.commande)];
-  const valeurOuverte = ouvertes.reduce((a, c) => a + c.valeurEstimee, 0);
+  const valeurConnue = ouvertes.every((c) => typeof c.valeurEstimee === 'number');
+  const valeurOuverte = ouvertes.reduce((a, c) => a + (c.valeurEstimee ?? 0), 0);
   const valeurIncomplete = ouvertes.some((c) => c.valeurIncomplete);
   const referencesOuvertes = ouvertes.reduce((a, c) => a + c._count.lignes, 0);
 
@@ -197,8 +201,14 @@ export function CommandesPage() {
             <div>
               <p className="commandes-sur">En commande en ce moment</p>
               <p className="mt-1.5 font-display text-[2.25rem] leading-tight font-semibold tracking-[-0.02em] max-sm:text-[1.875rem]">
-                {valeurIncomplete && valeurOuverte > 0 && <span className="text-[1.125rem] font-medium text-white/60">au moins </span>}
-                {formatNombre(valeurOuverte)} <span className="font-sans text-[0.95rem] font-semibold text-white/60">GNF estimés</span>
+                {!valeurConnue ? (
+                  '—'
+                ) : (
+                  <>
+                    {valeurIncomplete && valeurOuverte > 0 && <span className="text-[1.125rem] font-medium text-white/60">au moins </span>}
+                    {formatNombre(valeurOuverte)} <span className="font-sans text-[0.95rem] font-semibold text-white/60">GNF estimés</span>
+                  </>
+                )}
               </p>
               <p className="text-corps text-white/65">
                 {ouvertes.length} {pluriel('commande ouverte', ouvertes.length, 'commandes ouvertes')} · {referencesOuvertes}{' '}
@@ -293,7 +303,7 @@ export function CommandesPage() {
                     </div>
                     <div>
                       <dt>GNF estimés</dt>
-                      <dd>{c.valeurEstimee > 0 ? formatCompact(c.valeurEstimee) : '—'}</dd>
+                      <dd>{c.valeurEstimee ? formatCompact(c.valeurEstimee) : '—'}</dd>
                     </div>
                     <div className="min-w-0">
                       <dt>livraison</dt>
