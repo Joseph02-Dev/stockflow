@@ -1,3 +1,5 @@
+import { moduleOuRechargement } from '@/lib/miseAJour';
+
 /**
  * Rendu de la première page d'un PDF dans un canvas, à l'échelle, avec
  * pdf.js chargé à la demande (seul l'écran Rapports en a besoin). C'est
@@ -7,8 +9,8 @@ export async function rendrePremierePage(pdf: Blob, canvas: HTMLCanvasElement, l
   const [{ getDocument, GlobalWorkerOptions }, { default: worker }] = await Promise.all([
     // Build « legacy » : polyfills inclus, pour les navigateurs Android
     // anciens (la build moderne exige des API toutes récentes).
-    import('pdfjs-dist/legacy/build/pdf.mjs'),
-    import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'),
+    moduleOuRechargement(import('pdfjs-dist/legacy/build/pdf.mjs')),
+    moduleOuRechargement(import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url')),
   ]);
   GlobalWorkerOptions.workerSrc = worker;
   // pdf.js 6 : la libération se fait par la tâche de chargement.
