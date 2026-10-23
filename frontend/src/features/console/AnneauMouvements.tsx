@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { cn } from '@/lib/cn';
 import { formatNombre, pluriel } from '@/lib/format';
 
@@ -25,6 +25,7 @@ const ESPACE = 2;
 export function AnneauMouvements({ segments, total }: { segments: Segment[]; total: number }) {
   const [survol, setSurvol] = useState<string | null>(null);
   let cumul = 0;
+  const plusGrand = Math.max(1, ...segments.map((s) => s.valeur));
 
   return (
     <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center">
@@ -76,7 +77,7 @@ export function AnneauMouvements({ segments, total }: { segments: Segment[]; tot
             onMouseEnter={() => setSurvol(s.cle)}
             onMouseLeave={() => setSurvol(null)}
             className={cn(
-              'grid grid-cols-[10px_minmax(0,1fr)_auto_44px] items-center gap-2.5 rounded-sm px-2 py-1.5 text-corps',
+              'grid grid-cols-[10px_minmax(0,1fr)_auto_44px] items-center gap-x-2.5 gap-y-1.5 rounded-sm px-2 py-1.5 text-corps',
               survol === s.cle && 'bg-paper',
             )}
           >
@@ -85,6 +86,9 @@ export function AnneauMouvements({ segments, total }: { segments: Segment[]; tot
             <span className="font-semibold text-ink-900">{formatNombre(s.valeur)}</span>
             <span className="text-right text-meta text-steel-500">
               {total > 0 ? Math.round((s.valeur / total) * 100) : 0} %
+            </span>
+            <span className="console-piste col-start-2 col-end-5" aria-hidden="true">
+              <i style={{ width: `${(s.valeur / plusGrand) * 100}%`, '--c': s.couleur } as CSSProperties} />
             </span>
           </li>
         ))}

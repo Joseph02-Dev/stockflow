@@ -66,3 +66,19 @@ function souscrire(abonne: () => void) {
 export function useSessionConsole(): SessionConsole | null {
   return useSyncExternalStore(souscrire, getSessionConsole, () => null);
 }
+
+/**
+ * Début et fin de validité du token opérateur (champs iat et exp du JWT,
+ * en ms), pour afficher le temps de session restant. Lecture seule de la
+ * charge utile : la signature reste vérifiée par le serveur à chaque requête.
+ */
+export function periodeSessionConsole(session: SessionConsole): { debut: number; fin: number } | null {
+  try {
+    const charge = session.accessToken.split('.')[1];
+    const json = atob(charge.replace(/-/g, '+').replace(/_/g, '/'));
+    const { iat, exp } = JSON.parse(json) as { iat?: unknown; exp?: unknown };
+    return typeof iat === 'number' && typeof exp === 'number' ? { debut: iat * 1000, fin: exp * 1000 } : null;
+  } catch {
+    return null;
+  }
+}

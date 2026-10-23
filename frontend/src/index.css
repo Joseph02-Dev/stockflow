@@ -71,16 +71,17 @@
   --color-action-clair: #f6a46f;
 
   /*
-   * Console opérateur — le violet signale partout le contexte privilégié.
-   * Jamais le cuivre de l'espace client : c'est un garde-fou, pas un goût.
+   * Console opérateur — même cuivre que l'espace client ; le contexte
+   * privilégié se signale par la barre sombre, le bandeau permanent et la
+   * mention « Console opérateur », pas par une autre couleur.
    */
-  --color-console: #6d4fc4;
-  --color-console-dark: #5a3dae;
-  --color-console-wash: #f0ecfb;
-  --color-console-rail: #16122a; /* sidebar */
-  --color-console-deep: #241e42; /* bloc bas de sidebar */
-  --color-console-fond: #16122a; /* écran de connexion */
-  --color-console-clair: #b9a9f0; /* texte violet lisible sur le rail */
+  --color-console: var(--color-action);
+  --color-console-dark: var(--color-action-dark);
+  --color-console-wash: var(--color-action-wash);
+  --color-console-rail: #16171b; /* barre latérale */
+  --color-console-deep: #23252c; /* bloc bas de la barre latérale */
+  --color-console-fond: #16171b; /* écran de connexion */
+  --color-console-clair: #f6a46f; /* cuivre lisible sur la barre sombre */
 
   /* Ventes — marques de paiement et WhatsApp (couleurs de marque, figées). */
   --color-orange-money: #ff6b00;
@@ -215,11 +216,6 @@ body,
     --color-entete-groupe: #1a1b20;
     --color-entete-tableau: #1b1c21;
     --color-peremption-proche-texte: #e3b512;
-
-    /* Console : le violet reste la signalétique du contexte privilégié. */
-    --color-console: #9b7bd4;
-    --color-console-dark: #ae93de;
-    --color-console-wash: #221d33;
 
     /* Une ombre portée ne se voit pas sur du noir : filet interne à la place. */
     --shadow-card: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
@@ -367,18 +363,6 @@ body {
   .bouton-relief::after {
     display: none;
   }
-}
-
-/*
- * Garde-fou de la console : à l'intérieur de .zone-console, la couleur
- * « action » de l'application devient le violet console. Tout composant
- * partagé (bouton principal, focus, champ actif, lien) bascule ainsi de
- * lui-même — aucun bleu client ne peut apparaître par mégarde.
- */
-.zone-console {
-  --color-action: var(--color-console);
-  --color-action-dark: var(--color-console-dark);
-  --color-action-wash: var(--color-console-wash);
 }
 
 /*
