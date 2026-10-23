@@ -11,8 +11,8 @@ const CLES_SUIVIES = [CLE_STOCKAGE, CLE_ECHEC, CLE_DERNIERE];
 /** Prévient les autres onglets qu'une file a changé dans IndexedDB. */
 const CANAL = 'stockflow.file-hors-ligne';
 
-/** Opérations qui peuvent attendre le réseau : mouvements de stock et ventes. */
-export type TypeMouvementHorsLigne = 'entree' | 'sortie' | 'transfert' | 'vente';
+/** Opérations qui peuvent attendre le réseau : mouvements, ventes, clients, pertes, réceptions. */
+export type TypeMouvementHorsLigne = 'entree' | 'sortie' | 'transfert' | 'vente' | 'client' | 'perte' | 'reception';
 
 export interface MouvementEnAttente {
   /** Identifiant local, distinct des identifiants serveur (jamais envoyé). */
@@ -23,13 +23,19 @@ export interface MouvementEnAttente {
   /** Libellé lisible pour l'affichage de la file (ex. nom du produit). */
   resume: string;
   creeAt: string;
+  /** Adresse propre à l'opération (ex. /commandes/:id/recevoir) ; sinon celle du type. */
+  chemin?: string;
+  /** PATCH pour une modification (client) ; POST par défaut. */
+  methode?: 'POST' | 'PATCH';
 }
 
-const ROUTE_PAR_TYPE: Record<TypeMouvementHorsLigne, string> = {
+const ROUTE_PAR_TYPE: Partial<Record<TypeMouvementHorsLigne, string>> = {
   entree: '/mouvements/entree',
   sortie: '/mouvements/sortie',
   transfert: '/mouvements/transfert',
   vente: '/ventes',
+  client: '/clients',
+  perte: '/pertes',
 };
 
 const abonnes = new Set<() => void>();
@@ -75,7 +81,9 @@ export function nouvelIdClient(): string {
 /** Chaque mouvement de la file porte un idClient (les anciens en reçoivent un). */
 function avecIdClient(mouvements: MouvementEnAttente[]): MouvementEnAttente[] {
   return mouvements.map((m) =>
-    typeof m.corps.idClient === 'string' ? m : { ...m, corps: { ...m.corps, idClient: nouvelIdClient() } },
+    m.methode === 'PATCH' || typeof m.corps.idClient === 'string'
+      ? m
+      : { ...m, corps: { ...m.corps, idClient: nouvelIdClient() } },
   );
 }
 
@@ -192,13 +200,20 @@ export function ajouterMouvementEnAttente(
   type: TypeMouvementHorsLigne,
   corps: Record<string, unknown>,
   resume: string,
+  options: { chemin?: string; methode?: 'POST' | 'PATCH' } = {},
 ): MouvementEnAttente {
+  const modification = options.methode === 'PATCH';
   const mouvement: MouvementEnAttente = {
     idLocal: `local-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     type,
-    corps: { ...corps, idClient: typeof corps.idClient === 'string' ? corps.idClient : nouvelIdClient() },
+    // Une modification (PATCH) se rejoue sans risque : pas d'idClient.
+    corps: modification
+      ? corps
+      : { ...corps, idClient: typeof corps.idClient === 'string' ? corps.idClient : nouvelIdClient() },
     resume,
     creeAt: new Date().toISOString(),
+    ...(options.chemin ? { chemin: options.chemin } : {}),
+    ...(modification ? { methode: 'PATCH' as const } : {}),
   };
   ecrire([...lire(), mouvement]);
   return mouvement;
@@ -218,7 +233,7 @@ export function quantitesEnAttente(mouvements: MouvementEnAttente[], emplacement
   for (const { type, corps } of mouvements) {
     if (type === 'vente' && corps.emplacementId === emplacementId && Array.isArray(corps.lignes)) {
       for (const ligne of corps.lignes as { produitId?: unknown; quantite?: unknown }[]) ajouter(ligne.produitId, ligne.quantite);
-    } else if (type === 'sortie' && corps.emplacementId === emplacementId) {
+    } else if ((type === 'sortie' || type === 'perte') && corps.emplacementId === emplacementId) {
       ajouter(corps.produitId, corps.quantite);
     } else if (type === 'transfert' && corps.emplacementSourceId === emplacementId) {
       ajouter(corps.produitId, corps.quantite);
@@ -311,7 +326,10 @@ async function rejouerFile(): Promise<ResultatSynchronisation> {
 
   for (const mouvement of enAttente) {
     try {
-      await api.post(ROUTE_PAR_TYPE[mouvement.type], mouvement.corps);
+      const chemin = mouvement.chemin ?? ROUTE_PAR_TYPE[mouvement.type];
+      if (!chemin) throw new Error(`Opération « ${mouvement.type} » sans adresse.`);
+      if (mouvement.methode === 'PATCH') await api.patch(chemin, mouvement.corps);
+      else await api.post(chemin, mouvement.corps);
       supprimerMouvementEnAttente(mouvement.idLocal);
       resultat.reussis += 1;
     } catch (erreur) {
@@ -355,4 +373,33 @@ export function synchroniserMouvementsEnAttente(): Promise<ResultatSynchronisati
 
 export function estEnSynchronisation(): boolean {
   return synchronisationEnCours !== null;
+}
+
+/**
+ * Envoie une opération au serveur, ou la garde sur l'appareil faute de
+ * réseau (hors ligne, ou coupure pendant l'envoi : aucune réponse reçue).
+ * Une erreur du serveur (refus, validation) est relancée telle quelle.
+ * Le corps doit déjà porter son idClient pour un POST : un renvoi depuis
+ * la file après une réponse perdue n'est alors jamais compté deux fois.
+ */
+export async function envoyerOuGarder<T>(
+  type: TypeMouvementHorsLigne,
+  corps: Record<string, unknown>,
+  resume: string,
+  options: { enLigne: boolean; chemin?: string; methode?: 'POST' | 'PATCH' },
+): Promise<{ horsLigne: true } | { horsLigne: false; donnees: T }> {
+  const chemin = options.chemin ?? ROUTE_PAR_TYPE[type];
+  const garder = () => {
+    ajouterMouvementEnAttente(type, corps, resume, { chemin: options.chemin, methode: options.methode });
+    return { horsLigne: true as const };
+  };
+  if (!options.enLigne || !chemin) return garder();
+  try {
+    const reponse = options.methode === 'PATCH' ? await api.patch<T>(chemin, corps) : await api.post<T>(chemin, corps);
+    return { horsLigne: false, donnees: reponse.data };
+  } catch (erreur) {
+    const sansReponse = erreur instanceof Object && 'isAxiosError' in erreur && !(erreur as { response?: unknown }).response;
+    if (sansReponse) return garder();
+    throw erreur;
+  }
 }

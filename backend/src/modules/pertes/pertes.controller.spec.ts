@@ -429,4 +429,22 @@ describe('Pertes (casse) — intégration réelle, base PostgreSQL', () => {
       );
     });
   });
+
+  it('perte déclarée hors ligne et renvoyée avec le même idClient : appliquée une seule fois', async () => {
+    const c = await contexte();
+    const idClient = crypto.randomUUID();
+    const declarer = () =>
+      c.gestionnaire.post('/pertes', {
+        produitId: c.produitId,
+        emplacementId: c.depotId,
+        quantite: 3,
+        motif: 'CASSE_MANUTENTION',
+        idClient,
+      });
+    const reponses = await Promise.all([declarer(), declarer()]);
+    expect(reponses.map((r) => r.status)).toEqual([201, 201]);
+    expect(reponses.filter((r) => r.body.dejaEnregistre === true)).toHaveLength(1);
+    expect((await declarer()).body).toEqual({ dejaEnregistre: true });
+    expect(await stock(c.produitId, c.depotId)).toBe(97);
+  });
 });

@@ -285,4 +285,31 @@ describe('Commandes fournisseur — intégration réelle, base PostgreSQL', () =
 
     expect(tentative.status).toBe(404);
   });
+
+  it('réception saisie hors ligne et renvoyée avec le même idClient : rien n’entre deux fois', async () => {
+    const { accessToken, emplacementId, fournisseurId, produitAId } = await creerContexte();
+    const commande = await request(app.getHttpServer())
+      .post('/commandes')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ fournisseurId, emplacementId, lignes: [{ produitId: produitAId, quantiteCommandee: 40 }] });
+    await request(app.getHttpServer())
+      .post(`/commandes/${commande.body.id}/envoyer`)
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    const idClient = crypto.randomUUID();
+    const recevoir = () =>
+      request(app.getHttpServer())
+        .post(`/commandes/${commande.body.id}/recevoir`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ idClient });
+    expect((await recevoir()).body.statut).toBe('RECUE');
+    const renvoi = await recevoir();
+    expect(renvoi.status).toBe(201);
+    expect(renvoi.body).toEqual({ dejaEnregistre: true });
+
+    const stock = await prisma.stock.findUnique({
+      where: { produitId_emplacementId: { produitId: produitAId, emplacementId } },
+    });
+    expect(stock?.quantite).toBe(40);
+  });
 });

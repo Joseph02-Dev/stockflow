@@ -6,6 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Camera, Minus, Plus, X } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
+import { envoyerOuGarder, nouvelIdClient } from '@/lib/mouvementsHorsLigne';
+import { useEnLigne } from '@/lib/useEnLigne';
 import { formatNombre, pluriel } from '@/lib/format';
 import { gnf } from '@/lib/montant';
 import { cn } from '@/lib/cn';
@@ -49,7 +51,15 @@ type Formulaire = z.infer<typeof schema>;
 const TYPES_PHOTO = ['image/jpeg', 'image/png', 'image/webp'];
 
 /** Photo facultative : bouton pleine largeur, appareil photo arrière sur mobile. */
-function ChampPhoto({ valeur, onChange }: { valeur?: string; onChange: (url: string | undefined) => void }) {
+function ChampPhoto({
+  valeur,
+  onChange,
+  horsLigne,
+}: {
+  valeur?: string;
+  onChange: (url: string | undefined) => void;
+  horsLigne: boolean;
+}) {
   const entree = useRef<HTMLInputElement>(null);
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -85,9 +95,16 @@ function ChampPhoto({ valeur, onChange }: { valeur?: string; onChange: (url: str
           </Button>
         </div>
       ) : (
-        <Button type="button" variant="secondary" className="w-full max-md:h-12" loading={enCours} onClick={() => entree.current?.click()}>
+        <Button
+          type="button"
+          variant="secondary"
+          className="w-full max-md:h-12"
+          loading={enCours}
+          disabled={horsLigne}
+          onClick={() => entree.current?.click()}
+        >
           <Camera className="size-4" aria-hidden="true" />
-          Ajouter une photo (facultatif)
+          {horsLigne ? 'Photo indisponible hors ligne' : 'Ajouter une photo (facultatif)'}
         </Button>
       )}
       <input
@@ -121,7 +138,8 @@ export function FormulaireCasse({
 }: {
   presentation: 'fenetre' | 'page';
   onFermer: () => void;
-  onDeclaree: (pertes: Perte[]) => void;
+  /** Message de confirmation, à afficher par l'écran appelant. */
+  onDeclaree: (message: string) => void;
   produitInitial?: string;
 }) {
   const queryClient = useQueryClient();
@@ -169,10 +187,15 @@ export function FormulaireCasse({
   const q = Number.isFinite(quantite) && quantite > 0 ? quantite : 0;
   const valeur = q * (produit?.prixAchat ?? 0);
 
+  const enLigne = useEnLigne();
   const declarer = useMutation({
+    // Jamais en pause hors ligne : envoyerOuGarder garde la déclaration sur l'appareil.
+    networkMode: 'always',
     mutationFn: async (v: Formulaire) =>
-      (
-        await api.post<Perte[]>('/pertes', {
+      envoyerOuGarder<Perte[]>(
+        'perte',
+        {
+          idClient: nouvelIdClient(),
           produitId: v.produitId,
           emplacementId,
           quantite: v.quantite,
@@ -180,13 +203,24 @@ export function FormulaireCasse({
           ...(v.commentaire?.trim() ? { commentaire: v.commentaire.trim() } : {}),
           ...(photoUrl ? { photoUrl } : {}),
           ...(v.lotId ? { lotId: v.lotId } : {}),
-        })
-      ).data,
-    onSuccess: (pertes) => {
+        },
+        `${v.quantite} × ${produit?.nom ?? 'produit'}`,
+        { enLigne },
+      ),
+    onSuccess: (resultat) => {
+      if (resultat.horsLigne) {
+        onDeclaree(
+          `Perte de ${q} × ${produit?.nom ?? 'produit'} gardée sur cet appareil : elle sera déclarée au retour du réseau.`,
+        );
+        return;
+      }
       for (const cle of ['pertes', 'stock', 'mouvements', 'alertes', 'dashboard', 'lots', 'peremptions']) {
         queryClient.invalidateQueries({ queryKey: [cle] });
       }
-      onDeclaree(pertes);
+      const pertes = resultat.donnees;
+      const total = pertes.reduce((a, p) => a + (p.valeurTotale ?? 0), 0);
+      const nombre = pertes.reduce((a, p) => a + p.quantite, 0);
+      onDeclaree(`Perte déclarée : ${nombre} × ${pertes[0]?.produit.nom}, ${gnf(total)} au prix d’achat.`);
     },
     onError: (e) => setErreur(messageErreur(e, 'La déclaration a échoué.')),
   });
@@ -331,7 +365,7 @@ export function FormulaireCasse({
         />
       </div>
 
-      <ChampPhoto valeur={photoUrl} onChange={setPhotoUrl} />
+      <ChampPhoto valeur={photoUrl} onChange={setPhotoUrl} horsLigne={!enLigne} />
 
       {produit && q > 0 && (
         <div className="rounded-lg border border-rupture/25 bg-rupture-wash px-4 py-3" role="status">

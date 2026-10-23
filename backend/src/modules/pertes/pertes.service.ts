@@ -5,6 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
+import {
+  DEJA_ENREGISTRE,
+  estDoublonOperation,
+  operationDejaAppliquee,
+  reserverOperation,
+} from '../mouvements/operations-hors-ligne.js';
 import type { Pagination } from '../../common/pagination/pagination.js';
 import { ORDRE_RECENT_DABORD } from '../../common/pagination/pagination.js';
 import { MouvementsService } from '../mouvements/mouvements.service.js';
@@ -93,38 +99,50 @@ export class PertesService {
     utilisateurId: string,
     dto: DeclarerCasseDto,
   ) {
+    if (await operationDejaAppliquee(this.prisma, entrepriseId, dto.idClient)) {
+      return DEJA_ENREGISTRE;
+    }
     await this.mouvements.verifierProduitEtEmplacement(
       entrepriseId,
       dto.produitId,
       dto.emplacementId,
     );
-    const resultat = await this.prisma.$transaction(async (tx) => {
-      const { prixAchat } = await tx.produit.findUniqueOrThrow({
-        where: { id: dto.produitId },
-        select: { prixAchat: true },
-      });
-      return this.mouvements.sortieDansTransaction(
-        tx,
-        entrepriseId,
-        utilisateurId,
-        {
-          produitId: dto.produitId,
-          emplacementId: dto.emplacementId,
-          quantite: dto.quantite,
-        },
-        {
-          type: 'CASSE',
-          lotId: dto.lotId,
-          donnees: {
-            motifPerte: dto.motif,
-            // On perd ce qu'on a payé, pas la marge espérée.
-            valeurUnitaire: prixAchat ?? 0,
-            commentaire: dto.commentaire,
-            photoUrl: dto.photoUrl,
+    const resultat = await this.prisma
+      .$transaction(async (tx) => {
+        // Déclaration saisie hors ligne : son identifiant est inscrit avec
+        // elle, un renvoi simultané échoue sur la contrainte d'unicité.
+        await reserverOperation(tx, entrepriseId, dto.idClient, 'perte');
+        const { prixAchat } = await tx.produit.findUniqueOrThrow({
+          where: { id: dto.produitId },
+          select: { prixAchat: true },
+        });
+        return this.mouvements.sortieDansTransaction(
+          tx,
+          entrepriseId,
+          utilisateurId,
+          {
+            produitId: dto.produitId,
+            emplacementId: dto.emplacementId,
+            quantite: dto.quantite,
           },
-        },
-      );
-    });
+          {
+            type: 'CASSE',
+            lotId: dto.lotId,
+            donnees: {
+              motifPerte: dto.motif,
+              // On perd ce qu'on a payé, pas la marge espérée.
+              valeurUnitaire: prixAchat ?? 0,
+              commentaire: dto.commentaire,
+              photoUrl: dto.photoUrl,
+            },
+          },
+        );
+      })
+      .catch((erreur: unknown) => {
+        if (dto.idClient && estDoublonOperation(erreur)) return null;
+        throw erreur;
+      });
+    if (!resultat) return DEJA_ENREGISTRE;
     // Notification après le commit : un email en échec n'annule jamais la déclaration.
     if (resultat.alerteANotifier)
       await this.mouvements.notifierAlerte(

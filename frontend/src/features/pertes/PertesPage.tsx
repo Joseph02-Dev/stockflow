@@ -486,10 +486,8 @@ export function PertesPage() {
         <FormulaireCasse
           presentation="fenetre"
           onFermer={() => setDeclaration(false)}
-          onDeclaree={(declarees) => {
-            const valeur = declarees.reduce((a, p) => a + (p.valeurTotale ?? 0), 0);
-            const quantite = declarees.reduce((a, p) => a + p.quantite, 0);
-            setSucces(`Perte déclarée : ${quantite} × ${declarees[0]?.produit.nom}, ${gnf(valeur)} au prix d’achat.`);
+          onDeclaree={(message) => {
+            setSucces(message);
             setDeclaration(false);
           }}
         />
