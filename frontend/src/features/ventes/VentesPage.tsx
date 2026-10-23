@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { ChevronRight, Plus, TrendingDown, TrendingUp } from 'lucide-react';
@@ -9,6 +9,8 @@ import { gnf } from '@/lib/montant';
 import { formatNombre, pluriel } from '@/lib/format';
 import { cn } from '@/lib/cn';
 import { Badge } from '@/components/ui/Badge';
+import { Alert } from '@/components/ui/Alert';
+import { etatFile, souscrireFile } from '@/lib/mouvementsHorsLigne';
 import { Selecteur } from '@/components/ui/Selecteur';
 import { Card, PageHeader } from '@/components/patterns/Page';
 import { Compteur } from '@/components/patterns/Compteur';
@@ -45,6 +47,50 @@ function Variation({ valeur, precedent }: { valeur: number | null; precedent: nu
       {hausse ? '+' : '−'}
       {Math.abs(ecart)} %<span className="hidden font-normal text-steel-400 sm:inline"> vs 7 jours précédents</span>
     </span>
+  );
+}
+
+/**
+ * Ventes hors ligne : celles qui attendent encore l'envoi depuis cet
+ * appareil, et celles déjà envoyées mais vendues sans stock enregistré.
+ */
+function AvisHorsLigne() {
+  const file = useSyncExternalStore(souscrireFile, etatFile, etatFile);
+  const enAttente = file.mouvements.filter((m) => m.type === 'vente').length;
+  const aRegulariser = useQuery({
+    queryKey: ['ventes', 'a-regulariser'],
+    queryFn: async () => (await api.get<VenteResume[]>('/ventes?aRegulariser=true&limite=50')).data,
+  });
+  const liste = aRegulariser.data ?? [];
+  if (enAttente === 0 && liste.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-2">
+      {enAttente > 0 && (
+        <Alert variant="info">
+          {enAttente} {pluriel('vente', enAttente)} {enAttente > 1 ? 'saisies' : 'saisie'} hors ligne sur cet appareil{' '}
+          {enAttente > 1 ? 'attendent' : 'attend'} le retour du réseau : {enAttente > 1 ? 'elles recevront leur' : 'elle recevra son'}{' '}
+          numéro à la synchronisation.
+        </Alert>
+      )}
+      {liste.length > 0 && (
+        <Alert variant="warning">
+          <strong>
+            {liste.length} {pluriel('vente', liste.length)} à régulariser
+          </strong>{' '}
+          : {liste.length > 1 ? 'vendues' : 'vendue'} hors ligne sans stock enregistré. Enregistrez l’entrée manquante,
+          puis ouvrez la vente pour la régulariser :{' '}
+          {liste.slice(0, 6).map((v, i) => (
+            <span key={v.id}>
+              {i > 0 && ', '}
+              <Link to={`/ventes/${v.id}`} className="font-mono font-medium underline underline-offset-2">
+                {v.numero}
+              </Link>
+            </span>
+          ))}
+          {liste.length > 6 && '…'}
+        </Alert>
+      )}
+    </div>
   );
 }
 
@@ -175,6 +221,7 @@ function libelleJour(date: Date, maintenant: Date) {
 
 function Statut({ vente }: { vente: VenteResume }) {
   if (vente.statut === 'ANNULEE') return <Badge variant="rupture">Annulée</Badge>;
+  if (vente.aRegulariser) return <Badge variant="faible">À régulariser</Badge>;
   if (vente.resteDu > 0) return <Badge variant="faible">Reste {formatNombre(vente.resteDu)}</Badge>;
   return <Badge variant="ok">Réglée</Badge>;
 }
@@ -255,6 +302,7 @@ export function VentesPage() {
       />
 
       <ResumeVentes />
+      <AvisHorsLigne />
 
       <div className="mt-2 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
         <div className="ventes-periode" role="group" aria-label="Période">

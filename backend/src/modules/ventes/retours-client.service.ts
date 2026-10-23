@@ -134,6 +134,13 @@ export class RetoursClientService {
         'Une vente annulée ne peut plus faire l’objet d’un retour.',
       );
     }
+    // Une partie de la marchandise n'est pas encore sortie du stock : un
+    // retour la ferait rentrer sans qu'elle soit jamais sortie.
+    if (vente.aRegulariser) {
+      throw new ConflictException(
+        'Cette vente saisie hors ligne est à régulariser : régularisez-la avant d’enregistrer un retour.',
+      );
+    }
 
     // Quantités et montants : jamais plus que vendu (moins les retours
     // précédents), au prix réellement facturé sur la ligne d'origine.

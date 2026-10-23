@@ -487,4 +487,101 @@ describe('Ventes', () => {
       ).status,
     ).toBe(404);
   });
+
+  it('vente hors ligne : un stock insuffisant ne la refuse pas, le manque est « à régulariser »', async () => {
+    const b = await boutique();
+    const idClient = crypto.randomUUID();
+    const saisieHorsLigneAt = new Date(Date.now() - 3_600_000).toISOString();
+    const corps = {
+      emplacementId: b.depot.id,
+      modePaiement: 'ESPECES',
+      lignes: [
+        { produitId: b.ciment.id, quantite: 10 },
+        { produitId: b.riz.id, quantite: 25 },
+      ],
+      idClient,
+      saisieHorsLigneAt,
+    };
+    const vente = await b.http.post('/ventes', corps);
+
+    expect(vente.status).toBe(201);
+    expect(vente.body.aRegulariser).toBe(true);
+    expect(new Date(vente.body.createdAt).toISOString()).toBe(saisieHorsLigneAt);
+    const riz = vente.body.lignes.find((l: { produitId: string }) => l.produitId === b.riz.id);
+    expect(riz).toMatchObject({ quantite: 25, quantiteARegulariser: 5 });
+    // Le stock ne passe jamais sous zéro : seul ce qui existait est sorti.
+    expect(await b.stock(b.riz.id)).toBe(0);
+    expect(await b.stock(b.ciment.id)).toBe(90);
+
+    // Renvoi de la même vente (réponse perdue) : rien n'est enregistré deux fois.
+    const renvoi = await b.http.post('/ventes', corps);
+    expect(renvoi.body).toEqual({ dejaEnregistre: true });
+    expect(await prisma.vente.count({ where: { entrepriseId: b.entreprise.id } })).toBe(1);
+
+    const aRegulariser = await b.http.get('/ventes?aRegulariser=true');
+    expect(aRegulariser.body.map((v: { id: string }) => v.id)).toEqual([vente.body.id]);
+
+    // Un retour sur une vente à régulariser ferait rentrer ce qui n'est jamais sorti.
+    const retour = await b.http.post(`/ventes/${vente.body.id}/retour`, {
+      etat: 'REMISE_EN_STOCK',
+      compensation: 'REMBOURSEMENT',
+      lignes: [{ ligneVenteId: riz.id, quantite: 1 }],
+    });
+    expect(retour.status).toBe(409);
+
+    // Toujours pas de stock : la régularisation est refusée, rien ne bouge.
+    const tropTot = await b.http.post(`/ventes/${vente.body.id}/regulariser`);
+    expect(tropTot.status).toBe(409);
+    expect(tropTot.body.message).toContain('Riz 25 kg');
+
+    // L'entrée manquante est enregistrée : la régularisation sort les 5 sacs.
+    await b.http.post('/mouvements/entree', { produitId: b.riz.id, emplacementId: b.depot.id, quantite: 8 });
+    const regularisee = await b.http.post(`/ventes/${vente.body.id}/regulariser`);
+    expect(regularisee.status).toBe(200);
+    expect(regularisee.body.aRegulariser).toBe(false);
+    expect(await b.stock(b.riz.id)).toBe(3);
+    expect(
+      await prisma.mouvement.aggregate({
+        where: { venteId: vente.body.id, produitId: b.riz.id, type: 'SORTIE' },
+        _sum: { quantite: true },
+      }),
+    ).toMatchObject({ _sum: { quantite: 25 } });
+  });
+
+  it('annuler une vente à régulariser ne restitue que ce qui est sorti du stock', async () => {
+    const b = await boutique();
+    const vente = (
+      await b.http.post('/ventes', {
+        emplacementId: b.depot.id,
+        modePaiement: 'ESPECES',
+        lignes: [{ produitId: b.riz.id, quantite: 26 }],
+        idClient: crypto.randomUUID(),
+        saisieHorsLigneAt: new Date().toISOString(),
+      })
+    ).body;
+    expect(await b.stock(b.riz.id)).toBe(0);
+
+    const annulee = await b.http.post(`/ventes/${vente.id}/annuler`, { motif: 'Erreur de saisie' });
+    expect(annulee.status).toBe(201);
+    expect(annulee.body.aRegulariser).toBe(false);
+    expect(await b.stock(b.riz.id)).toBe(20);
+  });
+
+  it('une vente en ligne reste refusée sur stock insuffisant ; une date hors ligne future est refusée', async () => {
+    const b = await boutique();
+    const enLigne = await b.http.post('/ventes', {
+      emplacementId: b.depot.id,
+      modePaiement: 'ESPECES',
+      lignes: [{ produitId: b.riz.id, quantite: 21 }],
+    });
+    expect(enLigne.status).toBe(409);
+
+    const future = await b.http.post('/ventes', {
+      emplacementId: b.depot.id,
+      modePaiement: 'ESPECES',
+      lignes: [{ produitId: b.riz.id, quantite: 1 }],
+      saisieHorsLigneAt: new Date(Date.now() + 3_600_000).toISOString(),
+    });
+    expect(future.status).toBe(400);
+  });
 });

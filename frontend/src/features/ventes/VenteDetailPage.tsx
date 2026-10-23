@@ -41,6 +41,7 @@ export function VenteDetailPage() {
   const [motif, setMotif] = useState('');
   const [retourOuvert, setRetourOuvert] = useState(false);
   const [succesRetour, setSuccesRetour] = useState<string | null>(null);
+  const [erreurRegularisation, setErreurRegularisation] = useState<string | null>(null);
 
   const { data: vente, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['ventes', id],
@@ -62,6 +63,15 @@ export function VenteDetailPage() {
       setMontant('');
     },
     onError: (e) => setErreur(messageErreur(e, 'Le règlement n’a pas pu être enregistré.')),
+  });
+
+  const regulariser = useMutation({
+    mutationFn: async () => (await api.post<VenteDetail>(`/ventes/${id}/regulariser`)).data,
+    onSuccess: (v) => {
+      rafraichir(v);
+      setErreurRegularisation(null);
+    },
+    onError: (e) => setErreurRegularisation(messageErreur(e, 'La régularisation a échoué.')),
   });
 
   const annuler = useMutation({
@@ -89,6 +99,7 @@ export function VenteDetailPage() {
         description={`${dateHeure(vente.createdAt)} · ${vente.emplacement.nom} · par ${vente.utilisateur.nom}`}
         action={
           <>
+            {vente.aRegulariser && !annulee && <Badge variant="faible">À régulariser</Badge>}
             {annulee ? <Badge variant="rupture">Annulée</Badge> : vente.resteDu > 0 ? <Badge variant="faible">À crédit</Badge> : <Badge variant="ok">Réglée</Badge>}
             <Link to="/ventes/nouvelle" className="inline-flex h-9 items-center gap-2 rounded-md bg-action px-3.5 text-corps font-medium text-sur-couleur hover:bg-action-dark">
               <Plus className="size-4" aria-hidden="true" />
@@ -106,6 +117,35 @@ export function VenteDetailPage() {
         </Alert>
       )}
       {succesRetour && <Alert variant="success">{succesRetour}</Alert>}
+      {vente.saisieHorsLigneAt && !vente.aRegulariser && !annulee && (
+        <Alert variant="info">Vente saisie hors ligne le {dateHeure(vente.saisieHorsLigneAt)}, envoyée à la synchronisation.</Alert>
+      )}
+      {vente.aRegulariser && !annulee && (
+        <Alert variant="warning">
+          <div className="flex flex-col gap-2.5">
+            <p>
+              <strong>À régulariser.</strong> Vendue hors ligne le {dateHeure(vente.saisieHorsLigneAt ?? vente.createdAt)}{' '}
+              alors que le stock enregistré ne suffisait pas : la quantité manquante n’est pas encore sortie du stock.
+            </p>
+            <ul className="list-disc pl-5">
+              {vente.lignes
+                .filter((l) => l.quantiteARegulariser > 0)
+                .map((l) => (
+                  <li key={l.id}>
+                    {l.libelle} : {l.quantiteARegulariser} sur {l.quantite}
+                  </li>
+                ))}
+            </ul>
+            <p>Enregistrez l’entrée de marchandise manquante (ou corrigez le stock par un inventaire), puis régularisez.</p>
+            {erreurRegularisation && <p className="font-medium text-rupture">{erreurRegularisation}</p>}
+            <div>
+              <Button variant="secondary" loading={regulariser.isPending} onClick={() => regulariser.mutate()}>
+                Régulariser maintenant
+              </Button>
+            </div>
+          </div>
+        </Alert>
+      )}
       {annulee && (
         <Alert variant="warning">
           Annulée le {dateHeure(vente.annuleeAt!)} — {vente.motifAnnulation}. Le stock a été restitué.
@@ -227,7 +267,7 @@ export function VenteDetailPage() {
 
           {!annulee && (
             <div className="flex flex-wrap gap-2">
-              {retournable && (
+              {retournable && !vente.aRegulariser && (
                 <Button
                   variant="secondary"
                   onClick={() => {

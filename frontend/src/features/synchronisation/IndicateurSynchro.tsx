@@ -1,6 +1,6 @@
 import { useCallback, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowLeftRight, ArrowUp, ChevronDown, CircleCheck, RefreshCw } from 'lucide-react';
+import { ArrowDown, ArrowLeftRight, ArrowUp, ChevronDown, CircleCheck, Receipt, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { usePanneauFlottant } from '@/lib/usePanneauFlottant';
 import { supprimerMouvementEnAttente, type EtatFile, type TypeMouvementHorsLigne } from '@/lib/mouvementsHorsLigne';
@@ -13,6 +13,7 @@ const TYPES: Record<TypeMouvementHorsLigne, { libelle: string; signe: string; te
   entree: { libelle: 'Entrée', signe: '+ ', teinte: 'var(--color-ok)', Icone: ArrowDown },
   sortie: { libelle: 'Sortie', signe: '− ', teinte: 'var(--color-action)', Icone: ArrowUp },
   transfert: { libelle: 'Transfert', signe: '', teinte: 'var(--color-accent)', Icone: ArrowLeftRight },
+  vente: { libelle: 'Vente', signe: '', teinte: 'var(--color-ok)', Icone: Receipt },
 };
 
 /** Heure seule pour aujourd'hui, jour et heure au-delà. */
@@ -94,7 +95,7 @@ export function IndicateurSynchro({ statut, file, libelleReseau, synchroniser, v
       {echec ? '!' : nombre}
     </span>
   );
-  const resumeAccessible = [libelleReseau, echec ? 'un mouvement refusé' : nombre > 0 ? `${nombre} en attente` : '']
+  const resumeAccessible = [libelleReseau, echec ? 'une opération refusée' : nombre > 0 ? `${nombre} en attente` : '']
     .filter(Boolean)
     .join(', ');
 
@@ -135,7 +136,7 @@ export function IndicateurSynchro({ statut, file, libelleReseau, synchroniser, v
           <div className="flex flex-col items-center gap-1.5 px-3 py-5 text-center text-corps text-steel-500">
             <CircleCheck className="size-6 text-ok" aria-hidden="true" />
             <span className="font-semibold text-ink-900">Rien en attente</span>
-            Aucun mouvement à envoyer depuis cet appareil.
+            Aucune opération à envoyer depuis cet appareil.
           </div>
         ) : (
           <ul>
@@ -176,7 +177,7 @@ export function IndicateurSynchro({ statut, file, libelleReseau, synchroniser, v
                     <>
                       <p className="basis-full pl-[42px] text-meta text-rupture">
                         Refusé par le serveur : {echec?.message}
-                        <span className="block text-steel-500">Les mouvements suivants attendent celui-ci.</span>
+                        <span className="block text-steel-500">Les opérations suivantes attendent celle-ci.</span>
                       </p>
                       <div className="flex basis-full gap-1.5 pl-[42px]">
                         <button
@@ -217,7 +218,7 @@ export function IndicateurSynchro({ statut, file, libelleReseau, synchroniser, v
         <p className="text-meta text-steel-400">
           {horsLigne
             ? 'Pas de réseau : l’envoi repartira tout seul dès le retour de la connexion.'
-            : 'Les mouvements partent dans l’ordre où ils ont été saisis.'}
+            : 'Les opérations partent dans l’ordre où elles ont été saisies.'}
         </p>
         <p className="text-meta text-steel-400">
           {prechargement

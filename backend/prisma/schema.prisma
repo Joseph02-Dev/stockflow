@@ -942,6 +942,10 @@ model Vente {
   annuleeAt       DateTime?    @map("annulee_at")
   motifAnnulation String?      @map("motif_annulation")
   createdAt       DateTime     @default(now()) @map("created_at")
+  // Vente saisie hors ligne : heure réelle de la vente sur l'appareil
+  // (createdAt la reprend), et stock manquant à la synchronisation.
+  saisieHorsLigneAt DateTime? @map("saisie_hors_ligne_at")
+  aRegulariser      Boolean   @default(false) @map("a_regulariser")
 
   entreprise  Entreprise     @relation(fields: [entrepriseId], references: [id])
   client      Client?        @relation(fields: [clientId], references: [id])
@@ -969,6 +973,9 @@ model LigneVente {
   prixUnitaire Int    @map("prix_unitaire")
   tauxTva      Int    @map("taux_tva")
   montantLigne Int    @map("montant_ligne") // quantite × prixUnitaire, hors taxes
+  // Vente hors ligne : quantité vendue sans stock enregistré, pas encore
+  // sortie du stock (voir VentesService.regulariser).
+  quantiteARegulariser Int @default(0) @map("quantite_a_regulariser")
 
   vente   Vente               @relation(fields: [venteId], references: [id])
   produit Produit             @relation(fields: [produitId], references: [id])

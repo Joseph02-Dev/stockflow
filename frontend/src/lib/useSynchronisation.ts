@@ -40,6 +40,9 @@ export function useSynchronisation(apresSynchronisation?: () => Promise<void>) {
         queryClient.invalidateQueries({ queryKey: ['mouvements'] });
         queryClient.invalidateQueries({ queryKey: ['alertes'] });
         queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['ventes'] });
+        queryClient.invalidateQueries({ queryKey: ['creances'] });
+        queryClient.invalidateQueries({ queryKey: ['clients'] });
       }
       setDernierResultat({ reussis: resultat.reussis, echecs: resultat.echecs.length });
     });
