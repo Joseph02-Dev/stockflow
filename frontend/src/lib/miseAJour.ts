@@ -35,3 +35,16 @@ export function installerRepriseApresDeploiement() {
     window.location.reload();
   });
 }
+
+/**
+ * Quand l'événement vite:preloadError est intercepté (rechargement
+ * ci-dessus), Vite ne rejette pas l'import à la demande : il le résout
+ * avec undefined. React lirait alors `.default` d'undefined et l'erreur
+ * remonterait à l'écran et à la surveillance, juste avant le rechargement.
+ * Un module absent laisse donc l'import en attente : la page affiche son
+ * chargement jusqu'au rechargement.
+ */
+export function moduleOuRechargement<T>(chargement: Promise<T>): Promise<T> {
+  return chargement.then((module) => (module === undefined ? new Promise<T>(() => {}) : module));
+}
+

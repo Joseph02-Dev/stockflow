@@ -39,13 +39,16 @@ import { EmplacementsPage } from '@/features/parametres/EmplacementsPage';
 import { CategoriesMarquesPage } from '@/features/parametres/CategoriesMarquesPage';
 import { useSession } from '@/lib/useSession';
 import { LoadingState } from '@/components/patterns/States';
+import { moduleOuRechargement } from '@/lib/miseAJour';
 
 // Console opérateur : chargée à la demande, jamais embarquée dans le
 // bundle de l'application cliente.
-const ConsoleApp = lazy(() => import('@/features/console/ConsoleApp'));
-const AccueilPage = lazy(() => import('@/features/accueil/AccueilPage'));
+const ConsoleApp = lazy(() => moduleOuRechargement(import('@/features/console/ConsoleApp')));
+const AccueilPage = lazy(() => moduleOuRechargement(import('@/features/accueil/AccueilPage')));
 // Écran d'import : lui seul embarque la lecture des CSV et des fichiers Excel.
-const ImportPage = lazy(() => import('@/features/import/ImportPage').then((m) => ({ default: m.ImportPage })));
+const ImportPage = lazy(() =>
+  moduleOuRechargement(import('@/features/import/ImportPage')).then((m) => ({ default: m.ImportPage })),
+);
 
 /**
  * Redirige vers la connexion si aucune session valide n'est présente.

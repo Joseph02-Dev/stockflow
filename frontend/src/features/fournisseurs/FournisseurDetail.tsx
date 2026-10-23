@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -14,10 +14,11 @@ import {
   Timer,
   TriangleAlert,
   Truck,
+  Undo2,
   X,
   type LucideIcon,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api, messageErreur } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -29,13 +30,15 @@ import { Card } from '@/components/patterns/Page';
 import { Onglets } from '@/components/patterns/Onglets';
 import { Vignette } from '@/components/patterns/Vignette';
 import { boutonClasses } from '@/components/ui/boutonClasses';
-import { pluriel } from '@/lib/format';
+import { formatNombre, pluriel } from '@/lib/format';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { cn } from '@/lib/cn';
 import { Badge } from '@/components/ui/Badge';
 import { BoutonWhatsApp } from '@/components/patterns/BoutonWhatsApp';
 import { libelleStatut, statutStock, varianteStatut } from '@/components/patterns/statutStock';
-import { teinteFournisseur, useActiviteFournisseurs } from './activite';
+import { ponctualite, teinteFournisseur, useActiviteFournisseurs } from './activite';
+import { STATUTS_COMMANDE } from '@/features/commandes/statutsCommande';
+import './fournisseurs.css';
 
 interface Fournisseur {
   id: string;
@@ -60,7 +63,7 @@ interface Reception {
   emplacement: { nom: string };
 }
 
-type CleOnglet = 'produits' | 'receptions' | 'informations';
+type CleOnglet = 'produits' | 'commandes' | 'receptions' | 'retours' | 'informations';
 
 interface LigneStock {
   produitId: string;
@@ -69,6 +72,37 @@ interface LigneStock {
 }
 
 const formatJours = (n: number) => n.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+const dateCourte = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+
+const AVOIRS = {
+  ATTENDU: { libelle: 'Avoir attendu', variant: 'faible' },
+  RECU: { libelle: 'Avoir reçu', variant: 'ok' },
+  REFUSE: { libelle: 'Refusé', variant: 'rupture' },
+} as const;
+
+function Jauge({ libelle, part, couleur, detail }: { libelle: string; part: number | null; couleur: string; detail: string }) {
+  return (
+    <div style={{ '--c': couleur } as CSSProperties}>
+      <p className="flex items-baseline justify-between gap-3 text-corps text-ink-900">
+        {libelle}
+        <span className="font-display text-[1.125rem] font-semibold" style={{ color: part === null ? 'var(--color-steel-400)' : couleur }}>
+          {part === null ? '—' : `${Math.round(part * 100)} %`}
+        </span>
+      </p>
+      <span className="fournisseurs-piste mt-2 mb-1.5 block" aria-hidden="true">
+        {part !== null && <i style={{ width: `${part * 100}%` }} />}
+      </span>
+      <p className="text-meta text-steel-400">{detail}</p>
+    </div>
+  );
+}
+
+function couleurPart(part: number | null): string {
+  if (part === null) return 'var(--color-steel-400)';
+  if (part >= 0.8) return 'var(--color-ok)';
+  if (part >= 0.5) return 'var(--color-faible)';
+  return 'var(--color-rupture)';
+}
 
 function Indicateur({
   Icone,
@@ -110,6 +144,7 @@ type FormulaireEdition = z.infer<typeof schemaEdition>;
 
 export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [actif, setActif] = useState<CleOnglet>('produits');
   const activite = useActiviteFournisseurs()(fournisseurId);
   const [modaleOuverte, setModaleOuverte] = useState(false);
@@ -219,6 +254,26 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
     niveaux.set(ligne.produitId, n);
   }
   const dejaAssocies = new Set((produitsAssocies.data ?? []).map((p) => p.id));
+  const urgence = (id: string) => {
+    const n = niveaux.get(id);
+    const statut = statutStock(n?.quantite ?? 0, n?.seuil ?? 0);
+    return statut === 'rupture' ? 0 : statut === 'faible' ? 1 : 2;
+  };
+  const produitsTries = [...(produitsAssocies.data ?? [])].sort((a, b) => urgence(a.id) - urgence(b.id) || a.nom.localeCompare(b.nom, 'fr'));
+  // Commande préremplie : fournisseur, et de quoi revenir au seuil pour un produit.
+  const commander = (produitId?: string) => {
+    const n = produitId ? niveaux.get(produitId) : undefined;
+    navigate('/commandes/nouvelle', {
+      state: {
+        fournisseurId,
+        ...(produitId ? { lignes: [{ produitId, quantiteCommandee: Math.max((n?.seuil ?? 0) - (n?.quantite ?? 0), 1) }] } : {}),
+      },
+    });
+  };
+  const p = ponctualite(activite, annonce);
+  const partHeure = p ? p.aLHeure / p.total : null;
+  const clos = activite.avoirsRecus + activite.avoirsRefuses;
+  const partAvoirs = clos > 0 ? activite.avoirsRecus / clos : null;
   const produitsDisponibles = (catalogue.data ?? []).filter((p) => !dejaAssocies.has(p.id));
 
   return (
@@ -255,6 +310,12 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
           </p>
         </div>
         <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+          {fournisseur.data.telephone && (
+            <a href={`tel:${fournisseur.data.telephone.replace(/\s/g, '')}`} className={boutonClasses('secondary', 'max-sm:flex-1')}>
+              <Phone className="size-4" aria-hidden="true" />
+              Appeler
+            </a>
+          )}
           <BoutonWhatsApp
             telephone={fournisseur.data.telephone}
             texte={`Bonjour ${fournisseur.data.nom},`}
@@ -265,14 +326,10 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
             <Pencil className="size-4" aria-hidden="true" />
             Modifier
           </Button>
-          <Link
-            to="/commandes/nouvelle"
-            state={{ fournisseurId }}
-            className={boutonClasses('primary', 'max-sm:w-full')}
-          >
+          <Button onClick={() => commander()} className="max-sm:w-full">
             <ShoppingCart className="size-4" aria-hidden="true" />
             Commander
-          </Link>
+          </Button>
         </div>
       </div>
 
@@ -287,7 +344,7 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
         />
         <Indicateur
           Icone={Timer}
-          teinte="text-[#2f6fb3]"
+          teinte={ecart !== null && ecart > 0 ? 'text-faible' : 'text-ok'}
           titre="Délai réel"
           valeur={activite.delaiReel === null ? '—' : formatJours(activite.delaiReel)}
           unite={activite.delaiReel === null ? undefined : pluriel('jour', activite.delaiReel)}
@@ -311,7 +368,7 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
         />
         <Indicateur
           Icone={Truck}
-          teinte="text-[#2f6fb3]"
+          teinte="text-action"
           titre="Commandes en route"
           valeur={String(activite.enRoute)}
           detail={activite.enRoute > 0 ? 'À réceptionner' : 'Rien en attente'}
@@ -325,13 +382,47 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
         />
       </section>
 
+      <Card>
+        <div className="flex items-baseline justify-between gap-3 border-b border-rule px-5 py-3.5">
+          <h3 className="text-[0.9375rem] font-semibold text-ink-900">Fiabilité</h3>
+          <p className="text-meta text-steel-400">Sur les commandes reçues et les retours clos</p>
+        </div>
+        <div className="grid grid-cols-1 gap-5 px-5 py-4 sm:grid-cols-2">
+          <Jauge
+            libelle="Livraisons à l’heure"
+            part={partHeure}
+            couleur={couleurPart(partHeure)}
+            detail={
+              p
+                ? `${p.aLHeure} sur ${p.total} dans le délai annoncé`
+                : annonce === null
+                  ? 'Délai annoncé non renseigné'
+                  : 'Aucune commande reçue'
+            }
+          />
+          <Jauge
+            libelle="Avoirs obtenus"
+            part={partAvoirs}
+            couleur={couleurPart(partAvoirs)}
+            detail={[
+              clos > 0 ? `${clos} ${pluriel('retour clos', clos, 'retours clos')}` : 'Aucun retour clos',
+              activite.avoirsEnAttente.nombre > 0 ? `${formatNombre(activite.avoirsEnAttente.valeur)} GNF encore attendus` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          />
+        </div>
+      </Card>
+
       <Onglets
         onglets={[
           {
             cle: 'produits',
             libelle: produitsAssocies.data ? `Produits fournis (${produitsAssocies.data.length})` : 'Produits fournis',
           },
+          { cle: 'commandes', libelle: `Commandes (${activite.commandes.length})` },
           { cle: 'receptions', libelle: receptions.data ? `Réceptions (${receptions.data.length})` : 'Réceptions' },
+          { cle: 'retours', libelle: `Retours (${activite.retours.length})` },
           { cle: 'informations', libelle: 'Informations' },
         ]}
         actif={actif}
@@ -406,7 +497,7 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
                 <LoadingState />
               ) : produitsAssocies.data && produitsAssocies.data.length > 0 ? (
                 <ul className="divide-y divide-rule">
-                  {produitsAssocies.data.map((produit) => (
+                  {produitsTries.map((produit) => (
                     <li key={produit.id} className="flex items-center gap-3 px-4 py-2.5 sm:px-5">
                       <Vignette nom={produit.nom} taille={32} />
                       <div className="min-w-0 flex-1">
@@ -424,7 +515,21 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
                         (() => {
                           const n = niveaux.get(produit.id);
                           const statut = statutStock(n?.quantite ?? 0, n?.seuil ?? 0);
-                          return <Badge variant={varianteStatut[statut]}>{libelleStatut[statut]}</Badge>;
+                          return (
+                            <>
+                              <span className="hidden shrink-0 text-right text-corps tabular-nums sm:block">
+                                <span className="font-semibold text-ink-900">{formatNombre(n?.quantite ?? 0)}</span>
+                                <span className="text-meta text-steel-400"> / seuil {formatNombre(n?.seuil ?? 0)}</span>
+                              </span>
+                              <Badge variant={varianteStatut[statut]}>{libelleStatut[statut]}</Badge>
+                              {statut !== 'ok' && (
+                                <Button variant="secondary" taille="sm" onClick={() => commander(produit.id)}>
+                                  <ShoppingCart className="size-4" aria-hidden="true" />
+                                  <span className="sr-only sm:not-sr-only">Commander</span>
+                                </Button>
+                              )}
+                            </>
+                          );
                         })()}
                       <Button
                         variant="ghost"
@@ -447,6 +552,86 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
               )}
             </Card>
           </div>
+        )}
+
+        {actif === 'commandes' && (
+          <Card>
+            {activite.commandes.length > 0 ? (
+              <ul className="divide-y divide-rule">
+                {activite.commandes.map((c) => {
+                  const statut = STATUTS_COMMANDE[c.statut];
+                  return (
+                    <li key={c.id}>
+                      <Link to={`/commandes/${c.id}`} className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-entete-tableau sm:px-5">
+                        <span className="flex size-[30px] shrink-0 items-center justify-center rounded-full bg-action-wash text-action" aria-hidden="true">
+                          <Truck className="size-[15px]" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-corps font-semibold text-ink-900">
+                            {c._count.lignes} {pluriel('référence', c._count.lignes)}
+                            {c.valeurEstimee !== undefined && c.valeurEstimee > 0 && (
+                              <span className="font-normal text-steel-500">
+                                {' · '}
+                                {c.valeurIncomplete ? 'au moins ' : ''}
+                                {formatNombre(c.valeurEstimee)} GNF
+                              </span>
+                            )}
+                          </p>
+                          <p className="truncate text-meta text-steel-400">
+                            {c.recueAt
+                              ? `Reçue le ${dateCourte(c.recueAt)}`
+                              : c.envoyeeAt
+                                ? `Envoyée le ${dateCourte(c.envoyeeAt)}`
+                                : `Créée le ${dateCourte(c.createdAt)}`}
+                          </p>
+                        </div>
+                        <Badge variant={statut.variant}>{statut.libelle}</Badge>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <EmptyState
+                titre="Aucune commande"
+                description="Les bons de commande passés à ce fournisseur apparaîtront ici."
+                action={<Button onClick={() => commander()}>Commander</Button>}
+              />
+            )}
+          </Card>
+        )}
+
+        {actif === 'retours' && (
+          <Card>
+            {activite.retours.length > 0 ? (
+              <ul className="divide-y divide-rule">
+                {activite.retours.map((r) => {
+                  const avoir = AVOIRS[r.statutAvoir];
+                  return (
+                    <li key={r.id}>
+                      <Link to="/retours-fournisseur" className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-entete-tableau sm:px-5">
+                        <span className="flex size-[30px] shrink-0 items-center justify-center rounded-full bg-faible-wash text-faible" aria-hidden="true">
+                          <Undo2 className="size-[15px]" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-corps font-semibold text-ink-900">« {r.motif} »</p>
+                          <p className="truncate text-meta text-steel-400">
+                            {r.mouvements.map((m) => `${formatNombre(m.quantite)} × ${m.produit.nom}`).join(', ')} · {dateCourte(r.createdAt)}
+                          </p>
+                        </div>
+                        <span className="hidden shrink-0 text-corps font-semibold text-ink-900 tabular-nums sm:block">
+                          {formatNombre(r.valeurTotale)} GNF
+                        </span>
+                        <Badge variant={avoir.variant}>{avoir.libelle}</Badge>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <EmptyState titre="Aucun retour" description="La marchandise renvoyée à ce fournisseur apparaîtra ici, avec le suivi de l’avoir." />
+            )}
+          </Card>
         )}
 
         {actif === 'receptions' && (

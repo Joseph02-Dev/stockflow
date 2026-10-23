@@ -17,6 +17,7 @@ import { Card, PageHeader, PanneauEntete } from '@/components/patterns/Page';
 import { EtapeColonnes } from './EtapeColonnes';
 import { EtapeVerification } from './EtapeVerification';
 import type { ChoixColonne, FichierLu, OptionsImport, RapportImport, ResultatImport } from './types';
+import { moduleOuRechargement } from '@/lib/miseAJour';
 
 const TAILLE_MAX = 5 * 1024 * 1024;
 const LIGNES_MAX = 5000;
@@ -35,7 +36,7 @@ async function lireFichier(fichier: File): Promise<FichierLu> {
   if (extension === 'csv' || extension === 'txt') {
     lu = { ...lireCsv(new Uint8Array(await fichier.arrayBuffer())), nom: fichier.name, format: 'csv' };
   } else if (extension === 'xlsx') {
-    const { readSheet } = await import('read-excel-file/browser');
+    const { readSheet } = await moduleOuRechargement(import('read-excel-file/browser'));
     const lignes = await readSheet(fichier);
     lu = { ...tableauDepuisLignes(lignes.map((l) => l.map(celluleEnTexte))), nom: fichier.name, format: 'xlsx' };
   } else {
