@@ -312,4 +312,25 @@ describe('Commandes fournisseur — intégration réelle, base PostgreSQL', () =
     });
     expect(stock?.quantite).toBe(40);
   });
+
+  it('la liste donne le nombre de références et la valeur estimée au prix d’achat actuel', async () => {
+    const { accessToken, emplacementId, fournisseurId, produitAId, produitBId } = await creerContexte();
+    await prisma.produit.update({ where: { id: produitAId }, data: { prixAchat: 12_000 } });
+    await prisma.produit.update({ where: { id: produitBId }, data: { prixAchat: null } });
+    const commande = await request(app.getHttpServer())
+      .post('/commandes')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        fournisseurId,
+        emplacementId,
+        lignes: [
+          { produitId: produitAId, quantiteCommandee: 10 },
+          { produitId: produitBId, quantiteCommandee: 4 },
+        ],
+      });
+
+    const liste = await request(app.getHttpServer()).get('/commandes').set('Authorization', `Bearer ${accessToken}`);
+    const ligne = liste.body.find((c: { id: string }) => c.id === commande.body.id);
+    expect(ligne).toMatchObject({ _count: { lignes: 2 }, valeurEstimee: 120_000, valeurIncomplete: true });
+  });
 });
