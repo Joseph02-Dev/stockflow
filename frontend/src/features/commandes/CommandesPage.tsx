@@ -5,6 +5,8 @@ import { CalendarDays, ChevronRight, CircleCheckBig, FileText, Plus, RefreshCw, 
 import { api, messageErreur } from '@/lib/api';
 import { formatCompact, formatNombre, pluriel } from '@/lib/format';
 import { cn } from '@/lib/cn';
+import { joursEntre } from '@/lib/periode';
+import { teinteSerie as teinte } from '@/lib/teinte';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { boutonClasses } from '@/components/ui/boutonClasses';
@@ -43,21 +45,6 @@ interface Fournisseur {
 
 const JOUR_MS = 86_400_000;
 const dateCourte = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
-const TEINTES = ['var(--color-serie-1)', 'var(--color-serie-2)', 'var(--color-serie-3)', 'var(--color-serie-4)', 'var(--color-serie-5)'];
-
-/** Couleur stable d'un fournisseur, pour le reconnaître d'une section à l'autre. */
-function teinte(id: string): string {
-  let somme = 0;
-  for (const c of id) somme = (somme * 31 + c.charCodeAt(0)) >>> 0;
-  return TEINTES[somme % TEINTES.length];
-}
-
-/** Jours calendaires entre deux instants (minuit local à minuit local). */
-function joursEntre(debut: Date, fin: Date): number {
-  const a = new Date(debut.getFullYear(), debut.getMonth(), debut.getDate()).getTime();
-  const b = new Date(fin.getFullYear(), fin.getMonth(), fin.getDate()).getTime();
-  return Math.round((b - a) / JOUR_MS);
-}
 
 function ilYa(date: Date, maintenant: Date): string {
   const jours = joursEntre(date, maintenant);
