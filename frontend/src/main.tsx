@@ -23,6 +23,10 @@ const queryClient = new QueryClient({
       // Une seule nouvelle tentative, jamais sur un 429 : relancer
       // aussitôt consommerait le quota sans aucune chance d'aboutir.
       retry: (tentatives, erreur) => tentatives < 1 && !estTropDeRequetes(erreur),
+      // Hors ligne, la requête part quand même une fois : le service worker
+      // répond avec les données préchargées (voir prechargementHorsLigne).
+      // Le mode par défaut la mettait en pause, l'écran restait vide.
+      networkMode: 'offlineFirst',
     },
   },
 });

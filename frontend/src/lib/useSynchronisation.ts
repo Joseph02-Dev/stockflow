@@ -19,7 +19,7 @@ export type StatutSynchronisation = 'en-ligne' | 'hors-ligne' | 'synchronisation
  * réactivation de la connexion par l'utilisateur), et expose un état
  * exploitable par l'indicateur visuel de la sidebar.
  */
-export function useSynchronisation() {
+export function useSynchronisation(apresSynchronisation?: () => Promise<void>) {
   const enLigne = useEnLigne();
   const queryClient = useQueryClient();
   const nombreEnAttente = useSyncExternalStore(souscrireFile, nombreMouvementsEnAttente, () => 0);
@@ -58,12 +58,12 @@ export function useSynchronisation() {
     try {
       if (!(await verifierConnexion())) return;
       const resultat = await synchroniserMouvementsEnAttente();
-      await queryClient.invalidateQueries();
+      await Promise.all([queryClient.invalidateQueries(), apresSynchronisation?.()]);
       if (resultat.echecs.length === 0 && nombreMouvementsEnAttente() === 0) marquerSynchronise();
     } finally {
       setManuelleEnCours(false);
     }
-  }, [queryClient]);
+  }, [queryClient, apresSynchronisation]);
 
   const statut: StatutSynchronisation = !enLigne
     ? 'hors-ligne'
