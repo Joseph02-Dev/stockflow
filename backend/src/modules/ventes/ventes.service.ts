@@ -5,6 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client.js';
+import {
+  DEJA_ENREGISTRE,
+  estDoublonOperation,
+  operationDejaAppliquee,
+  reserverOperation,
+} from '../mouvements/operations-hors-ligne.js';
 import { PrismaService } from '../../config/prisma.service.js';
 import { resoudrePrix } from '../../common/tarifs/prix.js';
 import {
@@ -47,6 +53,10 @@ export class VentesService {
    * sont toujours déterminés ici, jamais repris du client.
    */
   async creer(entrepriseId: string, utilisateurId: string, dto: CreerVenteDto) {
+    if (await operationDejaAppliquee(this.prisma, entrepriseId, dto.idClient)) {
+      return DEJA_ENREGISTRE;
+    }
+    const saisieHorsLigne = this.dateSaisieHorsLigne(dto.saisieHorsLigneAt);
     const aCredit = dto.modePaiement === 'CREDIT';
     if (aCredit && !dto.clientId) {
       throw new BadRequestException(
@@ -107,6 +117,7 @@ export class VentesService {
             // Sérialise les ventes d'une même entreprise : numérotation sans
             // trou ni doublon, et contrôles de stock cohérents entre ventes.
             await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${entrepriseId}))`;
+            await reserverOperation(tx, entrepriseId, dto.idClient, 'vente');
             const numero = await this.prochainNumero(tx, entrepriseId);
 
             const vente = await tx.vente.create({
@@ -124,6 +135,10 @@ export class VentesService {
                 echeanceAt: dto.echeanceAt
                   ? new Date(dto.echeanceAt)
                   : undefined,
+                // Hors ligne : la vente garde l'heure où elle a eu lieu.
+                ...(saisieHorsLigne
+                  ? { createdAt: saisieHorsLigne, saisieHorsLigneAt: saisieHorsLigne }
+                  : {}),
                 lignes: {
                   create: lignes.map((l, i) => ({
                     produitId: l.produitId,
@@ -139,14 +154,23 @@ export class VentesService {
 
             const alertes: AlerteANotifier[] = [];
             for (const ligne of lignes) {
-              const resultat = await this.sortirLigne(
-                tx,
-                entrepriseId,
-                utilisateurId,
-                emplacement.id,
-                ligne,
-                vente.id,
-              );
+              const resultat = saisieHorsLigne
+                ? await this.sortirLigneHorsLigne(
+                    tx,
+                    entrepriseId,
+                    utilisateurId,
+                    emplacement.id,
+                    ligne,
+                    vente.id,
+                  )
+                : await this.sortirLigne(
+                    tx,
+                    entrepriseId,
+                    utilisateurId,
+                    emplacement.id,
+                    ligne,
+                    vente.id,
+                  );
               if (resultat.alerteANotifier)
                 alertes.push(resultat.alerteANotifier);
             }
@@ -175,6 +199,8 @@ export class VentesService {
           alertePlafond: await this.alertePlafond(entrepriseId, client),
         };
       } catch (erreur) {
+        // Renvoi simultané de la même vente hors ligne : déjà enregistrée.
+        if (dto.idClient && estDoublonOperation(erreur)) return DEJA_ENREGISTRE;
         // Dernier rempart : la contrainte unique (entreprise, numéro).
         if (
           this.estCollisionNumero(erreur) &&
@@ -192,6 +218,7 @@ export class VentesService {
         entrepriseId,
         clientId: filtres.clientId,
         emplacementId: filtres.emplacementId,
+        aRegulariser: filtres.aRegulariser === 'true' ? true : undefined,
         createdAt: {
           gte: filtres.du ? new Date(filtres.du) : undefined,
           lte: filtres.au ? new Date(filtres.au) : undefined,
@@ -326,6 +353,8 @@ export class VentesService {
       const produitsRestitues = new Set(sortiesDeLots.map((m) => m.produitId));
       for (const ligne of lignes) {
         if (produitsRestitues.has(ligne.produitId)) continue;
+        // Vente hors ligne à régulariser : seul ce qui est sorti du stock y revient.
+        if (ligne.quantite - ligne.quantiteARegulariser <= 0) continue;
         // Vente antérieure à l'activation du suivi par lot : la quantité
         // rejoint le lot sans date du produit.
         const lotId = await this.mouvements.lotSansDateSiSuivi(
@@ -341,7 +370,7 @@ export class VentesService {
           {
             produitId: ligne.produitId,
             emplacementId: vente.emplacementId,
-            quantite: ligne.quantite,
+            quantite: ligne.quantite - ligne.quantiteARegulariser,
           },
           { lotId, venteId, origine: 'CLIENT' },
         );
@@ -352,8 +381,10 @@ export class VentesService {
           statut: 'ANNULEE',
           annuleeAt: new Date(),
           motifAnnulation: motif.trim(),
+          aRegulariser: false,
         },
       });
+      await tx.ligneVente.updateMany({ where: { venteId }, data: { quantiteARegulariser: 0 } });
     });
     return this.obtenir(entrepriseId, venteId);
   }
@@ -558,6 +589,101 @@ export class VentesService {
         `Stock insuffisant pour « ${ligne.libelle} » : ${stock?.quantite ?? 0} disponible(s), ${ligne.quantite} demandé(s). Aucune ligne n’a été enregistrée.`,
       );
     }
+  }
+
+  /**
+   * Vente hors ligne : sort ce que le stock permet, et marque le reste
+   * « à régulariser » au lieu de refuser la vente — elle a déjà eu lieu,
+   * au comptoir (décision validée). Le stock ne passe jamais sous zéro :
+   * la quantité manquante sortira à la régularisation.
+   */
+  private async sortirLigneHorsLigne(
+    tx: TransactionPrisma,
+    entrepriseId: string,
+    utilisateurId: string,
+    emplacementId: string,
+    ligne: { produitId: string; libelle: string; quantite: number },
+    venteId: string,
+  ) {
+    const stock = await tx.stock.findUnique({
+      where: { produitId_emplacementId: { produitId: ligne.produitId, emplacementId } },
+    });
+    const sortie = Math.min(ligne.quantite, Math.max(stock?.quantite ?? 0, 0));
+    let alerteANotifier: AlerteANotifier | null = null;
+    if (sortie > 0) {
+      const resultat = await this.mouvements.sortieDansTransaction(
+        tx,
+        entrepriseId,
+        utilisateurId,
+        { produitId: ligne.produitId, emplacementId, quantite: sortie },
+        { venteId },
+      );
+      alerteANotifier = resultat.alerteANotifier;
+    }
+    const manque = ligne.quantite - sortie;
+    if (manque > 0) {
+      await tx.ligneVente.updateMany({
+        where: { venteId, produitId: ligne.produitId },
+        data: { quantiteARegulariser: manque },
+      });
+      await tx.vente.update({ where: { id: venteId }, data: { aRegulariser: true } });
+    }
+    return { alerteANotifier };
+  }
+
+  /**
+   * Heure d'une vente saisie hors ligne : ni dans le futur (horloge de
+   * l'appareil fausse), ni plus vieille que 30 jours.
+   */
+  private dateSaisieHorsLigne(valeur?: string): Date | null {
+    if (!valeur) return null;
+    const date = new Date(valeur);
+    const maintenant = Date.now();
+    if (date.getTime() > maintenant + 5 * 60_000) {
+      throw new BadRequestException(
+        'Date de saisie hors ligne dans le futur : vérifiez l’heure de l’appareil.',
+      );
+    }
+    if (date.getTime() < maintenant - 30 * 24 * 3600_000) {
+      throw new BadRequestException(
+        'Vente saisie hors ligne il y a plus de 30 jours : enregistrez-la à nouveau.',
+      );
+    }
+    return date;
+  }
+
+  /**
+   * Sort du stock les quantités d'une vente hors ligne restées « à
+   * régulariser » (l'entrée manquante a été enregistrée depuis). Tout ou
+   * rien : un stock encore insuffisant n'en sort aucune.
+   */
+  async regulariser(entrepriseId: string, utilisateurId: string, venteId: string) {
+    const alertes = await this.prisma.$transaction(async (tx) => {
+      const vente = await this.verrouillerVente(tx, entrepriseId, venteId);
+      if (!vente.aRegulariser) {
+        throw new ConflictException('Cette vente n’a rien à régulariser.');
+      }
+      const lignes = await tx.ligneVente.findMany({
+        where: { venteId, quantiteARegulariser: { gt: 0 } },
+      });
+      const alertesARegler: AlerteANotifier[] = [];
+      for (const ligne of lignes) {
+        const resultat = await this.sortirLigne(
+          tx,
+          entrepriseId,
+          utilisateurId,
+          vente.emplacementId,
+          { produitId: ligne.produitId, libelle: ligne.libelle, quantite: ligne.quantiteARegulariser },
+          venteId,
+        );
+        if (resultat.alerteANotifier) alertesARegler.push(resultat.alerteANotifier);
+      }
+      await tx.ligneVente.updateMany({ where: { venteId }, data: { quantiteARegulariser: 0 } });
+      await tx.vente.update({ where: { id: venteId }, data: { aRegulariser: false } });
+      return alertesARegler;
+    });
+    for (const alerte of alertes) await this.mouvements.notifierAlerte(entrepriseId, alerte);
+    return this.obtenir(entrepriseId, venteId);
   }
 
   /** V-ANNEE-NNNN, séquentiel par entreprise et par année ; appelé sous verrou, dans la transaction. */

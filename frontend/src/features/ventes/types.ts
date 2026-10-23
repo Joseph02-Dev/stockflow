@@ -14,6 +14,8 @@ export interface LigneVente {
   prixUnitaire: number;
   tauxTva: number;
   montantLigne: number;
+  /** Vente hors ligne : quantité vendue sans stock enregistré, pas encore sortie. */
+  quantiteARegulariser: number;
 }
 
 export interface Reglement {
@@ -41,6 +43,9 @@ export interface VenteDetail {
   echeanceAt: string | null;
   annuleeAt: string | null;
   motifAnnulation: string | null;
+  /** Vente saisie hors ligne : heure de la vente sur l'appareil. */
+  saisieHorsLigneAt: string | null;
+  aRegulariser: boolean;
   createdAt: string;
   client: Client | null;
   emplacement: { id: string; nom: string };
@@ -62,6 +67,7 @@ export interface VenteResume {
   modePaiement: ModePaiement;
   createdAt: string;
   nombreLignes: number;
+  aRegulariser: boolean;
   client: { id: string; nom: string; telephone: string | null } | null;
   emplacement: { id: string; nom: string };
 }

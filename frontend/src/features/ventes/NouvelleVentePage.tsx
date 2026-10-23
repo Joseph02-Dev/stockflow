@@ -1,9 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Minus, Plus, Search, TriangleAlert, UserRound, WifiOff, X } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { useEnLigne } from '@/lib/useEnLigne';
+import {
+  ajouterMouvementEnAttente,
+  etatFile,
+  nouvelIdClient,
+  quantitesEnAttente,
+  souscrireFile,
+} from '@/lib/mouvementsHorsLigne';
 import { useDebounce } from '@/lib/useDebounce';
 import { calculerTotaux } from '@/lib/calculVente';
 import { resoudrePrix } from '@/lib/tarifs';
@@ -77,6 +84,8 @@ export function NouvelleVentePage() {
   const [modeAvance, setModeAvance] = useState<ModeReglement>('ESPECES');
   const [echeance, setEcheance] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
+  /** Dernière vente gardée sur l'appareil faute de réseau (confirmation affichée). */
+  const [venteEnAttente, setVenteEnAttente] = useState<{ total: number; articles: number } | null>(null);
 
   const categorie = client?.categorie ?? 'DETAIL';
   // Pas de client : le crédit n'est pas possible, on revient au comptant.
@@ -98,6 +107,9 @@ export function NouvelleVentePage() {
     () => new Map((stock.data ?? []).filter((l) => !l.produit.archive).map((l) => [l.produit.id, l])),
     [stock.data],
   );
+  // Ventes et sorties en attente d'envoi : le stock affiché les déduit déjà.
+  const file = useSyncExternalStore(souscrireFile, etatFile, etatFile);
+  const sortiesEnAttente = emplacementId ? quantitesEnAttente(file.mouvements, emplacementId) : new Map<string, number>();
 
   const situation = useQuery({
     queryKey: ['clients', client?.id, 'situation'],
@@ -112,6 +124,19 @@ export function NouvelleVentePage() {
       (await api.get<Client[]>(`/clients?search=${encodeURIComponent(rechercheClientRetardee)}`)).data,
     enabled: client === null && rechercheClientRetardee.length > 0,
   });
+  // Hors ligne, la recherche du serveur est impossible : on filtre la liste
+  // complète des clients, préchargée pour le mode hors ligne.
+  const tousClients = useQuery({
+    queryKey: ['clients', 'tous-hors-ligne'],
+    queryFn: async () => (await api.get<Client[]>('/clients?')).data,
+    enabled: !enLigne && client === null && rechercheClientRetardee.length > 0,
+  });
+  const termeClient = rechercheClientRetardee.toLocaleLowerCase('fr');
+  const clientsProposes = enLigne
+    ? clientsTrouves.data
+    : tousClients.data?.filter(
+        (c) => !c.archive && [c.nom, c.telephone ?? ''].some((champ) => champ.toLocaleLowerCase('fr').includes(termeClient)),
+      );
 
   // Lignes du panier, au prix de la catégorie du client (affichage seulement :
   // le serveur résout lui-même le prix au moment de valider).
@@ -121,7 +146,7 @@ export function NouvelleVentePage() {
       if (!ligne) return null;
       return {
         produit: ligne.produit,
-        disponible: ligne.quantite,
+        disponible: Math.max(ligne.quantite - (sortiesEnAttente.get(produitId) ?? 0), 0),
         quantite,
         prixUnitaire: resoudrePrix(ligne.produit, categorie) ?? 0,
         tauxTva: ligne.produit.tauxTva ?? 0,
@@ -161,19 +186,54 @@ export function NouvelleVentePage() {
   }
 
   const valider = useMutation({
-    mutationFn: async () =>
-      (
-        await api.post<VenteDetail>('/ventes', {
-          emplacementId,
-          ...(client ? { clientId: client.id } : {}),
-          modePaiement: modeEffectif,
-          lignes: lignes.map((l) => ({ produitId: l.produit.id, quantite: l.quantite })),
-          ...(entier(tauxRemise) > 0 ? { tauxRemise: Math.min(entier(tauxRemise), 100) } : {}),
-          ...(modeEffectif === 'CREDIT' && montantAvance > 0 ? { avance: { montant: montantAvance, mode: modeAvance } } : {}),
-          ...(modeEffectif === 'CREDIT' && echeance ? { echeanceAt: new Date(`${echeance}T12:00:00`).toISOString() } : {}),
-        })
-      ).data,
+    // Jamais mise en pause hors ligne : c'est mutationFn qui décide de
+    // garder la vente sur l'appareil.
+    networkMode: 'always',
+    mutationFn: async (): Promise<VenteDetail | null> => {
+      const corps = {
+        // Créé avant le premier envoi : si la réponse se perd et que la
+        // vente part en file, son renvoi ne l'enregistre pas deux fois.
+        idClient: nouvelIdClient(),
+        emplacementId,
+        ...(client ? { clientId: client.id } : {}),
+        modePaiement: modeEffectif,
+        lignes: lignes.map((l) => ({ produitId: l.produit.id, quantite: l.quantite })),
+        ...(entier(tauxRemise) > 0 ? { tauxRemise: Math.min(entier(tauxRemise), 100) } : {}),
+        ...(modeEffectif === 'CREDIT' && montantAvance > 0 ? { avance: { montant: montantAvance, mode: modeAvance } } : {}),
+        ...(modeEffectif === 'CREDIT' && echeance ? { echeanceAt: new Date(`${echeance}T12:00:00`).toISOString() } : {}),
+      };
+      // Hors ligne : la vente est gardée sur l'appareil avec son heure
+      // réelle, et envoyée au retour du réseau (voir mouvementsHorsLigne).
+      const garderSurAppareil = () => {
+        const nombre = lignes.length;
+        const resume = `${nombre} article${nombre > 1 ? 's' : ''} · ${gnf(totaux.total)} · ${client?.nom ?? 'client de passage'}`;
+        ajouterMouvementEnAttente('vente', { ...corps, saisieHorsLigneAt: new Date().toISOString() }, resume);
+        return null;
+      };
+      if (!enLigne) return garderSurAppareil();
+      try {
+        return (await api.post<VenteDetail>('/ventes', corps)).data;
+      } catch (erreurEnvoi) {
+        // Aucune réponse du serveur (coupure pendant l'envoi) : même chose
+        // que hors ligne. Une erreur métier (stock, plafond…) reste affichée.
+        const sansReponse =
+          erreurEnvoi instanceof Object && 'isAxiosError' in erreurEnvoi && !(erreurEnvoi as { response?: unknown }).response;
+        if (sansReponse) return garderSurAppareil();
+        throw erreurEnvoi;
+      }
+    },
     onSuccess: (vente) => {
+      if (!vente) {
+        setVenteEnAttente({ total: totaux.total, articles: lignes.length });
+        setQuantites(new Map());
+        setClient(null);
+        setTauxRemise('');
+        setAvance('');
+        setEcheance('');
+        setMode('ESPECES');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
       for (const cle of ['ventes', 'stock', 'mouvements', 'alertes', 'dashboard', 'creances', 'clients']) {
         queryClient.invalidateQueries({ queryKey: [cle] });
       }
@@ -182,10 +242,13 @@ export function NouvelleVentePage() {
     onError: (e) => setErreur(messageErreur(e, 'La vente n’a pas pu être enregistrée.')),
   });
 
-  const peutValider = enLigne && lignes.length > 0 && !surStock && !avanceInvalide && emplacementId !== null;
+  // Hors ligne, un manque de stock n'empêche pas la vente : elle sera
+  // marquée « à régulariser » si le stock manque à la synchronisation.
+  const peutValider = lignes.length > 0 && !(enLigne && surStock) && !avanceInvalide && emplacementId !== null;
 
   function soumettre() {
     setErreur(null);
+    setVenteEnAttente(null);
     if (peutValider) valider.mutate();
   }
 
@@ -200,10 +263,16 @@ export function NouvelleVentePage() {
         </Alert>
       )}
 
+      {venteEnAttente && (
+        <Alert variant="success">
+          Vente de {gnf(venteEnAttente.total)} ({venteEnAttente.articles} article{venteEnAttente.articles > 1 ? 's' : ''}) enregistrée
+          sur cet appareil. Elle sera envoyée dès le retour du réseau et recevra alors son numéro de reçu.
+        </Alert>
+      )}
       {!enLigne && (
-        <Alert variant="warning">
-          Connexion requise : une vente touche au stock, à l’argent et à la dette du client, elle n’est jamais
-          enregistrée hors ligne.
+        <Alert variant="info">
+          Hors ligne : la vente est gardée sur cet appareil et envoyée au retour du réseau. Si le stock ne suffit plus à
+          ce moment-là, elle est quand même enregistrée et marquée « à régulariser ».
         </Alert>
       )}
 
@@ -266,7 +335,7 @@ export function NouvelleVentePage() {
                   </label>
                   {rechercheClientRetardee && (
                     <ul className="divide-y divide-rule overflow-hidden rounded-md border border-rule">
-                      {(clientsTrouves.data ?? []).slice(0, 6).map((c) => (
+                      {(clientsProposes ?? []).slice(0, 6).map((c) => (
                         <li key={c.id}>
                           <button
                             type="button"
@@ -285,7 +354,7 @@ export function NouvelleVentePage() {
                           </button>
                         </li>
                       ))}
-                      {clientsTrouves.data?.length === 0 && (
+                      {clientsProposes?.length === 0 && (
                         <li className="px-3 py-2.5 text-corps text-steel-500">Aucun client trouvé.</li>
                       )}
                     </ul>
@@ -510,7 +579,13 @@ export function NouvelleVentePage() {
             )}
 
             {erreur && <Alert variant="error">{erreur}</Alert>}
-            {surStock && <Alert variant="warning">Une quantité dépasse le stock disponible dans ce dépôt.</Alert>}
+            {surStock && (
+              <Alert variant="warning">
+                {enLigne
+                  ? 'Une quantité dépasse le stock disponible dans ce dépôt.'
+                  : 'Une quantité dépasse le stock connu : la vente sera marquée « à régulariser » si le stock manque à la synchronisation.'}
+              </Alert>
+            )}
 
             {/* Sur mobile, la validation est dans la barre fixe en bas d'écran. */}
             <div className="hidden md:block">

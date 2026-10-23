@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsDateString,
+  IsIn,
   IsInt,
   IsOptional,
   IsUUID,
@@ -25,6 +26,11 @@ export class ListerVentesDto {
   @IsOptional()
   @IsDateString({}, { message: 'Date de fin invalide.' })
   au?: string;
+
+  /** `true` : seulement les ventes hors ligne à régulariser. */
+  @IsOptional()
+  @IsIn(['true'], { message: 'aRegulariser ne peut valoir que true.' })
+  aRegulariser?: 'true';
 
   /** Taille de page (50 par défaut). */
   @IsOptional()

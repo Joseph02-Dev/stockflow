@@ -11,7 +11,8 @@ const CLES_SUIVIES = [CLE_STOCKAGE, CLE_ECHEC, CLE_DERNIERE];
 /** Prévient les autres onglets qu'une file a changé dans IndexedDB. */
 const CANAL = 'stockflow.file-hors-ligne';
 
-export type TypeMouvementHorsLigne = 'entree' | 'sortie' | 'transfert';
+/** Opérations qui peuvent attendre le réseau : mouvements de stock et ventes. */
+export type TypeMouvementHorsLigne = 'entree' | 'sortie' | 'transfert' | 'vente';
 
 export interface MouvementEnAttente {
   /** Identifiant local, distinct des identifiants serveur (jamais envoyé). */
@@ -28,6 +29,7 @@ const ROUTE_PAR_TYPE: Record<TypeMouvementHorsLigne, string> = {
   entree: '/mouvements/entree',
   sortie: '/mouvements/sortie',
   transfert: '/mouvements/transfert',
+  vente: '/ventes',
 };
 
 const abonnes = new Set<() => void>();
@@ -200,6 +202,29 @@ export function ajouterMouvementEnAttente(
   };
   ecrire([...lire(), mouvement]);
   return mouvement;
+}
+
+/**
+ * Quantités qui quitteront un emplacement à la synchronisation (ventes et
+ * sorties en attente), par produit : le stock affiché hors ligne en tient
+ * compte.
+ */
+export function quantitesEnAttente(mouvements: MouvementEnAttente[], emplacementId: string): Map<string, number> {
+  const parProduit = new Map<string, number>();
+  const ajouter = (produitId: unknown, quantite: unknown) => {
+    if (typeof produitId !== 'string' || typeof quantite !== 'number') return;
+    parProduit.set(produitId, (parProduit.get(produitId) ?? 0) + quantite);
+  };
+  for (const { type, corps } of mouvements) {
+    if (type === 'vente' && corps.emplacementId === emplacementId && Array.isArray(corps.lignes)) {
+      for (const ligne of corps.lignes as { produitId?: unknown; quantite?: unknown }[]) ajouter(ligne.produitId, ligne.quantite);
+    } else if (type === 'sortie' && corps.emplacementId === emplacementId) {
+      ajouter(corps.produitId, corps.quantite);
+    } else if (type === 'transfert' && corps.emplacementSourceId === emplacementId) {
+      ajouter(corps.produitId, corps.quantite);
+    }
+  }
+  return parProduit;
 }
 
 export function supprimerMouvementEnAttente(idLocal: string) {

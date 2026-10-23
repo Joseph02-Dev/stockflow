@@ -81,4 +81,21 @@ export class CreerVenteDto {
   @IsOptional()
   @IsDateString({}, { message: 'Échéance invalide.' })
   echeanceAt?: string;
+
+  /**
+   * Vente saisie hors ligne : identifiant créé sur l'appareil (un renvoi
+   * n'est jamais enregistré deux fois, voir operations-hors-ligne).
+   */
+  @IsOptional()
+  @IsUUID('4', { message: 'idClient doit être un identifiant valide.' })
+  idClient?: string;
+
+  /**
+   * Vente saisie hors ligne : heure réelle de la vente sur l'appareil. Un
+   * stock insuffisant à la synchronisation ne la refuse pas : la quantité
+   * manquante est marquée « à régulariser ».
+   */
+  @IsOptional()
+  @IsDateString({}, { message: 'Date de saisie hors ligne invalide.' })
+  saisieHorsLigneAt?: string;
 }

@@ -68,6 +68,17 @@ export class VentesController {
     );
   }
 
+  /** Vente hors ligne : sort du stock les quantités restées « à régulariser ». */
+  @Post(':id/regulariser')
+  @HttpCode(HttpStatus.OK)
+  regulariser(
+    @CurrentTenant() entrepriseId: string,
+    @CurrentUser() utilisateur: RequestContext,
+    @Param('id') id: string,
+  ) {
+    return this.ventesService.regulariser(entrepriseId, utilisateur.utilisateurId, id);
+  }
+
   /** Retour client : rentrée en stock, état de la marchandise et dédommagement, en une transaction. */
   @Post(':id/retour')
   @HttpCode(HttpStatus.CREATED)

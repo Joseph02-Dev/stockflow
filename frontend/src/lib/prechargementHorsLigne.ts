@@ -22,6 +22,8 @@ const INTERVALLE_MIN_MS = 5 * 60_000;
 const REQUETES_SIMULTANEES = 4;
 /** Fiches fournisseur préchargées (la page ouvre la première automatiquement). */
 const FICHES_FOURNISSEUR_MAX = 20;
+/** Situations client préchargées (dette et plafond, affichés à la vente). */
+const SITUATIONS_CLIENT_MAX = 100;
 
 export interface ContextePrechargement {
   admin: boolean;
@@ -120,14 +122,19 @@ export function prechargerEcrans(contexte: ContextePrechargement, force = false)
     const reussies = await chargerParLots(fixes);
     if (reussies === 0) return;
 
-    // Adresses qui dépendent des données : stock par emplacement (nouvelle
-    // vente) et fiches fournisseur.
-    const [emplacements, fournisseurs] = await Promise.all([
+    // Adresses qui dépendent des données : stock par emplacement et
+    // situation des clients (nouvelle vente), fiches fournisseur.
+    const [emplacements, fournisseurs, clients] = await Promise.all([
       api.get<{ id: string }[]>('/emplacements').then((r) => r.data, () => []),
       api.get<{ id: string }[]>('/fournisseurs').then((r) => r.data, () => []),
+      api.get<{ id: string; archive?: boolean }[]>('/clients?').then((r) => r.data, () => []),
     ]);
     await chargerParLots([
       ...emplacements.map((e) => `/stock?emplacement_id=${e.id}`),
+      ...clients
+        .filter((c) => !c.archive)
+        .slice(0, SITUATIONS_CLIENT_MAX)
+        .map((c) => `/clients/${c.id}/situation`),
       ...fournisseurs
         .slice(0, FICHES_FOURNISSEUR_MAX)
         .flatMap((f) => [`/fournisseurs/${f.id}`, `/fournisseurs/${f.id}/produits`, `/fournisseurs/${f.id}/receptions`]),
