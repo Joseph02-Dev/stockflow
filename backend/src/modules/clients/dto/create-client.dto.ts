@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsOptional, IsString, Matches, MaxLength, Min, MinLength } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, MaxLength, Min, MinLength } from 'class-validator';
 
 export const CATEGORIES_TARIFAIRES = ['GROS', 'DEMI_GROS', 'DETAIL'] as const;
 export type CategorieTarifaire = (typeof CATEGORIES_TARIFAIRES)[number];
@@ -36,4 +36,13 @@ export class CreateClientDto {
   @IsInt({ message: 'Le plafond de crédit doit être un montant entier en GNF.' })
   @Min(0, { message: 'Le plafond de crédit ne peut pas être négatif.' })
   plafondCredit?: number;
+
+  /**
+   * Client créé hors ligne : identifiant créé sur l'appareil, gardé comme
+   * identifiant du client. Une vente hors ligne peut ainsi le désigner
+   * avant la synchronisation, et un renvoi ne le crée jamais deux fois.
+   */
+  @IsOptional()
+  @IsUUID('4', { message: 'idClient doit être un identifiant valide.' })
+  idClient?: string;
 }

@@ -124,13 +124,16 @@ export function prechargerEcrans(contexte: ContextePrechargement, force = false)
 
     // Adresses qui dépendent des données : stock par emplacement et
     // situation des clients (nouvelle vente), fiches fournisseur.
-    const [emplacements, fournisseurs, clients] = await Promise.all([
+    const [emplacements, fournisseurs, clients, commandes] = await Promise.all([
       api.get<{ id: string }[]>('/emplacements').then((r) => r.data, () => []),
       api.get<{ id: string }[]>('/fournisseurs').then((r) => r.data, () => []),
       api.get<{ id: string; archive?: boolean }[]>('/clients?').then((r) => r.data, () => []),
+      api.get<{ id: string; statut: string }[]>('/commandes').then((r) => r.data, () => []),
     ]);
     await chargerParLots([
       ...emplacements.map((e) => `/stock?emplacement_id=${e.id}`),
+      // Commandes envoyées : leur fiche, pour les réceptionner hors ligne.
+      ...commandes.filter((c) => c.statut === 'ENVOYEE').map((c) => `/commandes/${c.id}`),
       ...clients
         .filter((c) => !c.archive)
         .slice(0, SITUATIONS_CLIENT_MAX)

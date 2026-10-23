@@ -46,4 +46,9 @@ export class RecevoirCommandeDto {
   @ValidateNested({ each: true })
   @Type(() => LotReceptionDto)
   lots?: LotReceptionDto[];
+
+  /** Saisie hors ligne : un renvoi du même identifiant n'est jamais appliqué deux fois. */
+  @IsOptional()
+  @IsUUID('4', { message: 'idClient doit être un identifiant valide.' })
+  idClient?: string;
 }

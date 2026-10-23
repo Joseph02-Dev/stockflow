@@ -108,4 +108,21 @@ describe('Clients', () => {
     expect((await http(jetonB).patch(`/clients/${cree.body.id}`, { nom: 'Piraté' })).status).toBe(404);
     expect((await http(jetonB).patch(`/clients/${cree.body.id}/archive`)).status).toBe(404);
   });
+
+  it('client créé hors ligne : son idClient devient son identifiant, un renvoi ne le duplique pas', async () => {
+    const idClient = crypto.randomUUID();
+    const corps = { nom: 'Kadiatou Barry', categorie: 'GROS', idClient };
+    const cree = await http(jetonA).post('/clients', corps);
+    expect(cree.status).toBe(201);
+    expect(cree.body.id).toBe(idClient);
+
+    const renvoi = await http(jetonA).post('/clients', corps);
+    expect(renvoi.status).toBe(201);
+    expect(renvoi.body.id).toBe(idClient);
+    expect(await prisma.client.count({ where: { nom: 'Kadiatou Barry' } })).toBe(1);
+
+    // Une autre entreprise ne peut pas réutiliser cet identifiant.
+    const ailleurs = await http(jetonB).post('/clients', { nom: 'Intrus', idClient });
+    expect(ailleurs.status).not.toBe(201);
+  });
 });

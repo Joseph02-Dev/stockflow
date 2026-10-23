@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm, useWatch } from 'react-hook-form';
@@ -24,6 +24,9 @@ import { useCreances, type Debiteur } from '@/features/creances/types';
 import { JaugeCredit } from './JaugeCredit';
 import { FORMAT_TELEPHONE, LIBELLES_CATEGORIE } from './types';
 import type { CategorieTarifaire, Client } from './types';
+import { envoyerOuGarder, etatFile, nouvelIdClient, souscrireFile } from '@/lib/mouvementsHorsLigne';
+import { useEnLigne } from '@/lib/useEnLigne';
+import { appliquerClientsEnAttente } from './clientsEnAttente';
 import './clients.css';
 
 const CATEGORIES: CategorieTarifaire[] = ['DETAIL', 'DEMI_GROS', 'GROS'];
@@ -75,6 +78,9 @@ export function ClientsPage() {
   const [edition, setEdition] = useState<Client | 'nouveau' | null>(null);
   const [aArchiver, setAArchiver] = useState<Client | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const enLigne = useEnLigne();
+  const file = useSyncExternalStore(souscrireFile, etatFile, etatFile);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['clients', { recherche: rechercheRetardee, afficherArchives }],
@@ -111,27 +117,46 @@ export function ClientsPage() {
   }
 
   const enregistrer = useMutation({
+    // Jamais en pause hors ligne : envoyerOuGarder garde le client sur l'appareil.
+    networkMode: 'always',
     mutationFn: async (valeurs: Formulaire) => {
       const plafond = Number.isNaN(valeurs.plafondCredit) ? null : valeurs.plafondCredit;
       if (edition === 'nouveau') {
-        return api.post('/clients', {
-          nom: valeurs.nom,
-          categorie: valeurs.categorie,
-          ...(valeurs.telephone ? { telephone: valeurs.telephone } : {}),
-          ...(valeurs.nomCommerce ? { nomCommerce: valeurs.nomCommerce } : {}),
-          ...(plafond !== null ? { plafondCredit: plafond } : {}),
-        });
+        // idClient : devient l'identifiant du client, même créé hors ligne.
+        return envoyerOuGarder(
+          'client',
+          {
+            idClient: nouvelIdClient(),
+            nom: valeurs.nom,
+            categorie: valeurs.categorie,
+            ...(valeurs.telephone ? { telephone: valeurs.telephone } : {}),
+            ...(valeurs.nomCommerce ? { nomCommerce: valeurs.nomCommerce } : {}),
+            ...(plafond !== null ? { plafondCredit: plafond } : {}),
+          },
+          `Nouveau client · ${valeurs.nom}`,
+          { enLigne },
+        );
       }
       // En modification, un champ vidé est explicitement effacé (null).
-      return api.patch(`/clients/${(edition as Client).id}`, {
-        nom: valeurs.nom,
-        categorie: valeurs.categorie,
-        telephone: valeurs.telephone || null,
-        nomCommerce: valeurs.nomCommerce || null,
-        plafondCredit: plafond,
-      });
+      return envoyerOuGarder(
+        'client',
+        {
+          nom: valeurs.nom,
+          categorie: valeurs.categorie,
+          telephone: valeurs.telephone || null,
+          nomCommerce: valeurs.nomCommerce || null,
+          plafondCredit: plafond,
+        },
+        `Modification · ${valeurs.nom}`,
+        { enLigne, chemin: `/clients/${(edition as Client).id}`, methode: 'PATCH' },
+      );
     },
-    onSuccess: () => {
+    onSuccess: (resultat) => {
+      setInfo(
+        resultat.horsLigne
+          ? 'Client enregistré sur cet appareil : il est déjà utilisable pour une vente, et sera envoyé au retour du réseau.'
+          : null,
+      );
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       // Le plafond de crédit est aussi lu par l'écran Créances.
       queryClient.invalidateQueries({ queryKey: ['creances'] });
@@ -152,7 +177,14 @@ export function ClientsPage() {
     },
   });
 
-  const clients = data ?? [];
+  // Clients créés ou modifiés hors ligne, pas encore envoyés : visibles aussitôt.
+  const { clients: avecAttente, enAttente } = appliquerClientsEnAttente(data ?? [], file.mouvements);
+  const terme = rechercheRetardee.toLocaleLowerCase('fr');
+  const clients = avecAttente.filter(
+    (c) =>
+      !enAttente.has(c.id) ||
+      [c.nom, c.nomCommerce ?? '', c.telephone ?? ''].some((champ) => champ.toLocaleLowerCase('fr').includes(terme)),
+  );
   const debiteurs = creances.data?.debiteurs ?? [];
   const debiteurParClient = new Map(debiteurs.map((d) => [d.client.id, d]));
   const resume = creances.data?.resume;
@@ -275,6 +307,7 @@ export function ClientsPage() {
       </div>
 
       {erreur && !edition && <Alert variant="error">{erreur}</Alert>}
+      {info && <Alert variant="info">{info}</Alert>}
 
       {isLoading ? (
         <Card>
@@ -321,7 +354,9 @@ export function ClientsPage() {
                     <h2 className="truncate text-[15px] font-semibold text-ink-900">{client.nom}</h2>
                     {client.nomCommerce && <p className="truncate text-meta text-steel-500">{client.nomCommerce}</p>}
                   </div>
-                  {client.archive ? (
+                  {enAttente.has(client.id) ? (
+                    <Badge variant="faible">En attente d’envoi</Badge>
+                  ) : client.archive ? (
                     <Badge variant="neutral">Archivé</Badge>
                   ) : (
                     <span className="clients-categorie" style={{ '--c': TEINTE_CATEGORIE[client.categorie] } as CSSProperties}>

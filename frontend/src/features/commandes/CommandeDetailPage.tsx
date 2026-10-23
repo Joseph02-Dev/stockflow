@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Send, PackageCheck, X } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
+import { envoyerOuGarder, etatFile, nouvelIdClient, souscrireFile } from '@/lib/mouvementsHorsLigne';
+import { useEnLigne } from '@/lib/useEnLigne';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Alert } from '@/components/ui/Alert';
@@ -72,12 +74,21 @@ export function CommandeDetailPage() {
     onError: (err) => setErreur(messageErreur(err, 'L’envoi a échoué.')),
   });
 
+  const enLigne = useEnLigne();
+  const file = useSyncExternalStore(souscrireFile, etatFile, etatFile);
+  const cheminReception = `/commandes/${id}/recevoir`;
+  // Réception saisie hors ligne, pas encore envoyée : on ne la propose plus.
+  const receptionEnAttente = file.mouvements.some((m) => m.type === 'reception' && m.chemin === cheminReception);
+
   const recevoir = useMutation({
+    // Jamais en pause hors ligne : envoyerOuGarder garde la réception sur l'appareil.
+    networkMode: 'always',
     mutationFn: async () => {
       const seriesDe = new Set(
         commande.data?.lignes.filter((l) => l.produit.suiviParSerie).map((l) => l.produitId),
       );
-      return api.post(`/commandes/${id}/recevoir`, {
+      const corps = {
+        idClient: nouvelIdClient(),
         lots: Object.entries(lotsRecus).map(([produitId, lot]) =>
           seriesDe.has(produitId)
             ? {
@@ -87,6 +98,10 @@ export function CommandeDetailPage() {
               }
             : { produitId, numeroLot: lot.numeroLot.trim(), datePeremption: lot.datePeremption },
         ),
+      };
+      return envoyerOuGarder('reception', corps, `Commande ${commande.data?.fournisseur?.nom ?? ''}`.trim(), {
+        enLigne,
+        chemin: cheminReception,
       });
     },
     onSuccess: () => {
@@ -119,7 +134,7 @@ export function CommandeDetailPage() {
 
   const actionsParStatut: Record<CommandeDetail['statut'], { label: string; type: NonNullable<typeof confirmation> }[]> = {
     BROUILLON: [{ label: 'Envoyer la commande', type: 'envoyer' }],
-    ENVOYEE: [{ label: 'Marquer comme reçue', type: 'recevoir' }],
+    ENVOYEE: receptionEnAttente ? [] : [{ label: 'Marquer comme reçue', type: 'recevoir' }],
     RECUE: [],
     ANNULEE: [],
   };
@@ -244,6 +259,11 @@ export function CommandeDetailPage() {
       </ol>
 
       {erreur && <Alert variant="error">{erreur}</Alert>}
+      {receptionEnAttente && data.statut === 'ENVOYEE' && (
+        <Alert variant="info">
+          Réception enregistrée sur cet appareil : le stock sera mis à jour dès le retour du réseau.
+        </Alert>
+      )}
 
       <Card>
         <PanneauEntete

@@ -56,6 +56,11 @@ export class DeclarerCasseDto {
   @IsOptional()
   @IsUUID('4', { message: 'lotId doit être un identifiant valide.' })
   lotId?: string;
+
+  /** Saisie hors ligne : un renvoi du même identifiant n'est jamais appliqué deux fois. */
+  @IsOptional()
+  @IsUUID('4', { message: 'idClient doit être un identifiant valide.' })
+  idClient?: string;
 }
 
 export class AnnulerPerteDto {

@@ -25,6 +25,7 @@ import { EmptyState, LoadingState } from '@/components/patterns/States';
 import { Vignette } from '@/components/patterns/Vignette';
 import { LIBELLES_CATEGORIE } from '@/features/clients/types';
 import type { Client } from '@/features/clients/types';
+import { appliquerClientsEnAttente } from '@/features/clients/clientsEnAttente';
 import { PastillesPaiement } from './PastillesPaiement';
 import type { ModePaiement, ModeReglement, SituationClient, VenteDetail } from './types';
 
@@ -132,9 +133,10 @@ export function NouvelleVentePage() {
     enabled: !enLigne && client === null && rechercheClientRetardee.length > 0,
   });
   const termeClient = rechercheClientRetardee.toLocaleLowerCase('fr');
+  // Les clients créés hors ligne (pas encore envoyés) y figurent aussi.
   const clientsProposes = enLigne
     ? clientsTrouves.data
-    : tousClients.data?.filter(
+    : appliquerClientsEnAttente(tousClients.data ?? [], file.mouvements).clients.filter(
         (c) => !c.archive && [c.nom, c.telephone ?? ''].some((champ) => champ.toLocaleLowerCase('fr').includes(termeClient)),
       );
 

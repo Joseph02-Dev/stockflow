@@ -1,6 +1,6 @@
 import { useCallback, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowLeftRight, ArrowUp, ChevronDown, CircleCheck, Receipt, RefreshCw } from 'lucide-react';
+import { ArrowDown, ArrowLeftRight, ArrowUp, ChevronDown, CircleCheck, PackageCheck, PackageX, Receipt, RefreshCw, UserRound } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { usePanneauFlottant } from '@/lib/usePanneauFlottant';
 import { supprimerMouvementEnAttente, type EtatFile, type TypeMouvementHorsLigne } from '@/lib/mouvementsHorsLigne';
@@ -14,6 +14,9 @@ const TYPES: Record<TypeMouvementHorsLigne, { libelle: string; signe: string; te
   sortie: { libelle: 'Sortie', signe: '− ', teinte: 'var(--color-action)', Icone: ArrowUp },
   transfert: { libelle: 'Transfert', signe: '', teinte: 'var(--color-accent)', Icone: ArrowLeftRight },
   vente: { libelle: 'Vente', signe: '', teinte: 'var(--color-ok)', Icone: Receipt },
+  client: { libelle: 'Client', signe: '', teinte: 'var(--color-serie-4)', Icone: UserRound },
+  perte: { libelle: 'Perte', signe: '− ', teinte: 'var(--color-rupture)', Icone: PackageX },
+  reception: { libelle: 'Réception', signe: '', teinte: 'var(--color-ok)', Icone: PackageCheck },
 };
 
 /** Heure seule pour aujourd'hui, jour et heure au-delà. */

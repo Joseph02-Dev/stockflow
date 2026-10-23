@@ -1,6 +1,10 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { RecevoirCommandeDto } from './dto/recevoir-commande.dto.js';
 import { PrismaService } from '../../config/prisma.service.js';
+import {
+  DEJA_ENREGISTRE,
+  operationDejaAppliquee,
+} from '../mouvements/operations-hors-ligne.js';
 import { refusNumerosSerie } from '../lots/strategie-sortie.js';
 import { MouvementsService } from '../mouvements/mouvements.service.js';
 import { RangementService } from '../rangement/rangement.service.js';
@@ -130,6 +134,10 @@ export class CommandesService {
    * reste ENVOYEE, à corriger avant nouvelle tentative.
    */
   async recevoir(entrepriseId: string, utilisateurId: string, commandeId: string, dto: RecevoirCommandeDto = {}) {
+    // Réception saisie hors ligne et renvoyée (réponse perdue) : déjà faite.
+    if (await operationDejaAppliquee(this.prisma, entrepriseId, dto.idClient)) {
+      return DEJA_ENREGISTRE;
+    }
     const commande = await this.trouverOuEchouer(entrepriseId, commandeId);
     if (commande.statut !== 'ENVOYEE') {
       throw new ConflictException('Seule une commande envoyée peut être marquée comme reçue.');
@@ -176,10 +184,18 @@ export class CommandesService {
       });
     }
 
-    return this.prisma.commandeFournisseur.update({
+    const recue = await this.prisma.commandeFournisseur.update({
       where: { id: commandeId },
       data: { statut: 'RECUE', recueAt: new Date() },
     });
+    // Inscrite après coup : un renvoi simultané est de toute façon refusé
+    // par le contrôle de statut ci-dessus (commande déjà RECUE).
+    if (dto.idClient) {
+      await this.prisma.operationHorsLigne
+        .create({ data: { entrepriseId, idClient: dto.idClient, nature: 'reception' } })
+        .catch(() => undefined);
+    }
+    return recue;
   }
 
   /** Annulation possible avant réception — jamais après (le stock a déjà bougé). */

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
 import type { CreateClientDto } from './dto/create-client.dto.js';
 import type { UpdateClientDto } from './dto/update-client.dto.js';
@@ -32,8 +32,32 @@ export class ClientsService {
   }
 
   async creer(entrepriseId: string, dto: CreateClientDto) {
+    // Client créé hors ligne et renvoyé (réponse perdue) : déjà enregistré.
+    const existant = dto.idClient ? await this.clientExistant(entrepriseId, dto.idClient) : null;
+    if (existant) return existant;
+    try {
+      return await this.creerClient(entrepriseId, dto);
+    } catch (erreur) {
+      // Deux renvois simultanés : le second bute sur la clé primaire.
+      const doublon = dto.idClient && (erreur as { code?: unknown }).code === 'P2002';
+      const client = doublon ? await this.clientExistant(entrepriseId, dto.idClient!) : null;
+      if (client) return client;
+      throw erreur;
+    }
+  }
+
+  private async clientExistant(entrepriseId: string, id: string) {
+    const client = await this.prisma.client.findUnique({ where: { id } });
+    if (client && client.entrepriseId !== entrepriseId) {
+      throw new ConflictException('Identifiant de client déjà utilisé.');
+    }
+    return client;
+  }
+
+  private creerClient(entrepriseId: string, dto: CreateClientDto) {
     return this.prisma.client.create({
       data: {
+        ...(dto.idClient ? { id: dto.idClient } : {}),
         entrepriseId,
         nom: dto.nom.trim(),
         telephone: dto.telephone?.trim(),
