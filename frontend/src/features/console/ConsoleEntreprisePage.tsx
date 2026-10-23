@@ -1,7 +1,21 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
-import { Lock, ScrollText, Unlock } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowLeftRight,
+  BellRing,
+  Blocks,
+  CircleCheck,
+  Lock,
+  LockOpen,
+  MapPin,
+  Package,
+  RotateCcwClock,
+  Truck,
+  Users,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { messageErreur } from '@/lib/api';
 import { formatNombre, pluriel, tempsRelatif } from '@/lib/format';
 import { cn } from '@/lib/cn';
@@ -24,6 +38,8 @@ import { Pagination } from './Pagination';
 import { OngletReglages } from './OngletReglages';
 import type { Reglages } from './OngletReglages';
 import type { Page } from './types';
+import { teinteSerie } from '@/lib/teinte';
+import './console.css';
 
 interface Fiche {
   entreprise: {
@@ -135,15 +151,23 @@ export function ConsoleEntreprisePage() {
 
   return (
     <div className="flex flex-col gap-5">
+      <Link
+        to="/console/entreprises"
+        className="inline-flex w-fit items-center gap-1.5 text-corps font-semibold text-steel-500 hover:text-ink-900"
+      >
+        <ArrowLeft className="size-4" strokeWidth={1.75} aria-hidden="true" />
+        Entreprises
+      </Link>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3.5">
-          <Vignette nom={entreprise.nom} taille={48} className="text-corps" />
+          <Vignette nom={entreprise.nom} taille={52} teinte={teinteSerie(entreprise.id)} className="text-corps" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="truncate text-titre text-ink-900">{entreprise.nom}</h1>
+              <h1 className="truncate font-display text-[1.625rem] font-semibold tracking-[-0.02em] text-ink-900">{entreprise.nom}</h1>
               <EtatBadge etat={suspendue ? 'SUSPENDUE' : 'ACTIVE'} />
             </div>
             <p className="mt-0.5 text-corps text-steel-500">
+              {entreprise.secteurActivite && `${entreprise.secteurActivite} · `}
               Inscrite le {date(entreprise.createdAt)}
               {synthese.derniereActivite
                 ? `, dernière activité ${tempsRelatif(synthese.derniereActivite, fiche.dataUpdatedAt)}`
@@ -153,17 +177,17 @@ export function ConsoleEntreprisePage() {
         </div>
         <div className="flex gap-2">
           <Link to={`/console/journal?entrepriseId=${entreprise.id}`} className={boutonClasses('secondary')}>
-            <ScrollText className="size-4" aria-hidden="true" />
+            <RotateCcwClock className="size-4" strokeWidth={1.75} aria-hidden="true" />
             Journal
           </Link>
           {suspendue ? (
             <Button loading={retablir.isPending} onClick={() => retablir.mutate()}>
-              <Unlock className="size-4" aria-hidden="true" />
+              <LockOpen className="size-4" strokeWidth={1.75} aria-hidden="true" />
               Rétablir l’accès
             </Button>
           ) : (
             <Button variant="danger" onClick={() => setSuspensionOuverte(true)}>
-              <Lock className="size-4" aria-hidden="true" />
+              <Lock className="size-4" strokeWidth={1.75} aria-hidden="true" />
               Suspendre l’accès
             </Button>
           )}
@@ -182,9 +206,11 @@ export function ConsoleEntreprisePage() {
       )}
       {erreur && <Alert variant="error">{erreur}</Alert>}
 
+      <Mesures fiche={fiche.data} />
+
       <Onglets onglets={ONGLETS} actif={onglet} onChange={setOnglet} libelle="Sections de la fiche" />
 
-      {onglet === 'synthese' && <Synthese fiche={fiche.data} />}
+      {onglet === 'synthese' && <Synthese fiche={fiche.data} maintenant={fiche.dataUpdatedAt} />}
       {onglet === 'emplacements' && <Emplacements fiche={fiche.data} />}
       {onglet === 'utilisateurs' && <Utilisateurs fiche={fiche.data} maintenant={fiche.dataUpdatedAt} />}
       {onglet === 'stock' && <Stock entrepriseId={id} />}
@@ -203,29 +229,135 @@ export function ConsoleEntreprisePage() {
   );
 }
 
-function Synthese({ fiche }: { fiche: Fiche }) {
-  const s = fiche.synthese;
-  const mesures = [
-    { libelle: 'Utilisateurs', valeur: s.utilisateurs, meta: `${s.sessionsActives} ${pluriel('session active', s.sessionsActives, 'sessions actives')}` },
-    { libelle: 'Emplacements actifs', valeur: s.emplacements },
-    { libelle: 'Références suivies', valeur: s.references, meta: `${s.fournisseurs} ${pluriel('fournisseur', s.fournisseurs)}` },
-    { libelle: 'Mouvements 30 j', valeur: s.mouvements30j, meta: `${formatNombre(s.mouvementsTotal)} au total` },
-    { libelle: 'Alertes actives', valeur: s.alertesActives },
-    { libelle: 'Commandes en cours', valeur: s.commandesEnCours },
-  ];
+function Mesure({ Icone, libelle, valeur, meta, couleur }: { Icone: LucideIcon; libelle: string; valeur: string; meta?: string; couleur?: string }) {
   return (
-    <section
-      aria-label="Synthèse"
-      className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rule bg-rule shadow-card md:grid-cols-3 xl:grid-cols-6"
-    >
-      {mesures.map((m) => (
-        <div key={m.libelle} className="bg-surface px-5 py-4">
-          <p className="text-meta text-steel-500">{m.libelle}</p>
-          <p className="mt-1 text-chiffre text-ink-900">{formatNombre(m.valeur)}</p>
-          {m.meta && <p className="mt-1 text-meta text-steel-400">{m.meta}</p>}
-        </div>
-      ))}
+    <div>
+      <p className="flex items-center gap-1.5 text-meta text-steel-500">
+        <Icone className="size-[15px] text-steel-400" strokeWidth={1.75} aria-hidden="true" />
+        {libelle}
+      </p>
+      <p className="mt-1 font-display text-[1.375rem] leading-tight font-semibold" style={{ color: couleur ?? 'var(--color-ink-900)' }}>
+        {valeur}
+      </p>
+      {meta && <p className="mt-0.5 text-meta text-steel-400">{meta}</p>}
+    </div>
+  );
+}
+
+/** Chiffres clés de l'entreprise, visibles quel que soit l'onglet. */
+function Mesures({ fiche }: { fiche: Fiche }) {
+  const s = fiche.synthese;
+  const archives = fiche.emplacements.filter((e) => e.archive).length;
+  const modules = Object.entries(fiche.reglages.modules);
+  const actifs = modules.filter(([, actif]) => actif).length;
+  const suspendue = fiche.entreprise.statut === 'SUSPENDUE';
+  return (
+    <section aria-label="Chiffres clés" className="console-mesures">
+      <Mesure Icone={Users} libelle="Utilisateurs" valeur={formatNombre(s.utilisateurs)} meta={`${s.sessionsActives} ${pluriel('session active', s.sessionsActives, 'sessions actives')}`} />
+      <Mesure Icone={MapPin} libelle="Emplacements" valeur={formatNombre(s.emplacements)} meta={archives > 0 ? `${archives} ${pluriel('archivé', archives)}` : 'aucun archivé'} />
+      <Mesure Icone={Package} libelle="Références" valeur={formatNombre(s.references)} meta={`${s.fournisseurs} ${pluriel('fournisseur', s.fournisseurs)}`} />
+      <Mesure Icone={ArrowLeftRight} libelle="Mouvements 30 j" valeur={formatNombre(s.mouvements30j)} meta={`${formatNombre(s.mouvementsTotal)} au total`} />
+      <Mesure
+        Icone={BellRing}
+        libelle="Alertes actives"
+        valeur={formatNombre(s.alertesActives)}
+        meta="ruptures et seuils"
+        couleur={s.alertesActives > 0 ? 'var(--color-faible)' : undefined}
+      />
+      <Mesure Icone={Truck} libelle="Commandes en cours" valeur={formatNombre(s.commandesEnCours)} meta="chez les fournisseurs" />
+      <Mesure
+        Icone={CircleCheck}
+        libelle="Accès"
+        valeur={suspendue ? 'Suspendu' : 'Ouvert'}
+        meta={suspendue ? 'aucune connexion possible' : 'connexions autorisées'}
+        couleur={suspendue ? 'var(--color-rupture)' : 'var(--color-ok)'}
+      />
+      <Mesure Icone={Blocks} libelle="Modules" valeur={`${actifs} / ${modules.length}`} meta="activés dans les réglages" />
     </section>
+  );
+}
+
+const LIMITES: { cle: keyof Reglages['limites']; libelle: string; unite: [string, string] }[] = [
+  { cle: 'emplacements', libelle: 'Emplacements', unite: ['emplacement', 'emplacements'] },
+  { cle: 'utilisateurs', libelle: 'Utilisateurs', unite: ['utilisateur', 'utilisateurs'] },
+  { cle: 'references', libelle: 'Références', unite: ['référence', 'références'] },
+];
+const LIBELLES_MODULES: Record<keyof Reglages['modules'], string> = { inventaires: 'Inventaires', transferts: 'Transferts' };
+
+function Synthese({ fiche, maintenant }: { fiche: Fiche; maintenant: number }) {
+  const { limites, usage, modules } = fiche.reglages;
+  const utilisateurs = [...fiche.utilisateurs].sort((a, b) => (b.derniereConnexion ?? '').localeCompare(a.derniereConnexion ?? ''));
+  return (
+    <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
+      <Card>
+        <PanneauEntete titre="Utilisation des limites" meta="Fixées dans les réglages" />
+        <ul className="divide-y divide-rule">
+          {LIMITES.map(({ cle, libelle, unite }) => {
+            const limite = limites[cle];
+            const utilise = usage[cle];
+            const part = limite ? Math.min(1, utilise / limite) : 1;
+            const atteinte = limite !== null && utilise >= limite;
+            const couleur = limite === null ? 'var(--color-ok)' : atteinte ? 'var(--color-rupture)' : part >= 0.8 ? 'var(--color-faible)' : 'var(--color-action)';
+            return (
+              <li key={cle} className="px-5 py-3.5">
+                <p className="flex justify-between gap-3 text-corps">
+                  <span className="font-semibold text-ink-900">{libelle}</span>
+                  <span className="text-steel-500 tabular-nums">
+                    {formatNombre(utilise)} {limite === null ? '· illimité' : `/ ${formatNombre(limite)}`}
+                  </span>
+                </p>
+                <span className="console-piste mt-2 block h-2" aria-hidden="true">
+                  <i style={{ width: `${part * 100}%`, '--c': couleur, opacity: limite === null ? 0.3 : 1 } as CSSProperties} />
+                </span>
+                <p className="mt-1.5 text-meta text-steel-400">
+                  {limite === null
+                    ? 'Aucune limite'
+                    : atteinte
+                      ? 'Limite atteinte : aucun ajout possible'
+                      : `Encore ${formatNombre(limite - utilise)} ${pluriel(unite[0], limite - utilise, unite[1])} possible${limite - utilise > 1 ? 's' : ''}`}
+                </p>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="flex flex-wrap gap-2 border-t border-rule px-5 py-3.5">
+          {(Object.keys(modules) as (keyof Reglages['modules'])[]).map((m) => (
+            <Badge key={m} variant={modules[m] ? 'ok' : 'neutral'}>
+              {LIBELLES_MODULES[m]} {modules[m] ? 'activé' : 'désactivé'}
+            </Badge>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <PanneauEntete titre="Utilisateurs" meta="Dernière connexion" />
+        {utilisateurs.length === 0 ? (
+          <EmptyState titre="Aucun utilisateur" />
+        ) : (
+          <ul className="divide-y divide-rule">
+            {utilisateurs.map((u) => (
+              <li key={u.id} className="flex items-center gap-3 px-5 py-3">
+                <Vignette nom={u.nom} taille={32} teinte="var(--color-action)" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-corps font-semibold text-ink-900">{u.nom}</p>
+                  <p className="truncate text-meta text-steel-400">
+                    {u.role === 'ADMIN' ? 'Administrateur' : 'Gestionnaire'}
+                    {u.sessionsActives > 0 && ` · ${u.sessionsActives} ${pluriel('session', u.sessionsActives)}`}
+                  </p>
+                </div>
+                {!u.emailVerifie ? (
+                  <Badge variant="faible">Email non vérifié</Badge>
+                ) : (
+                  <span className="shrink-0 text-meta text-steel-400">
+                    {u.derniereConnexion ? tempsRelatif(u.derniereConnexion, maintenant) : 'aucune connexion'}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    </div>
   );
 }
 

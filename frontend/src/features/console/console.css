@@ -1,0 +1,262 @@
+/* Console opérateur : barre sombre, bandeau, cartes de signaux, journal, connexion. */
+.console-rail {
+  background:
+    radial-gradient(140% 60% at 0% 0%, color-mix(in oklab, var(--color-action) 28%, transparent), transparent 60%),
+    var(--color-console-rail);
+}
+.console-nav-lien {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgb(255 255 255 / 0.7);
+  transition:
+    background-color 150ms,
+    color 150ms;
+}
+.console-nav-lien:hover {
+  color: #fff;
+  background: rgb(255 255 255 / 0.06);
+}
+.console-nav-lien[aria-current='page'] {
+  color: #fff;
+  background: color-mix(in oklab, var(--color-console-clair) 16%, transparent);
+  box-shadow: inset 2px 0 0 var(--color-console-clair);
+}
+
+.console-bandeau {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 22px;
+  overflow: hidden;
+  padding: 22px 24px;
+  border-radius: 20px;
+  color: #f1f1ef;
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in oklab, var(--color-action) 38%, transparent), transparent 55%),
+    linear-gradient(135deg, #16171b, #23252c);
+  animation: console-arrive 400ms var(--ease-sortie) both;
+}
+.console-bandeau::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+.console-bandeau > * {
+  position: relative;
+  z-index: 1;
+}
+.console-sur {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 0.55);
+}
+.console-puce {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 99px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgb(255 255 255 / 0.08);
+}
+.console-puce i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.console-mini {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-self: center;
+}
+.console-mini > div {
+  padding: 12px 14px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 0.06);
+}
+
+/* Pastille d'icône : teinte légère et filet de la même couleur. */
+.console-pastille {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid color-mix(in oklab, var(--c) 22%, var(--color-rule));
+  border-radius: 10px;
+  color: var(--c);
+  background: color-mix(in oklab, var(--c) 10%, var(--color-surface));
+}
+.console-pastille-sm {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+}
+.console-signal {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--color-rule);
+  border-radius: 18px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  animation: console-arrive 400ms var(--ease-sortie) both;
+}
+
+.console-filtre {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--color-rule);
+  border-radius: 14px;
+  text-align: left;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  transition: border-color 150ms;
+}
+.console-filtre:hover {
+  border-color: var(--color-rule-strong);
+}
+.console-filtre[aria-pressed='true'] {
+  border-color: var(--color-action);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-action) 18%, transparent);
+}
+.console-filtre b {
+  font: 650 22px var(--font-display);
+  color: var(--c, var(--color-ink-900));
+}
+.console-filtre span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--color-steel-500);
+}
+.console-filtre span i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c, var(--color-steel-400));
+}
+
+.console-piste {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--color-rule);
+}
+.console-piste i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--c, var(--color-action));
+  transform-origin: left;
+  animation: console-pousse 900ms var(--ease-sortie) 200ms both;
+}
+
+.console-mesures {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--color-rule);
+  border-radius: 18px;
+  background: var(--color-rule);
+  box-shadow: var(--shadow-card);
+}
+.console-mesures > div {
+  padding: 14px 16px;
+  background: var(--color-surface);
+}
+
+.console-motif {
+  margin-top: 5px;
+  padding: 7px 10px;
+  border-left: 3px solid var(--c);
+  border-radius: 0 8px 8px 0;
+  font-size: 13px;
+  color: var(--color-steel-700);
+  background: var(--color-paper);
+}
+
+.console-connexion {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  min-height: 100dvh;
+  overflow: hidden;
+  color: #fff;
+  background:
+    radial-gradient(90% 80% at 0% 0%, color-mix(in oklab, var(--color-action) 34%, transparent), transparent 60%),
+    var(--color-console-fond);
+}
+.console-connexion::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+.console-connexion > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes console-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes console-pousse {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@media (max-width: 1023px) {
+  .console-bandeau {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .console-mesures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767px) {
+  .console-bandeau {
+    padding: 18px;
+    border-radius: 18px;
+  }
+  .console-connexion {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .console-bandeau,
+  .console-signal,
+  .console-piste i {
+    animation: none;
+  }
+}
