@@ -476,10 +476,10 @@ export function AppLayout() {
   const ongletsSection = groupes.find((g) => g.onglets.some((o) => o.to === location.pathname));
 
   async function seDeconnecter() {
-    const courante = getSession();
     try {
-      if (courante) {
-        await api.post('/auth/logout', { refreshToken: courante.refreshToken });
+      // Le cookie du refresh token part seul : le serveur le révoque et l'efface.
+      if (getSession()) {
+        await api.post('/auth/logout');
       }
     } catch {
       // La déconnexion locale doit aboutir même si l'appel serveur échoue.

@@ -11,11 +11,26 @@ export interface Entreprise {
   nom: string;
 }
 
+/**
+ * Ce que le navigateur garde de la session : qui est connecté, pour quelle
+ * entreprise. Aucun jeton : le refresh token vit dans un cookie httpOnly
+ * posé par l'API (illisible par un script), l'access token seulement en
+ * mémoire, le temps de l'onglet.
+ */
 export interface Session {
-  accessToken: string;
-  refreshToken: string;
   utilisateur: Utilisateur;
   entreprise: Entreprise;
+}
+
+/** Réponse de connexion ou de renouvellement : la session et son access token. */
+export interface ReponseSession extends Session {
+  accessToken: string;
+}
+
+/** Format enregistré avant le cookie httpOnly : jetons dans le stockage. */
+interface SessionHeritee extends Session {
+  accessToken?: string;
+  refreshToken?: string;
 }
 
 const CLE_SESSION = 'stockflow.session';
@@ -27,6 +42,16 @@ const abonnes = new Set<() => void>();
 // indéfiniment sur les rendus.
 let cacheBrut: string | null = null;
 let cacheSession: Session | null = null;
+
+/** Access token de l'onglet : jamais écrit dans le stockage. Perdu au rechargement, renouvelé par le cookie. */
+let jetonAcces: string | null = null;
+
+/**
+ * Refresh token d'une session ouverte avant le cookie httpOnly : échangé une
+ * fois contre le cookie (lib/api.ts), puis oublié. Lu en mémoire seulement,
+ * il a déjà été effacé du stockage.
+ */
+let refreshHerite: string | null = null;
 
 /**
  * "Rester connectée" (case à cocher de l'écran de connexion) détermine
@@ -52,7 +77,19 @@ export function getSession(): Session | null {
     return null;
   }
   try {
-    cacheSession = JSON.parse(brut) as Session;
+    const lue = JSON.parse(brut) as SessionHeritee;
+    if (lue.accessToken || lue.refreshToken) {
+      // Ancien format : les jetons quittent le stockage dès cette lecture.
+      jetonAcces ??= lue.accessToken ?? null;
+      refreshHerite ??= lue.refreshToken ?? null;
+      const session: Session = { utilisateur: lue.utilisateur, entreprise: lue.entreprise };
+      const nettoye = JSON.stringify(session);
+      (localStorage.getItem(CLE_SESSION) !== null ? localStorage : sessionStorage).setItem(CLE_SESSION, nettoye);
+      cacheBrut = nettoye;
+      cacheSession = session;
+    } else {
+      cacheSession = lue;
+    }
   } catch {
     // Session corrompue : on la purge plutôt que de laisser
     // l'application dans un état incohérent.
@@ -65,7 +102,17 @@ export function getSession(): Session | null {
 }
 
 export function getAccessToken(): string | null {
-  return getSession()?.accessToken ?? null;
+  return jetonAcces;
+}
+
+/** Refresh token de l'ancien format, à présenter une seule fois à /auth/refresh. */
+export function refreshTokenHerite(): string | null {
+  getSession();
+  return refreshHerite;
+}
+
+export function oublierRefreshTokenHerite(): void {
+  refreshHerite = null;
 }
 
 /**
@@ -79,8 +126,14 @@ export function sessionActuelleEstPersistante(): boolean {
   return localStorage.getItem(CLE_SESSION) !== null;
 }
 
-export function setSession(session: Session, resterConnecte = true): void {
-  const serialise = JSON.stringify(session);
+/**
+ * Enregistre la session (sans jeton) ; l'access token d'une réponse de
+ * connexion ou de renouvellement reste en mémoire.
+ */
+export function setSession(session: Session | ReponseSession, resterConnecte = true): void {
+  if ('accessToken' in session && session.accessToken) jetonAcces = session.accessToken;
+  const stockee: Session = { utilisateur: session.utilisateur, entreprise: session.entreprise };
+  const serialise = JSON.stringify(stockee);
   if (resterConnecte) {
     localStorage.setItem(CLE_SESSION, serialise);
     sessionStorage.removeItem(CLE_SESSION);
@@ -92,6 +145,8 @@ export function setSession(session: Session, resterConnecte = true): void {
 }
 
 export function clearSession(): void {
+  jetonAcces = null;
+  refreshHerite = null;
   localStorage.removeItem(CLE_SESSION);
   sessionStorage.removeItem(CLE_SESSION);
   abonnes.forEach((notifier) => notifier());

@@ -14,7 +14,7 @@ import { ChampMotDePasse } from './ChampMotDePasse';
 import { IndicateurForceMotDePasse } from './IndicateurForceMotDePasse';
 import { api, messageErreur } from '@/lib/api';
 import { setSession } from '@/lib/session';
-import type { Session } from '@/lib/session';
+import type { ReponseSession } from '@/lib/session';
 
 const schema = z
   .object({
@@ -79,9 +79,9 @@ export function InvitationPage() {
 
   async function rejoindre(valeurs: Formulaire) {
     setErreur(null);
-    let session: Session;
+    let session: ReponseSession;
     try {
-      ({ data: session } = await api.post<Session>('/auth/accept-invite', {
+      ({ data: session } = await api.post<ReponseSession>('/auth/accept-invite', {
         token,
         nom: valeurs.nom,
         password: valeurs.password,

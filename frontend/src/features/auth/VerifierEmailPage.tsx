@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { api, messageErreur } from '@/lib/api';
 import { setSession } from '@/lib/session';
-import type { Session } from '@/lib/session';
+import type { ReponseSession } from '@/lib/session';
 import { PointsChargement } from '@/components/ui/PointsChargement';
 
 const panneauGauche = (
@@ -40,7 +40,7 @@ export function VerifierEmailPage() {
     dejaTente.current = true;
 
     api
-      .post<Session>('/auth/verify-email', { token })
+      .post<ReponseSession>('/auth/verify-email', { token })
       .then(({ data }) => {
         setSession(data);
         setStatut('reussi');

@@ -46,6 +46,19 @@ export async function connecterClient(app: INestApplication, email: string) {
   return request(app.getHttpServer()).post('/auth/login').send({ email, password: MOT_DE_PASSE_TEST });
 }
 
+/** Cookie de session posé par une réponse d'auth (stockflow_refresh), tel quel. */
+export function cookieSessionDe(reponse: { headers: Record<string, unknown> }): string | undefined {
+  const cookies = ([] as string[]).concat((reponse.headers['set-cookie'] as string[] | string | undefined) ?? []);
+  return cookies.find((c) => c.startsWith('stockflow_refresh='));
+}
+
+/** Refresh token posé par une réponse d'auth (cookie httpOnly stockflow_refresh). */
+export function refreshTokenDe(reponse: { headers: Record<string, unknown> }): string {
+  const cookie = cookieSessionDe(reponse);
+  if (!cookie) throw new Error('Aucun cookie de session dans la réponse.');
+  return decodeURIComponent(cookie.slice('stockflow_refresh='.length).split(';')[0]);
+}
+
 /** Supprime tout ce qu'un test a créé (données de test uniquement). */
 export async function nettoyer(prisma: PrismaService, entrepriseIds: string[], operateurIds: string[]) {
   if (entrepriseIds.length > 0) {

@@ -134,6 +134,19 @@ Puis **Deployments → Redeploy** : la variable est lue au build, et la
 politique de sécurité (CSP) du frontend autorise automatiquement cette
 origine.
 
+**Obligatoire : l'API sur un sous-domaine de stockflowgn.com.** Le
+refresh token est un cookie httpOnly `SameSite=Strict` posé par l'API
+(chemin `/auth`). Le navigateur ne le renvoie que si le frontend et l'API
+sont sur le même site : `stockflowgn.com` ↔ `api.stockflowgn.com`. Avec
+l'adresse `*.onrender.com`, le cookie ne repartirait jamais et chaque
+rechargement de page déconnecterait. Même effet sur les aperçus Vercel ou
+Netlify (`*.vercel.app`, `*.netlify.app`) : la connexion y fonctionne,
+mais un rechargement renvoie à l'écran de connexion.
+
+`FRONTEND_URL` (Render) doit rester l'URL exacte du frontend
+(`https://stockflowgn.com`) : le CORS n'autorise les cookies que pour
+cette origine.
+
 ## 5. Emails depuis @stockflowgn.com (Resend)
 
 Sans domaine vérifié, Resend n'envoie qu'à l'adresse du compte Resend
