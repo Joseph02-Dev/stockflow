@@ -59,15 +59,30 @@ export class CommandesService {
       },
       orderBy: { createdAt: 'desc' },
     });
-    // Nombre de lignes compté pour les seules commandes listées : un `_count`
-    // Prisma agrégerait les lignes de toutes les entreprises à chaque appel.
-    const comptes = await this.prisma.commandeLigne.groupBy({
-      by: ['commandeId'],
+    // Lignes des seules commandes listées : nombre de références et valeur
+    // estimée (quantités × prix d'achat actuel — aucun prix n'est figé sur
+    // la commande). Un produit sans prix d'achat rend la valeur incomplète.
+    const lignes = await this.prisma.commandeLigne.findMany({
       where: { commandeId: { in: elements.map((e) => e.id) } },
-      _count: { _all: true },
+      select: { commandeId: true, quantiteCommandee: true, produit: { select: { prixAchat: true } } },
     });
-    const parId = new Map(comptes.map((c) => [c.commandeId, c._count._all]));
-    return elements.map((e) => ({ ...e, _count: { lignes: parId.get(e.id) ?? 0 } }));
+    const parId = new Map<string, { lignes: number; valeur: number; incomplete: boolean }>();
+    for (const ligne of lignes) {
+      const cumul = parId.get(ligne.commandeId) ?? { lignes: 0, valeur: 0, incomplete: false };
+      cumul.lignes += 1;
+      if (ligne.produit.prixAchat == null) cumul.incomplete = true;
+      else cumul.valeur += ligne.quantiteCommandee * ligne.produit.prixAchat;
+      parId.set(ligne.commandeId, cumul);
+    }
+    return elements.map((e) => {
+      const cumul = parId.get(e.id);
+      return {
+        ...e,
+        _count: { lignes: cumul?.lignes ?? 0 },
+        valeurEstimee: cumul?.valeur ?? 0,
+        valeurIncomplete: cumul?.incomplete ?? false,
+      };
+    });
   }
 
   async obtenir(entrepriseId: string, commandeId: string) {
