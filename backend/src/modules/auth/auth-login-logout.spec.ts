@@ -5,6 +5,7 @@ import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { AppModule } from '../../app.module.js';
 import { PrismaService } from '../../config/prisma.service.js';
 import { hashToken } from './token-hash.util.js';
+import { refreshTokenDe } from '../console/console-test.utils.js';
 
 describe('POST /auth/login et /auth/logout (intégration réelle, base PostgreSQL)', () => {
   let app: INestApplication;
@@ -61,7 +62,9 @@ describe('POST /auth/login et /auth/logout (intégration réelle, base PostgreSQ
 
     expect(response.status).toBe(200);
     expect(response.body.accessToken).toBeDefined();
-    expect(response.body.refreshToken).toBeDefined();
+    // Refresh token : cookie httpOnly seulement, jamais dans le corps.
+    expect(response.body.refreshToken).toBeUndefined();
+    expect(refreshTokenDe(response)).toBeTruthy();
     expect(response.body.utilisateur.email).toBe(email);
   });
 
@@ -119,7 +122,8 @@ describe('POST /auth/login et /auth/logout (intégration réelle, base PostgreSQ
   it('révoque réellement le refresh token en base lors de la déconnexion', async () => {
     const { email, password } = await creerCompte();
     const loginResponse = await request(app.getHttpServer()).post('/auth/login').send({ email, password });
-    const { accessToken, refreshToken } = loginResponse.body;
+    const { accessToken } = loginResponse.body;
+    const refreshToken = refreshTokenDe(loginResponse);
 
     const avant = await prisma.refreshToken.findUnique({ where: { tokenHash: hashToken(refreshToken) } });
     expect(avant?.revokedAt).toBeNull();
@@ -127,7 +131,7 @@ describe('POST /auth/login et /auth/logout (intégration réelle, base PostgreSQ
     const logoutResponse = await request(app.getHttpServer())
       .post('/auth/logout')
       .set('Authorization', `Bearer ${accessToken}`)
-      .send({ refreshToken });
+      .set('Cookie', `stockflow_refresh=${refreshToken}`);
 
     expect(logoutResponse.status).toBe(200);
 

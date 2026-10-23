@@ -13,7 +13,7 @@ import { ActiviteDirect } from './ActiviteDirect';
 import { api, messageErreur } from '@/lib/api';
 import { setSession } from '@/lib/session';
 import { useEnLigne } from '@/lib/useEnLigne';
-import type { Session } from '@/lib/session';
+import type { ReponseSession } from '@/lib/session';
 
 const schema = z.object({
   email: z.string().min(1, 'L’email est requis.').email('Adresse email invalide.'),
@@ -60,7 +60,7 @@ export function ConnexionPage() {
     setConnexionLente(false);
     const minuteur = setTimeout(() => setConnexionLente(true), SEUIL_CONNEXION_LENTE_MS);
     try {
-      const { data } = await api.post<Session>('/auth/login', valeurs);
+      const { data } = await api.post<ReponseSession>('/auth/login', { ...valeurs, resterConnecte });
       setSession(data, resterConnecte);
       navigate('/', { replace: true });
     } catch (error) {

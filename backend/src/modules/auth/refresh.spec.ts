@@ -6,7 +6,14 @@ import { AppModule } from '../../app.module.js';
 import { PrismaService } from '../../config/prisma.service.js';
 import { configurerApplication } from '../../config/application.js';
 import { hashToken } from './token-hash.util.js';
-import { connecterClient, creerEntrepriseAvecAdmin, nettoyer } from '../console/console-test.utils.js';
+import {
+  connecterClient,
+  cookieSessionDe,
+  creerEntrepriseAvecAdmin,
+  MOT_DE_PASSE_TEST,
+  nettoyer,
+  refreshTokenDe,
+} from '../console/console-test.utils.js';
 
 /**
  * POST /auth/refresh — rotation obligatoire et détection de réutilisation.
@@ -35,11 +42,11 @@ describe('Auth — renouvellement de session', () => {
     entrepriseIds.push(entreprise.id);
     const connexion = await connecterClient(app, utilisateur.email);
     expect(connexion.status).toBe(200);
-    return { entreprise, utilisateur, refreshToken: connexion.body.refreshToken as string };
+    return { entreprise, utilisateur, refreshToken: refreshTokenDe(connexion) };
   }
 
   const renouveler = (refreshToken: string) =>
-    request(app.getHttpServer()).post('/auth/refresh').send({ refreshToken });
+    request(app.getHttpServer()).post('/auth/refresh').set('Cookie', `stockflow_refresh=${refreshToken}`);
 
   const tokenEnBase = (refreshToken: string) =>
     prisma.refreshToken.findUniqueOrThrow({ where: { tokenHash: hashToken(refreshToken) } });
@@ -68,8 +75,9 @@ describe('Auth — renouvellement de session', () => {
     const reponse = await renouveler(refreshToken);
 
     expect(reponse.status).toBe(200);
-    expect(Object.keys(reponse.body).sort()).toEqual(['accessToken', 'entreprise', 'refreshToken', 'utilisateur']);
-    expect(reponse.body.refreshToken).not.toBe(refreshToken);
+    // Le refresh token n'apparaît jamais dans le corps : seulement dans le cookie httpOnly.
+    expect(Object.keys(reponse.body).sort()).toEqual(['accessToken', 'entreprise', 'utilisateur']);
+    expect(refreshTokenDe(reponse)).not.toBe(refreshToken);
     expect(reponse.body.utilisateur.id).toBe(utilisateur.id);
     expect(reponse.body.entreprise).toEqual({ id: entreprise.id, nom: entreprise.nom });
 
@@ -86,7 +94,7 @@ describe('Auth — renouvellement de session', () => {
     const reponse = await renouveler(refreshToken);
 
     expect((await tokenEnBase(refreshToken)).revokedAt).not.toBeNull();
-    const nouveau = await tokenEnBase(reponse.body.refreshToken);
+    const nouveau = await tokenEnBase(refreshTokenDe(reponse));
     expect(nouveau.revokedAt).toBeNull();
     expect(nouveau.expiresAt.getTime()).toBeGreaterThan(Date.now());
   });
@@ -94,8 +102,8 @@ describe('Auth — renouvellement de session', () => {
   it("la réutilisation d'un token révoqué révoque toutes les sessions de l'utilisateur", async () => {
     const { utilisateur, refreshToken } = await sessionOuverte();
     // Seconde session du même utilisateur (autre appareil).
-    const autreAppareil = (await connecterClient(app, utilisateur.email)).body.refreshToken as string;
-    const legitime = (await renouveler(refreshToken)).body.refreshToken as string;
+    const autreAppareil = refreshTokenDe(await connecterClient(app, utilisateur.email));
+    const legitime = refreshTokenDe(await renouveler(refreshToken));
 
     // Une copie de l'ancien token se présente.
     const rejeu = await renouveler(refreshToken);
@@ -137,5 +145,72 @@ describe('Auth — renouvellement de session', () => {
 
     expect(reponse.status).toBe(401);
     expect(reponse.body.message).toBe('Session expirée. Veuillez vous reconnecter.');
+  });
+
+  it('le cookie de session est httpOnly, Secure, SameSite=Strict et limité à /auth', async () => {
+    const { utilisateur } = await sessionOuverte();
+    const connexion = await connecterClient(app, utilisateur.email);
+
+    const cookie = cookieSessionDe(connexion);
+    expect(cookie).toMatch(/; HttpOnly/i);
+    expect(cookie).toMatch(/; Secure/i);
+    expect(cookie).toMatch(/; SameSite=Strict/i);
+    expect(cookie).toMatch(/; Path=\/auth/i);
+    expect(cookie).toMatch(/; Max-Age=\d+/i);
+    expect(connexion.body.refreshToken).toBeUndefined();
+  });
+
+  it('« Rester connecté » décoché : cookie de session, sans durée', async () => {
+    const { utilisateur } = await sessionOuverte();
+    const connexion = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: utilisateur.email, password: MOT_DE_PASSE_TEST, resterConnecte: false });
+
+    expect(connexion.status).toBe(200);
+    expect(cookieSessionDe(connexion)).toBeDefined();
+    expect(cookieSessionDe(connexion)).not.toMatch(/Max-Age|Expires/i);
+  });
+
+  it('transition : un refresh token encore détenu par le navigateur (corps) est accepté une fois', async () => {
+    const { refreshToken } = await sessionOuverte();
+
+    const reponse = await request(app.getHttpServer()).post('/auth/refresh').send({ refreshToken });
+
+    expect(reponse.status).toBe(200);
+    expect(reponse.body.refreshToken).toBeUndefined();
+    expect(refreshTokenDe(reponse)).not.toBe(refreshToken);
+    expect((await tokenEnBase(refreshToken)).revokedAt).not.toBeNull();
+  });
+
+  it('sans cookie ni token : 401, et le cookie est effacé', async () => {
+    const reponse = await request(app.getHttpServer()).post('/auth/refresh');
+
+    expect(reponse.status).toBe(401);
+    expect(cookieSessionDe(reponse)).toMatch(/Expires=Thu, 01 Jan 1970/);
+  });
+
+  it('entreprise suspendue : le cookie est conservé', async () => {
+    const { entreprise, refreshToken } = await sessionOuverte();
+    await prisma.entreprise.update({ where: { id: entreprise.id }, data: { statut: 'SUSPENDUE' } });
+
+    const reponse = await renouveler(refreshToken);
+
+    expect(reponse.status).toBe(403);
+    expect(cookieSessionDe(reponse)).toBeUndefined();
+  });
+
+  it('la déconnexion révoque le token du cookie et efface le cookie', async () => {
+    const { utilisateur } = await sessionOuverte();
+    const connexion = await connecterClient(app, utilisateur.email);
+    const refreshToken = refreshTokenDe(connexion);
+
+    const sortie = await request(app.getHttpServer())
+      .post('/auth/logout')
+      .set('Authorization', `Bearer ${connexion.body.accessToken}`)
+      .set('Cookie', `stockflow_refresh=${refreshToken}`);
+
+    expect(sortie.status).toBe(200);
+    expect((await tokenEnBase(refreshToken)).revokedAt).not.toBeNull();
+    expect(cookieSessionDe(sortie)).toMatch(/Expires=Thu, 01 Jan 1970/);
   });
 });

@@ -4,9 +4,11 @@ import {
   clearSession,
   getAccessToken,
   getSession,
+  oublierRefreshTokenHerite,
+  refreshTokenHerite,
   sessionActuelleEstPersistante,
   setSession,
-  type Session,
+  type ReponseSession,
 } from './session';
 import { signalerEchecReseau } from './connectivite';
 
@@ -16,10 +18,23 @@ import { signalerEchecReseau } from './connectivite';
 // l'URL publique complète du backend déployé.
 const baseURL = import.meta.env.VITE_API_URL ?? '/api';
 
-export const api = axios.create({ baseURL });
+// withCredentials : le cookie httpOnly du refresh token (posé par l'API,
+// limité à /auth) doit être reçu à la connexion et renvoyé au renouvellement.
+export const api = axios.create({ baseURL, withCredentials: true });
 
-api.interceptors.request.use((config) => {
-  const token = getAccessToken();
+/** Routes d'authentification publiques : jamais précédées d'un renouvellement. */
+function estRoutePublique(url: string | undefined): boolean {
+  return !!url?.startsWith('/auth/') && url !== '/auth/logout';
+}
+
+api.interceptors.request.use(async (config) => {
+  let token = getAccessToken();
+  // Page rechargée : la session est connue mais l'access token, gardé en
+  // mémoire seulement, est perdu. Le cookie en redonne un avant l'envoi.
+  if (!token && getSession() && !estRoutePublique(config.url)) {
+    const issue = await renouvelerUneFois();
+    if (issue && issue !== RESEAU_INDISPONIBLE) token = issue.accessToken;
+  }
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -52,37 +67,40 @@ function traiterSuspension(error: unknown): void {
 }
 
 /**
- * Échange le refresh token contre une nouvelle paire de tokens.
+ * Obtient un nouvel access token grâce au cookie httpOnly du refresh token
+ * (que le navigateur joint seul : aucun script ne le lit).
  *
  * Client axios nu, sans intercepteur ni en-tête Authorization : l'access
  * token expiré serait refusé par le serveur avant même d'atteindre la
  * route, et /auth/refresh ne doit jamais relancer cette logique.
  *
- * Verrou inter-onglets (Web Locks) : les onglets partagent la session
- * (localStorage) et chaque refresh token ne sert qu'une fois. Sans
- * verrou, deux onglets renouvelant en même temps présenteraient le même
- * token ; le second serait pris pour une réutilisation frauduleuse et
- * toutes les sessions seraient révoquées. Sous verrou, un onglet qui
- * constate que la session a déjà été renouvelée la reprend telle quelle.
+ * Verrou inter-onglets (Web Locks) : les onglets partagent le cookie et
+ * chaque refresh token ne sert qu'une fois. Sans verrou, deux onglets
+ * renouvelant en même temps présenteraient le même cookie ; le second
+ * serait pris pour une réutilisation frauduleuse et toutes les sessions
+ * seraient révoquées. Sous verrou, le second part avec le cookie que la
+ * réponse du premier vient de remplacer.
  */
 /** Le renouvellement n'a pas pu joindre le serveur : ce n'est pas un refus. */
 const RESEAU_INDISPONIBLE = Symbol('RESEAU_INDISPONIBLE');
-type IssueRenouvellement = Session | null | typeof RESEAU_INDISPONIBLE;
+type IssueRenouvellement = ReponseSession | null | typeof RESEAU_INDISPONIBLE;
 
 async function renouvelerSession(): Promise<IssueRenouvellement> {
-  const refreshAvant = getSession()?.refreshToken;
-  if (!refreshAvant) return null;
+  if (!getSession()) return null;
 
   const renouveler = async (): Promise<IssueRenouvellement> => {
-    const courante = getSession();
-    if (!courante) return null;
-    if (courante.refreshToken !== refreshAvant) return courante;
+    if (!getSession()) return null;
 
     const persistante = sessionActuelleEstPersistante();
+    // Session ouverte avant le cookie : son refresh token, une seule fois.
+    const herite = refreshTokenHerite();
     try {
-      const { data } = await axios.post<Session>(`${baseURL}/auth/refresh`, {
-        refreshToken: courante.refreshToken,
-      });
+      const { data } = await axios.post<ReponseSession>(
+        `${baseURL}/auth/refresh`,
+        { resterConnecte: persistante, ...(herite ? { refreshToken: herite } : {}) },
+        { withCredentials: true },
+      );
+      oublierRefreshTokenHerite();
       // Même emplacement qu'avant : « Rester connectée » est préservé.
       setSession(data, persistante);
       return data;
@@ -132,21 +150,14 @@ api.interceptors.response.use(
       requete._retry = true;
       // Envoyée avec un access token déjà remplacé entre-temps : il suffit
       // de la rejouer avec le token courant, sans nouvelle rotation.
-      const courante = getSession();
-      const session =
-        courante && requete.headers.Authorization !== `Bearer ${courante.accessToken}`
-          ? courante
-          : await renouvelerUneFois();
-      if (session === RESEAU_INDISPONIBLE) {
+      const courant = getAccessToken();
+      const issue =
+        courant && requete.headers.Authorization !== `Bearer ${courant}` ? courant : await renouvelerUneFois();
+      if (issue === RESEAU_INDISPONIBLE) {
         return Promise.reject(error);
       }
-      if (session) {
-        requete.headers.Authorization = `Bearer ${session.accessToken}`;
-        // La déconnexion doit révoquer le token en vigueur, pas celui
-        // qui vient d'être échangé.
-        if (requete.url === '/auth/logout') {
-          requete.data = { refreshToken: session.refreshToken };
-        }
+      if (issue) {
+        requete.headers.Authorization = `Bearer ${typeof issue === 'string' ? issue : issue.accessToken}`;
         return api(requete);
       }
       clearSession();

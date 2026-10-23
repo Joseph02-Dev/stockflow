@@ -5,7 +5,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../../app.module.js';
 import { PrismaService } from '../../config/prisma.service.js';
-import { MOT_DE_PASSE_TEST, connecterClient, creerEntrepriseAvecAdmin, nettoyer } from '../console/console-test.utils.js';
+import { MOT_DE_PASSE_TEST, connecterClient, creerEntrepriseAvecAdmin, nettoyer, refreshTokenDe } from '../console/console-test.utils.js';
 
 /**
  * Révocation immédiate des droits : désactivation d'un compte et
@@ -43,7 +43,7 @@ describe('Désactivation et révocation immédiate des droits — intégration r
       data: { entrepriseId, email, nom: `Membre ${role}`, passwordHash: await argon2.hash(MOT_DE_PASSE_TEST), role, emailVerifieAt: new Date() },
     });
     const connexion = await connecterClient(app, email);
-    return { id: u.id, email, token: connexion.body.accessToken as string, refresh: connexion.body.refreshToken as string };
+    return { id: u.id, email, token: connexion.body.accessToken as string, refresh: refreshTokenDe(connexion) };
   }
 
   async function equipe(nom = 'Ets Camara & Frères') {

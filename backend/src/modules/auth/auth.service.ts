@@ -13,8 +13,6 @@ import { erreurCompteDesactive } from '../../common/compte-desactive.js';
 import { erreurEntrepriseSuspendue } from '../../common/entreprise-suspendue.js';
 import type { RegisterDto } from './dto/register.dto.js';
 import type { LoginDto } from './dto/login.dto.js';
-import type { LogoutDto } from './dto/logout.dto.js';
-import type { RefreshDto } from './dto/refresh.dto.js';
 import type { AcceptInviteDto } from './dto/accept-invite.dto.js';
 import type { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import type { ResetPasswordDto } from './dto/reset-password.dto.js';
@@ -186,8 +184,9 @@ export class AuthService {
    * encore expiré. L'access token en cours reste valide jusqu'à son
    * expiration naturelle (courte durée, 15 min par défaut).
    */
-  async logout(utilisateurId: string, dto: LogoutDto): Promise<{ message: string }> {
-    const tokenHash = hashToken(dto.refreshToken);
+  async logout(utilisateurId: string, refreshToken: string | undefined): Promise<{ message: string }> {
+    if (!refreshToken) return { message: 'Déconnexion réussie.' };
+    const tokenHash = hashToken(refreshToken);
     const tokenEnregistre = await this.prisma.refreshToken.findUnique({ where: { tokenHash } });
 
     // Idempotent et volontairement peu bavard : que le token n'existe pas,
@@ -216,9 +215,12 @@ export class AuthService {
    * Mêmes conditions que la connexion : compte existant, email vérifié,
    * entreprise non suspendue (403 ENTREPRISE_SUSPENDUE, comme au login).
    */
-  async refresh(dto: RefreshDto): Promise<AuthResult> {
+  async refresh(refreshToken: string | undefined): Promise<AuthResult> {
+    if (!refreshToken) {
+      throw new UnauthorizedException(SESSION_EXPIREE);
+    }
     const tokenEnregistre = await this.prisma.refreshToken.findUnique({
-      where: { tokenHash: hashToken(dto.refreshToken) },
+      where: { tokenHash: hashToken(refreshToken) },
     });
     if (!tokenEnregistre) {
       throw new UnauthorizedException(SESSION_EXPIREE);

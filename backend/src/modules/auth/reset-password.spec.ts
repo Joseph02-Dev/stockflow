@@ -5,6 +5,7 @@ import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { AppModule } from '../../app.module.js';
 import { PrismaService } from '../../config/prisma.service.js';
 import { DevEmailService } from '../../common/email/dev-email.service.js';
+import { refreshTokenDe } from '../console/console-test.utils.js';
 
 describe('Réinitialisation de mot de passe — intégration réelle, base PostgreSQL', () => {
   let app: INestApplication;
@@ -135,7 +136,7 @@ describe('Réinitialisation de mot de passe — intégration réelle, base Postg
   it('révoque les sessions actives lors de la réinitialisation', async () => {
     const { email, password } = await creerCompte();
     const connexion = await request(app.getHttpServer()).post('/auth/login').send({ email, password });
-    const refreshTokenActif = connexion.body.refreshToken;
+    const refreshTokenActif = refreshTokenDe(connexion);
 
     await request(app.getHttpServer()).post('/auth/forgot-password').send({ email });
     const lien = devEmail.getSentEmails()[0].body;

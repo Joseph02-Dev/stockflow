@@ -1,4 +1,5 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query, Req, Res, UnauthorizedException } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { Public } from '../../common/decorators/public.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { RequestContext } from '../../common/context/tenant-context.service.js';
@@ -13,6 +14,10 @@ import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { VerifyEmailDto } from './dto/verify-email.dto.js';
 import { ResendVerificationDto } from './dto/resend-verification.dto.js';
 import { LIMITES_STRICTES, LimiteStricte } from '../../common/limitation/limitation.js';
+import { effacerCookieSession, lireCookieSession, repondreAvecSession } from './cookie-session.js';
+
+/** Réponse d'ouverture de session : le refresh token part dans le cookie httpOnly. */
+type SessionOuverte = Omit<AuthResult, 'refreshToken'>;
 
 @Controller('auth')
 export class AuthController {
@@ -30,15 +35,15 @@ export class AuthController {
   @LimiteStricte(LIMITES_STRICTES.connexion)
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  login(@Body() dto: LoginDto): Promise<AuthResult> {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response): Promise<SessionOuverte> {
+    return repondreAvecSession(res, await this.authService.login(dto), dto.resterConnecte ?? true);
   }
 
   @Public()
   @Post('verify-email')
   @HttpCode(HttpStatus.OK)
-  verifyEmail(@Body() dto: VerifyEmailDto): Promise<AuthResult> {
-    return this.authService.verifyEmail(dto);
+  async verifyEmail(@Body() dto: VerifyEmailDto, @Res({ passthrough: true }) res: Response): Promise<SessionOuverte> {
+    return repondreAvecSession(res, await this.authService.verifyEmail(dto));
   }
 
   @Public()
@@ -78,24 +83,39 @@ export class AuthController {
   @LimiteStricte(LIMITES_STRICTES.acceptationInvitation)
   @Post('accept-invite')
   @HttpCode(HttpStatus.CREATED)
-  acceptInvite(@Body() dto: AcceptInviteDto): Promise<AuthResult> {
-    return this.authService.acceptInvite(dto);
+  async acceptInvite(@Body() dto: AcceptInviteDto, @Res({ passthrough: true }) res: Response): Promise<SessionOuverte> {
+    return repondreAvecSession(res, await this.authService.acceptInvite(dto));
   }
 
-  // Publique : l'access token est justement expiré quand on l'appelle.
-  // Le refresh token du corps fait office de preuve d'identité.
+  // Publique : l'access token est justement expiré (ou perdu au
+  // rechargement de la page) quand on l'appelle. Le refresh token du
+  // cookie fait office de preuve d'identité.
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  refresh(@Body() dto: RefreshDto): Promise<AuthResult> {
-    return this.authService.refresh(dto);
+  async refresh(@Body() dto: RefreshDto, @Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<SessionOuverte> {
+    try {
+      const resultat = await this.authService.refresh(lireCookieSession(req) ?? dto.refreshToken);
+      return repondreAvecSession(res, resultat, dto.resterConnecte ?? true);
+    } catch (erreur) {
+      // Session invalide : cookie effacé. Une entreprise suspendue (403)
+      // garde le sien, la session reprend si l'accès est rétabli.
+      if (erreur instanceof UnauthorizedException) effacerCookieSession(res);
+      throw erreur;
+    }
   }
 
   // Route protégée (pas de @Public()) : nécessite un access token valide
   // pour identifier l'utilisateur qui se déconnecte.
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  logout(@CurrentUser() user: RequestContext, @Body() dto: LogoutDto): Promise<{ message: string }> {
-    return this.authService.logout(user.utilisateurId, dto);
+  logout(
+    @CurrentUser() user: RequestContext,
+    @Body() dto: LogoutDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ message: string }> {
+    effacerCookieSession(res);
+    return this.authService.logout(user.utilisateurId, lireCookieSession(req) ?? dto.refreshToken);
   }
 }

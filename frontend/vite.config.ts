@@ -103,6 +103,9 @@ export default defineConfig(({ mode }) => {
           target: 'http://localhost:3000',
           changeOrigin: true,
           rewrite: (p) => p.replace(/^\/api/, ''),
+          // Cookie du refresh token posé pour /auth par l'API : vu depuis
+          // le navigateur, ce chemin est /api/auth.
+          cookiePathRewrite: { '/auth': '/api/auth' },
         },
       },
     },
