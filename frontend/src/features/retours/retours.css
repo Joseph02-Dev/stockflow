@@ -1,0 +1,277 @@
+/* Écran Retours fournisseur : bandeau des avoirs, relances par fournisseur, taux d'avoirs obtenus, retours clos. */
+.retours-bandeau {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 22px;
+  overflow: hidden;
+  padding: 22px 24px;
+  border-radius: 20px;
+  color: #f1f1ef;
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in oklab, var(--color-faible) 34%, transparent), transparent 55%),
+    linear-gradient(135deg, #16171b, #23252c);
+  animation: retours-arrive 400ms var(--ease-sortie) both;
+}
+.retours-bandeau::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+.retours-bandeau > * {
+  position: relative;
+  z-index: 1;
+}
+.retours-sur {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.retours-alerte {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 8px 12px;
+  border: 1px solid rgba(240, 112, 95, 0.35);
+  border-radius: 12px;
+  font-size: 13px;
+  color: #ffd7d1;
+  background: rgba(240, 112, 95, 0.14);
+}
+.retours-mini {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-self: center;
+}
+.retours-mini > div {
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.retours-mini i {
+  display: block;
+  width: 8px;
+  height: 8px;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  background: var(--c);
+}
+.retours-mini b {
+  display: block;
+  font: 650 20px var(--font-display);
+}
+.retours-mini span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.retours-bloc-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--color-rule);
+}
+.retours-nombre {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid var(--color-rule);
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-steel-500);
+  background: var(--color-entete-tableau);
+}
+.retours-groupe {
+  padding: 14px 18px;
+}
+.retours-cartes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.retours-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--color-rule);
+  border-radius: 14px;
+  background: var(--color-paper);
+  animation: retours-arrive 400ms var(--ease-sortie) both;
+}
+.retours-carte-bas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px dashed var(--color-rule-strong);
+}
+.retours-age {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--c);
+  background: color-mix(in oklab, var(--c) 14%, var(--color-surface));
+}
+.retours-bouton-ok {
+  --halo: var(--color-ok);
+}
+
+.retours-taux {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 2fr) 120px;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 18px;
+}
+.retours-repartition {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--color-rule);
+}
+.retours-repartition i {
+  background: var(--c);
+  transform-origin: left;
+  animation: retours-pousse 900ms var(--ease-sortie) 200ms both;
+}
+.retours-legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--color-steel-400);
+}
+.retours-legende span::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--c);
+}
+.retours-pourcentage {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+}
+.retours-pourcentage b {
+  font: 650 20px var(--font-display);
+  color: var(--c);
+}
+.retours-pourcentage span {
+  font-size: 11.5px;
+  color: var(--color-steel-400);
+}
+
+.retours-segments {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--color-rule);
+  border-radius: 10px;
+  background: var(--color-entete-tableau);
+}
+.retours-segments button {
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-steel-500);
+}
+.retours-segments button[aria-pressed='true'] {
+  color: var(--color-ink-900);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+.retours-clos {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.2fr) 130px 110px;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 18px;
+}
+
+@keyframes retours-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes retours-pousse {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@media (max-width: 1023px) {
+  .retours-bandeau {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .retours-taux {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .retours-pourcentage {
+    text-align: left;
+  }
+  .retours-clos {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+@media (max-width: 767px) {
+  .retours-bandeau {
+    padding: 18px;
+    border-radius: 18px;
+  }
+  .retours-mini {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .retours-mini > div:last-child {
+    grid-column: 1 / -1;
+  }
+  .retours-cartes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .retours-groupe {
+    padding: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .retours-bandeau,
+  .retours-carte,
+  .retours-repartition i {
+    animation: none;
+  }
+}

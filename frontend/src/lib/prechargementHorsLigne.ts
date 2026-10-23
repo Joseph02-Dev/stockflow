@@ -56,6 +56,7 @@ function adressesFixes({ admin, lots, rangement }: ContextePrechargement): strin
     '/marques',
     // Approvisionnement, clients, pertes
     '/commandes',
+    '/retours-fournisseur',
     '/fournisseurs',
     '/clients?',
     '/pertes/synthese',
