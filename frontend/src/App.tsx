@@ -40,6 +40,7 @@ import { CategoriesMarquesPage } from '@/features/parametres/CategoriesMarquesPa
 import { useSession } from '@/lib/useSession';
 import { LoadingState } from '@/components/patterns/States';
 import { moduleOuRechargement } from '@/lib/miseAJour';
+import { estLanceeCommeAppli } from '@/lib/installation';
 
 // Console opérateur : chargée à la demande, jamais embarquée dans le
 // bundle de l'application cliente.
@@ -59,7 +60,9 @@ function RouteProtegee() {
   const session = useSession();
   const { pathname } = useLocation();
   if (session) return <Outlet />;
-  if (pathname === '/') {
+  // Application installée : la page d'accueil publique (présentation du
+  // produit) n'y a pas sa place, on ouvre directement la connexion.
+  if (pathname === '/' && !estLanceeCommeAppli()) {
     return (
       <Suspense fallback={<LoadingState variante="page" />}>
         <AccueilPage />

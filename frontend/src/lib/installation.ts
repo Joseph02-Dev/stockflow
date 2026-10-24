@@ -17,12 +17,16 @@ let installee = false;
 const abonnes = new Set<() => void>();
 const notifier = () => abonnes.forEach((rappel) => rappel());
 
-export function estAppliInstallee(): boolean {
+/** Ouverte depuis son icône (fenêtre d'application), et non dans un onglet du navigateur. */
+export function estLanceeCommeAppli(): boolean {
   return (
-    installee ||
     window.matchMedia('(display-mode: standalone)').matches ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true
   );
+}
+
+export function estAppliInstallee(): boolean {
+  return installee || estLanceeCommeAppli();
 }
 
 /** iPhone, iPad (y compris iPadOS qui se présente comme un Mac). */

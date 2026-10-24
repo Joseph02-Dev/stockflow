@@ -34,6 +34,10 @@ interface SessionHeritee extends Session {
 }
 
 const CLE_SESSION = 'stockflow.session';
+/** Cache des réponses de l'API dans le service worker (public/sw.js, même nom). */
+const CACHE_DONNEES = 'stockflow-v1';
+/** Date du dernier préchargement hors ligne (lib/prechargementHorsLigne.ts, même clé). */
+const CLE_DERNIER_PRECHARGEMENT = 'stockflow.dernier-prechargement';
 
 const abonnes = new Set<() => void>();
 
@@ -155,9 +159,14 @@ export function clearSession(): void {
   // réponses API sont mises en cache par URL, sans tenir compte du token
   // qui les a produites). Sans ce nettoyage, un second compte connecté
   // sur le même appareil pourrait voir les données hors-ligne du premier.
+  // Seules les données partent : l'application elle-même (cache
+  // « stockflow-appli », public/sw.js) reste, pour s'ouvrir hors ligne.
+  // Le repère du dernier préchargement part avec elles : la prochaine
+  // connexion précharge aussitôt (lib/prechargementHorsLigne.ts).
   if ('caches' in window) {
-    caches.keys().then((cles) => cles.forEach((cle) => caches.delete(cle)));
+    void caches.delete(CACHE_DONNEES);
   }
+  localStorage.removeItem(CLE_DERNIER_PRECHARGEMENT);
 }
 
 /** Permet aux composants React de réagir aux changements de session. */

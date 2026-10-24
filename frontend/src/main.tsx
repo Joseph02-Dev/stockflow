@@ -54,8 +54,12 @@ terminerOuverture();
 // hors-ligne serait alors indisponible.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      // Volontairement silencieux — voir commentaire ci-dessus.
-    });
+    navigator.serviceWorker
+      .register('/sw.js')
+      // Version déployée mise en cache pour la prochaine ouverture hors ligne.
+      .then(() => navigator.serviceWorker.controller?.postMessage('mettre-appli-en-cache'))
+      .catch(() => {
+        // Volontairement silencieux — voir commentaire ci-dessus.
+      });
   });
 }
