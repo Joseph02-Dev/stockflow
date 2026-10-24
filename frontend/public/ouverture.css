@@ -1,0 +1,112 @@
+/*
+ * Écran d'ouverture : affiché par index.html avant même le chargement de
+ * l'application, retiré par src/lib/ouverture.ts. Fichier statique (pas de
+ * style en ligne : la CSP du site les refuse). Visible seulement quand
+ * <html> porte la classe « ouverture ».
+ */
+#ouverture {
+  display: none;
+}
+html.ouverture body {
+  overflow: hidden;
+}
+html.ouverture #ouverture {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: grid;
+  place-items: center;
+  color: #f1f1ef;
+  background:
+    radial-gradient(70% 55% at 50% 42%, rgba(194, 68, 11, 0.32), transparent 70%),
+    #16171b;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 350ms ease, transform 350ms ease;
+}
+html.ouverture-fin #ouverture {
+  opacity: 0;
+  transform: scale(1.03);
+  pointer-events: none;
+}
+.ouverture-contenu {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.ouverture-logo {
+  width: 112px;
+  height: 112px;
+  overflow: visible;
+}
+.ouverture-logo rect {
+  fill: #f1f1ef;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ouverture-caisse 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.ouverture-logo rect:nth-child(1) { animation-delay: 80ms; }
+.ouverture-logo rect:nth-child(2) { animation-delay: 170ms; }
+.ouverture-logo rect:nth-child(3) { animation-delay: 260ms; }
+.ouverture-logo rect:nth-child(4) { animation-delay: 360ms; }
+.ouverture-logo rect:nth-child(5) { animation-delay: 450ms; }
+.ouverture-logo rect:nth-child(6) {
+  fill: #f27a35;
+  animation: ouverture-sommet 620ms cubic-bezier(0.34, 1.4, 0.5, 1) 620ms both;
+}
+.ouverture-nom {
+  margin: 0;
+  font: 650 34px/1 'Bricolage Grotesque', 'Hanken Grotesk', -apple-system, 'Segoe UI', sans-serif;
+  letter-spacing: -0.02em;
+  animation: ouverture-nom 600ms cubic-bezier(0.2, 0.8, 0.2, 1) 900ms both;
+}
+.ouverture-nom span {
+  color: #f6a46f;
+}
+.ouverture-slogan {
+  margin: -8px 0 0;
+  font: 500 14px/1.4 'Hanken Grotesk', -apple-system, 'Segoe UI', sans-serif;
+  color: rgba(241, 241, 239, 0.6);
+  animation: ouverture-fondu 500ms ease 1150ms both;
+}
+
+@keyframes ouverture-caisse {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.6);
+  }
+}
+@keyframes ouverture-sommet {
+  from {
+    opacity: 0;
+    transform: translateY(-34px);
+  }
+}
+@keyframes ouverture-nom {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    letter-spacing: 0.08em;
+  }
+}
+@keyframes ouverture-fondu {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ouverture-logo rect,
+  .ouverture-logo rect:nth-child(6),
+  .ouverture-nom,
+  .ouverture-slogan {
+    animation: none;
+  }
+  html.ouverture #ouverture {
+    transition: opacity 200ms ease;
+  }
+  html.ouverture-fin #ouverture {
+    transform: none;
+  }
+}
