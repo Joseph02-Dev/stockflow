@@ -8,12 +8,16 @@ import { estTropDeRequetes } from './lib/api';
 import { gestionnaireErreursReact, initialiserSurveillance } from './lib/surveillance';
 import { initialiserTheme } from './lib/theme';
 import { installerRepriseApresDeploiement } from './lib/miseAJour';
+import { ecouterInstallation } from './lib/installation';
+import { terminerOuverture } from './lib/ouverture';
 import './index.css';
 
 // Avant le premier rendu : une erreur au démarrage doit aussi remonter.
 const surveillanceActive = initialiserSurveillance();
 initialiserTheme();
 installerRepriseApresDeploiement();
+// L'invitation à installer peut arriver dès le chargement : on la garde pour le bouton du menu.
+ecouterInstallation();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,6 +45,7 @@ createRoot(document.getElementById('root')!, surveillanceActive ? { onUncaughtEr
     </QueryClientProvider>
   </StrictMode>,
 );
+terminerOuverture();
 
 // Enregistré après le rendu initial, pour ne jamais retarder le premier
 // affichage. L'enregistrement peut échouer silencieusement (navigation

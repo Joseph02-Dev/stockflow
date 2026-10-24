@@ -44,6 +44,7 @@ import { BarreProgression } from '@/components/patterns/BarreProgression';
 import { useModules } from '@/lib/useModules';
 import { ADRESSE_AIDE } from '@/lib/contact';
 import { SelecteurTheme } from '@/components/patterns/SelecteurTheme';
+import { BoutonInstaller } from '@/features/installation/BoutonInstaller';
 import { AssistantPanel } from '@/features/assistant/AssistantPanel';
 import { ClocheNotifications } from '@/features/notifications/ClocheNotifications';
 import { OngletsSection, type OngletSection } from '@/components/patterns/OngletsSection';
@@ -711,6 +712,7 @@ export function AppLayout() {
                   replie ? 'bottom-2 left-full ml-3' : 'right-2 bottom-full left-2 mb-2 w-auto',
                 )}
               >
+                <BoutonInstaller variante="menu" onAction={() => setMenuProfilOuvert(false)} />
                 <button
                   type="button"
                   onClick={() => {
@@ -997,6 +999,7 @@ export function AppLayout() {
                   </div>
                 </div>
               ))}
+              <BoutonInstaller variante="carte" />
             </div>
 
             <div className="flex items-center justify-between gap-2.5 border-t border-rule px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+16px)]">

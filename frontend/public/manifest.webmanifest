@@ -1,0 +1,25 @@
+{
+  "id": "/",
+  "name": "NimbaFlow",
+  "short_name": "NimbaFlow",
+  "description": "Gestion de stock et de ventes pour commerçants, grossistes et vendeurs.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#16171b",
+  "theme_color": "#16171b",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "/favicon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icones/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icones/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icones/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Nouvelle vente", "short_name": "Vente", "url": "/ventes/nouvelle", "icons": [{ "src": "/favicon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Stock et mouvements", "short_name": "Stock", "url": "/stock", "icons": [{ "src": "/favicon-192.png", "sizes": "192x192", "type": "image/png" }] }
+  ]
+}
