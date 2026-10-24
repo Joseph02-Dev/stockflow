@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Logo } from '@/components/patterns/Logo';
 import { cn } from '@/lib/cn';
+import { estLanceeCommeAppli } from '@/lib/installation';
 import './auth.css';
 
 /**
@@ -27,10 +28,13 @@ export function AuthLayout({
   children: ReactNode;
   pied?: ReactNode;
 }) {
+  // Application installée : pas de page d'accueil publique, le logo mène à la connexion.
+  const appli = estLanceeCommeAppli();
+  const accueil = appli ? '/connexion' : '/';
   return (
     <main className="auth-ecran">
       <aside className="auth-panneau">
-        <Link to="/" className="flex w-fit items-center gap-2.5 rounded-sm text-white">
+        <Link to={accueil} className="flex w-fit items-center gap-2.5 rounded-sm text-white">
           <Logo taille={32} />
           <span className="font-display text-[1.1875rem] font-semibold tracking-[-0.02em]">NimbaFlow</span>
         </Link>
@@ -46,17 +50,19 @@ export function AuthLayout({
 
       <section className="auth-cote">
         <div className="flex items-center justify-between gap-3">
-          <Link to="/" className="flex items-center gap-2.5 rounded-sm text-ink-900 lg:invisible">
+          <Link to={accueil} className="flex items-center gap-2.5 rounded-sm text-ink-900 lg:invisible">
             <Logo taille={28} />
             <span className="font-display text-[1.0625rem] font-semibold tracking-[-0.02em]">NimbaFlow</span>
           </Link>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 rounded-sm text-corps font-medium text-steel-500 transition-colors hover:text-ink-900"
-          >
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            Retour à l’accueil
-          </Link>
+          {!appli && (
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 rounded-sm text-corps font-medium text-steel-500 transition-colors hover:text-ink-900"
+            >
+              <ArrowLeft className="size-4" aria-hidden="true" />
+              Retour à l’accueil
+            </Link>
+          )}
         </div>
 
         <div className="auth-centre">

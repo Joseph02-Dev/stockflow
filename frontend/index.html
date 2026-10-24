@@ -36,7 +36,7 @@
     <link rel="stylesheet" href="/ouverture.css" />
     <!--
       Écran d'ouverture : à chaque lancement de l'application installée,
-      et une fois par session dans le navigateur pour une personne connectée
+      et une fois par onglet dans le navigateur pour une personne connectée
       (jamais sur les pages publiques). Retiré par src/lib/ouverture.ts.
     -->
     <script>
@@ -44,7 +44,7 @@
         try {
           var installee = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
           var connectee = localStorage.getItem('stockflow.session') || sessionStorage.getItem('stockflow.session');
-          if ((installee || connectee) && !sessionStorage.getItem('stockflow.ouverture')) {
+          if (installee || (connectee && !sessionStorage.getItem('stockflow.ouverture'))) {
             document.documentElement.classList.add('ouverture');
             sessionStorage.setItem('stockflow.ouverture', '1');
           }
