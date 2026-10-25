@@ -17,6 +17,7 @@ import { cn } from '@/lib/cn';
 import { formatNombre, pluriel, tempsRelatif } from '@/lib/format';
 import { Button } from '@/components/ui/Button';
 import { datePeremption } from '@/features/peremptions/presentation';
+import { ActivationPush } from './ActivationPush';
 
 type Niveau = 'CRITIQUE' | 'AVERTISSEMENT' | 'INFO';
 type TypeNotification = 'RUPTURE' | 'STOCK_FAIBLE' | 'LOT_PERIME' | 'LOT_BIENTOT_PERIME' | 'LOT_A_SURVEILLER';
@@ -257,6 +258,8 @@ export function ClocheNotifications() {
               );
             })}
           </div>
+
+          <ActivationPush />
 
           {message && (
             <p

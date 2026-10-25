@@ -47,6 +47,7 @@ import { SelecteurTheme } from '@/components/patterns/SelecteurTheme';
 import { BoutonInstaller } from '@/features/installation/BoutonInstaller';
 import { AssistantPanel } from '@/features/assistant/AssistantPanel';
 import { ClocheNotifications } from '@/features/notifications/ClocheNotifications';
+import { desactiverPush, resynchroniserPush } from '@/lib/notificationsPush';
 import { OngletsSection, type OngletSection } from '@/components/patterns/OngletsSection';
 import { useIndicateurGlissant } from '@/components/patterns/useIndicateurGlissant';
 import './menuMobile.css';
@@ -404,6 +405,19 @@ export function AppLayout() {
     };
   }, [menuProfilOuvert]);
 
+  // Notifications push : appareil réabonné après une reconnexion. Toucher
+  // une notification (public/sw.js) ouvre sa page sans recharger l'application.
+  useEffect(() => {
+    void resynchroniserPush();
+    if (!('serviceWorker' in navigator)) return;
+    const message = (event: MessageEvent) => {
+      const { type, chemin } = (event.data ?? {}) as { type?: string; chemin?: unknown };
+      if (type === 'naviguer' && typeof chemin === 'string' && chemin.startsWith('/')) navigate(chemin);
+    };
+    navigator.serviceWorker.addEventListener('message', message);
+    return () => navigator.serviceWorker.removeEventListener('message', message);
+  }, [navigate]);
+
   // Menu mobile : Échap le ferme, comme le voile.
   useEffect(() => {
     if (!plusOuvert) return;
@@ -480,6 +494,8 @@ export function AppLayout() {
     try {
       // Le cookie du refresh token part seul : le serveur le révoque et l'efface.
       if (getSession()) {
+        // Plus de notifications sur cet appareil une fois déconnecté.
+        await desactiverPush();
         await api.post('/auth/logout');
       }
     } catch {

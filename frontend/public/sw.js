@@ -138,3 +138,44 @@ self.addEventListener('fetch', (event) => {
       ),
   );
 });
+
+// Notifications push (alertes de stock) : affichées par le système, avec
+// son et vibration du téléphone, même application fermée ou appareil en
+// veille. Contenu envoyé par l'API (backend, PushService).
+self.addEventListener('push', (event) => {
+  let donnees = {};
+  try {
+    donnees = event.data ? event.data.json() : {};
+  } catch {
+    // Contenu illisible : notification générique plutôt que rien.
+  }
+  event.waitUntil(
+    self.registration.showNotification(donnees.titre || 'NimbaFlow', {
+      body: donnees.corps || 'Nouvelle alerte de stock.',
+      icon: '/favicon-192.png',
+      badge: '/icones/badge-96.png',
+      tag: donnees.etiquette,
+      // Même étiquette (même produit, même alerte) : remplace et sonne à nouveau.
+      renotify: Boolean(donnees.etiquette),
+      vibrate: [200, 100, 200],
+      lang: 'fr',
+      data: { url: donnees.url || '/' },
+    }),
+  );
+});
+
+// Toucher la notification : l'application déjà ouverte passe au premier
+// plan et affiche la page concernée (sans rechargement, src/layouts/
+// AppLayout.tsx), sinon elle s'ouvre directement sur cette page.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const chemin = event.notification.data?.url || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window' }).then((fenetres) => {
+      const fenetre = fenetres[0];
+      if (!fenetre) return self.clients.openWindow(chemin);
+      fenetre.postMessage({ type: 'naviguer', chemin });
+      return fenetre.focus();
+    }),
+  );
+});

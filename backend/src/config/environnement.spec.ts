@@ -9,6 +9,9 @@ const complet = {
   JWT_REFRESH_SECRET: 'b'.repeat(64),
   JWT_CONSOLE_SECRET: 'c'.repeat(64),
   FRONTEND_URL: 'https://stockflow.vercel.app',
+  VAPID_PUBLIC_KEY: 'cle-publique',
+  VAPID_PRIVATE_KEY: 'cle-privee',
+  EMAIL_FROM: 'NimbaFlow <alertes@exemple.com>',
 };
 
 describe('Validation de l’environnement au démarrage', () => {
@@ -22,6 +25,15 @@ describe('Validation de l’environnement au démarrage', () => {
       'DATABASE_URL est obligatoire (absente de ce service).',
       'JWT_ACCESS_SECRET est obligatoire (définie mais vide).',
     ]);
+  });
+
+  it('notifications push : clés incomplètes ou sans contact, avertissement sans blocage', () => {
+    const avertissements = (env: object) => diagnostiquerEnvironnement({ ...complet, ...env }).avertissements;
+    expect(avertissements({ VAPID_PRIVATE_KEY: undefined })[0]).toMatch(/une seule est définie/);
+    expect(avertissements({ EMAIL_FROM: undefined })[0]).toMatch(/EMAIL_FROM/);
+    expect(avertissements({ VAPID_PUBLIC_KEY: undefined, VAPID_PRIVATE_KEY: undefined })[0]).toMatch(/push désactivées/);
+    expect(avertissements({ NODE_ENV: 'development', VAPID_PUBLIC_KEY: undefined, VAPID_PRIVATE_KEY: undefined })).toEqual([]);
+    expect(diagnostiquerEnvironnement({ ...complet, VAPID_PRIVATE_KEY: undefined }).erreurs).toEqual([]);
   });
 
   it('FRONTEND_URL obligatoire en production seulement', () => {
