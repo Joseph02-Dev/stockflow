@@ -51,6 +51,15 @@ export function diagnostiquerEnvironnement(env: NodeJS.ProcessEnv): DiagnosticEn
   if (Number(env.WEB_CONCURRENCY ?? 1) > 1 && absente('REDIS_URL')) {
     avertissements.push('WEB_CONCURRENCY > 1 sans REDIS_URL : limites de débit multipliées par le nombre de processus.');
   }
+  // Notifications push : les deux clés vont ensemble (src/modules/notifications/push.service.ts).
+  const vapid = ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY'].filter((nom) => !absente(nom)).length;
+  if (vapid === 1) {
+    avertissements.push('VAPID_PUBLIC_KEY et VAPID_PRIVATE_KEY vont ensemble : une seule est définie, notifications push désactivées.');
+  } else if (vapid === 2 && !/@/.test(env.EMAIL_FROM ?? '')) {
+    avertissements.push('Notifications push désactivées : EMAIL_FROM (adresse de contact déclarée aux services push) est absente.');
+  } else if (vapid === 0 && production) {
+    avertissements.push('VAPID_PUBLIC_KEY et VAPID_PRIVATE_KEY absentes : notifications push désactivées.');
+  }
   const inconnues = fonctionnalitesInconnues(env);
   if (inconnues.length > 0) {
     avertissements.push(

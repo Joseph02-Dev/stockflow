@@ -30,7 +30,7 @@ export function estAppliInstallee(): boolean {
 }
 
 /** iPhone, iPad (y compris iPadOS qui se présente comme un Mac). */
-function estAppareilApple(): boolean {
+export function estAppareilApple(): boolean {
   return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 

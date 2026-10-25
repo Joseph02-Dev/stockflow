@@ -174,6 +174,31 @@ StockFlow) avec une version texte ; son bouton mène à
 `FRONTEND_URL/verifier-email`, qui active le compte puis ouvre la suite de
 l'inscription.
 
+## 5 bis. Notifications push des alertes
+
+Les alertes de stock arrivent aussi en notification sur les téléphones et
+ordinateurs où l'on est connecté (son du téléphone, même en veille), en
+plus de l'email. Il faut une paire de clés « VAPID », créée **une seule
+fois** :
+
+1. Sur votre ordinateur (Node.js installé) : `npx web-push generate-vapid-keys`.
+   La commande affiche une clé publique et une clé privée.
+2. Render → service de l'API → **Environment** : `VAPID_PUBLIC_KEY` = la
+   clé publique, `VAPID_PRIVATE_KEY` = la clé privée → Save. La clé privée
+   est un secret : ne la collez nulle part ailleurs.
+3. `EMAIL_FROM` (section 5) sert d'adresse de contact déclarée aux services
+   push (Google, Apple, Mozilla, Microsoft) : elle doit être définie.
+
+Ne changez plus ces clés ensuite : chaque appareil abonné devrait de
+nouveau activer les alertes (il est réabonné automatiquement à sa
+prochaine ouverture si la permission était donnée). Sans ces variables, le
+push est désactivé et seuls les emails partent ; le journal de démarrage
+l'indique.
+
+Activation sur chaque appareil : cloche → « Recevoir les alertes sur cet
+appareil » → Activer. Sur iPhone et iPad (iOS 16.4 ou plus), uniquement
+dans l'application installée sur l'écran d'accueil.
+
 ## 6. Vérifications
 
 - `https://api.stockflowgn.com/health` → `200` ;

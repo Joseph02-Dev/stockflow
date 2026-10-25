@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
 import { EMAIL_SERVICE, type EmailService } from '../../common/email/email.service.js';
 import { emettreEvenement } from '../webhooks/emission.js';
+import { PushService } from '../notifications/push.service.js';
 
 @Injectable()
 export class AlerteNotificationService {
@@ -10,11 +11,13 @@ export class AlerteNotificationService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(EMAIL_SERVICE) private readonly emailService: EmailService,
+    private readonly push: PushService,
   ) {}
 
   /**
-   * ALERT-004 — Notifie par email les utilisateurs de l'entreprise qu'une
-   * alerte vient d'être déclenchée.
+   * ALERT-004 — Notifie les utilisateurs de l'entreprise qu'une alerte
+   * vient d'être déclenchée : notification push sur les appareils où ils
+   * sont connectés (avec le son du téléphone, même en veille), et email.
    *
    * Appelé APRÈS la transaction du mouvement, jamais à l'intérieur : un
    * échec d'envoi d'email ne doit jamais annuler un mouvement de stock
@@ -34,6 +37,17 @@ export class AlerteNotificationService {
     } catch (error) {
       this.logger.error(`Événement webhook « alerte.stock » non enregistré : ${(error as Error).message}`);
     }
+
+    // Notification push : ne lève jamais (PushService.envoyer).
+    await this.push.envoyer(entrepriseId, {
+      titre: type === 'RUPTURE' ? 'Rupture de stock' : 'Stock faible',
+      corps:
+        type === 'RUPTURE'
+          ? `${produitNom} est en rupture de stock.`
+          : `${produitNom} passe sous son seuil d'alerte (reste ${quantite}).`,
+      url: '/alertes',
+      etiquette: `alerte-${type}-${produitNom}`,
+    });
 
     try {
       const destinataires = await this.prisma.utilisateur.findMany({

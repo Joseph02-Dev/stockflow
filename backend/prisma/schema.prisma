@@ -242,6 +242,7 @@ model Entreprise {
   abonnementsWebhook  AbonnementWebhook[]
   evenementsWebhook   EvenementWebhook[]
   notificationsLues   NotificationLue[]
+  abonnementsPush     AbonnementPush[]
   operationsHorsLigne OperationHorsLigne[]
 
   @@map("entreprise")
@@ -296,6 +297,7 @@ model Utilisateur {
   retoursFournisseur RetourFournisseur[]
   retoursClient      RetourClient[]
   notificationsLues  NotificationLue[]
+  abonnementsPush    AbonnementPush[]
 
   @@index([entrepriseId])
   @@map("utilisateur")
@@ -733,6 +735,31 @@ model NotificationLue {
   @@unique([utilisateurId, cle])
   @@index([entrepriseId])
   @@map("notification_lue")
+}
+
+/**
+ * Appareil abonné aux notifications push (Web Push) : un par navigateur ou
+ * application installée, tant qu'une personne y est connectée. Retiré à la
+ * déconnexion de l'appareil, ou quand le service push le déclare expiré.
+ * endpoint : adresse fournie par le service push du navigateur (Google,
+ * Apple, Mozilla, Microsoft) ; p256dh et auth : clés de chiffrement du
+ * contenu, propres à l'appareil.
+ */
+model AbonnementPush {
+  id            String   @id @default(uuid())
+  entrepriseId  String   @map("entreprise_id")
+  utilisateurId String   @map("utilisateur_id")
+  endpoint      String   @unique
+  p256dh        String   @db.VarChar(200)
+  auth          String   @db.VarChar(100)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  entreprise  Entreprise  @relation(fields: [entrepriseId], references: [id])
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  @@index([entrepriseId])
+  @@index([utilisateurId])
+  @@map("abonnement_push")
 }
 
 /**
