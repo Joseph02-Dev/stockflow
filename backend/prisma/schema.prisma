@@ -390,6 +390,8 @@ model Emplacement {
   // qui référencent obligatoirement un emplacement.
   archive      Boolean  @default(false)
   createdAt    DateTime @default(now()) @map("created_at")
+  // Mis à jour par un déclencheur PostgreSQL (synchronisation, docs/adr/0001).
+  updatedAt DateTime @default(now()) @map("updated_at")
 
   // Arborescence facultative (module « arborescence ») : Dépôt > Zone >
   // Allée > Étagère. Un emplacement de n'importe quel niveau peut porter
@@ -420,6 +422,7 @@ model Emplacement {
 
   @@index([entrepriseId])
   @@index([parentId])
+  @@index([entrepriseId, updatedAt])
   @@map("emplacement")
 }
 
@@ -431,6 +434,8 @@ model Produit {
   seuilAlerte  Int      @default(0) @map("seuil_alerte")
   archive      Boolean  @default(false)
   createdAt    DateTime @default(now()) @map("created_at")
+  // Mis à jour par un déclencheur PostgreSQL (synchronisation, docs/adr/0001).
+  updatedAt DateTime @default(now()) @map("updated_at")
 
   // Ajouts fiche produit enrichie — tous facultatifs pour ne pas casser
   // les produits existants créés avant cette évolution.
@@ -499,6 +504,7 @@ model Produit {
   @@unique([modeleId, cleVariante])
   @@index([entrepriseId, nom])
   @@index([importId])
+  @@index([entrepriseId, updatedAt])
   @@map("produit")
 }
 
@@ -509,6 +515,8 @@ model Categorie {
   entrepriseId String   @map("entreprise_id")
   nom          String
   createdAt    DateTime @default(now()) @map("created_at")
+  // Mis à jour par un déclencheur PostgreSQL (synchronisation, docs/adr/0001).
+  updatedAt DateTime @default(now()) @map("updated_at")
 
   entreprise Entreprise      @relation(fields: [entrepriseId], references: [id])
   produits   Produit[]
@@ -517,6 +525,7 @@ model Categorie {
   reglesRangement RegleRangement[]
 
   @@unique([entrepriseId, nom])
+  @@index([entrepriseId, updatedAt])
   @@map("categorie")
 }
 
@@ -525,12 +534,15 @@ model Marque {
   entrepriseId String   @map("entreprise_id")
   nom          String
   createdAt    DateTime @default(now()) @map("created_at")
+  // Mis à jour par un déclencheur PostgreSQL (synchronisation, docs/adr/0001).
+  updatedAt DateTime @default(now()) @map("updated_at")
 
   entreprise Entreprise      @relation(fields: [entrepriseId], references: [id])
   produits   Produit[]
   modeles    ModeleProduit[]
 
   @@unique([entrepriseId, nom])
+  @@index([entrepriseId, updatedAt])
   @@map("marque")
 }
 
@@ -546,6 +558,8 @@ model Fournisseur {
   // de date de commande, seulement une date de réception.
   delaiLivraisonJours Int?     @map("delai_livraison_jours")
   createdAt           DateTime @default(now()) @map("created_at")
+  // Mis à jour par un déclencheur PostgreSQL (synchronisation, docs/adr/0001).
+  updatedAt DateTime @default(now()) @map("updated_at")
 
   entreprise       Entreprise            @relation(fields: [entrepriseId], references: [id])
   produitsAssocies FournisseurProduit[]
@@ -557,6 +571,7 @@ model Fournisseur {
   reglesReappro RegleReapprovisionnement[]
 
   @@index([entrepriseId])
+  @@index([entrepriseId, updatedAt])
   @@map("fournisseur")
 }
 
@@ -578,11 +593,14 @@ model Stock {
   produitId     String @map("produit_id")
   emplacementId String @map("emplacement_id")
   quantite      Int    @default(0)
+  // Mis à jour par un déclencheur PostgreSQL (synchronisation, docs/adr/0001).
+  updatedAt DateTime @default(now()) @map("updated_at")
 
   produit     Produit     @relation(fields: [produitId], references: [id])
   emplacement Emplacement @relation(fields: [emplacementId], references: [id])
 
   @@id([produitId, emplacementId])
+  @@index([updatedAt])
   @@map("stock")
 }
 
@@ -598,6 +616,8 @@ model Mouvement {
   fournisseurId String?       @map("fournisseur_id")
   utilisateurId String        @map("utilisateur_id")
   createdAt     DateTime      @default(now()) @map("created_at")
+  // Mis à jour par un déclencheur PostgreSQL (synchronisation, docs/adr/0001).
+  updatedAt DateTime @default(now()) @map("updated_at")
 
   // Double entrée : d'où vient la quantité et où elle va. Le côté INTERNE
   // est emplacementId (et emplacementDestinationId pour un TRANSFERT).
@@ -663,6 +683,7 @@ model Mouvement {
   @@index([entrepriseId, createdAt])
   @@index([lotId])
   @@index([venteId])
+  @@index([entrepriseId, updatedAt])
   @@map("mouvement")
 }
 
@@ -685,6 +706,8 @@ model Lot {
   datePeremption DateTime? @map("date_peremption")
   recuAt         DateTime  @default(now()) @map("recu_at")
   createdAt      DateTime  @default(now()) @map("created_at")
+  // Mis à jour par un déclencheur PostgreSQL (synchronisation, docs/adr/0001).
+  updatedAt DateTime @default(now()) @map("updated_at")
 
   entreprise       Entreprise        @relation(fields: [entrepriseId], references: [id])
   produit          Produit           @relation(fields: [produitId], references: [id])
@@ -695,6 +718,7 @@ model Lot {
   @@unique([produitId, emplacementId, numero])
   @@index([entrepriseId, datePeremption])
   @@index([produitId, emplacementId, datePeremption])
+  @@index([entrepriseId, updatedAt])
   @@map("lot")
 }
 
@@ -706,12 +730,15 @@ model Alerte {
   statut                  StatutAlerte @default(ACTIVE)
   quantiteAuDeclenchement Int          @map("quantite_au_declenchement")
   createdAt               DateTime     @default(now()) @map("created_at")
+  // Mis à jour par un déclencheur PostgreSQL (synchronisation, docs/adr/0001).
+  updatedAt DateTime @default(now()) @map("updated_at")
   resolvedAt              DateTime?    @map("resolved_at")
 
   entreprise Entreprise @relation(fields: [entrepriseId], references: [id])
   produit    Produit    @relation(fields: [produitId], references: [id])
 
   @@index([entrepriseId, statut])
+  @@index([entrepriseId, updatedAt])
   @@map("alerte")
 }
 
@@ -922,11 +949,14 @@ model Client {
   plafondCredit Int?               @map("plafond_credit")
   archive       Boolean            @default(false)
   createdAt     DateTime           @default(now()) @map("created_at")
+  // Mis à jour par un déclencheur PostgreSQL (synchronisation, docs/adr/0001).
+  updatedAt DateTime @default(now()) @map("updated_at")
 
   entreprise Entreprise @relation(fields: [entrepriseId], references: [id])
   ventes     Vente[]
 
   @@index([entrepriseId, archive])
+  @@index([entrepriseId, updatedAt])
   @@map("client")
 }
 
@@ -969,6 +999,8 @@ model Vente {
   annuleeAt       DateTime?    @map("annulee_at")
   motifAnnulation String?      @map("motif_annulation")
   createdAt       DateTime     @default(now()) @map("created_at")
+  // Mis à jour par un déclencheur PostgreSQL (synchronisation, docs/adr/0001).
+  updatedAt DateTime @default(now()) @map("updated_at")
   // Vente saisie hors ligne : heure réelle de la vente sur l'appareil
   // (createdAt la reprend), et stock manquant à la synchronisation.
   saisieHorsLigneAt DateTime? @map("saisie_hors_ligne_at")
@@ -986,6 +1018,7 @@ model Vente {
   @@unique([entrepriseId, numero])
   @@index([entrepriseId, createdAt])
   @@index([clientId, createdAt])
+  @@index([entrepriseId, updatedAt])
   @@map("vente")
 }
 
