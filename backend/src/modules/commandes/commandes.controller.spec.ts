@@ -111,6 +111,34 @@ describe('Commandes fournisseur — intégration réelle, base PostgreSQL', () =
     expect(detail.body.emplacement.nom).toBe('Dépôt Madina');
   });
 
+  it('crée le fournisseur saisi par son nom avec la commande, ou reprend celui du même nom', async () => {
+    const { accessToken, emplacementId, produitAId } = await creerContexte();
+    const commander = (corps: object) =>
+      request(app.getHttpServer())
+        .post('/commandes')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ emplacementId, lignes: [{ produitId: produitAId, quantiteCommandee: 10 }], ...corps });
+
+    const premiere = await commander({ nouveauFournisseur: { nom: '  Baldé Import  ' } });
+    expect(premiere.status).toBe(201);
+    const detail = await request(app.getHttpServer())
+      .get(`/commandes/${premiere.body.id}`)
+      .set('Authorization', `Bearer ${accessToken}`);
+    expect(detail.body.fournisseur.nom).toBe('Baldé Import');
+
+    // Même nom, autre casse : pas de doublon, la commande va au même fournisseur.
+    const seconde = await commander({ nouveauFournisseur: { nom: 'baldé import' } });
+    expect(seconde.status).toBe(201);
+    expect(seconde.body.fournisseurId).toBe(premiere.body.fournisseurId);
+    const fournisseurs = await request(app.getHttpServer()).get('/fournisseurs').set('Authorization', `Bearer ${accessToken}`);
+    expect(fournisseurs.body.filter((f: { nom: string }) => f.nom === 'Baldé Import')).toHaveLength(1);
+
+    // Ni fournisseur ni nom, ou les deux à la fois : refusé.
+    expect((await commander({})).status).toBe(400);
+    expect((await commander({ nouveauFournisseur: { nom: '   ' } })).status).toBe(400);
+    expect((await commander({ fournisseurId: premiere.body.fournisseurId, nouveauFournisseur: { nom: 'Autre' } })).status).toBe(400);
+  });
+
   it('rejette avec 400 une commande sans aucune ligne', async () => {
     const { accessToken, emplacementId, fournisseurId } = await creerContexte();
 

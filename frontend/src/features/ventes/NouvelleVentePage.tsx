@@ -1,11 +1,12 @@
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Minus, Plus, Search, TriangleAlert, UserRound, WifiOff, X } from 'lucide-react';
+import { Minus, Plus, Search, TriangleAlert, UserPlus, UserRound, WifiOff, X } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { useEnLigne } from '@/lib/useEnLigne';
 import {
   ajouterMouvementEnAttente,
+  envoyerOuGarder,
   etatFile,
   nouvelIdClient,
   quantitesEnAttente,
@@ -71,6 +72,8 @@ export function NouvelleVentePage() {
   const lotABrader = parametres.get('lot');
 
   const [client, setClient] = useState<Client | null>(null);
+  // Client pas encore enregistré, saisi par son nom : créé à l'envoi de la vente.
+  const [clientNouveau, setClientNouveau] = useState(false);
   const [rechercheClient, setRechercheClient] = useState('');
   const [emplacementChoisi, setEmplacementChoisi] = useState<string | null>(() => parametres.get('emplacement'));
   const [rechercheProduit, setRechercheProduit] = useState('');
@@ -87,6 +90,29 @@ export function NouvelleVentePage() {
   const [erreur, setErreur] = useState<string | null>(null);
   /** Dernière vente gardée sur l'appareil faute de réseau (confirmation affichée). */
   const [venteEnAttente, setVenteEnAttente] = useState<{ total: number; articles: number } | null>(null);
+
+  function choisirClient(choisi: Client | null, nouveau = false) {
+    setClient(choisi);
+    setClientNouveau(nouveau);
+    setRechercheClient('');
+  }
+
+  /** Nouveau client : son identifiant est créé ici, comme pour un client créé hors ligne. */
+  function nouveauClient(nom: string) {
+    choisirClient(
+      {
+        id: nouvelIdClient(),
+        nom,
+        telephone: null,
+        nomCommerce: null,
+        categorie: 'DETAIL',
+        plafondCredit: null,
+        archive: false,
+        createdAt: new Date().toISOString(),
+      },
+      true,
+    );
+  }
 
   const categorie = client?.categorie ?? 'DETAIL';
   // Pas de client : le crédit n'est pas possible, on revient au comptant.
@@ -115,7 +141,7 @@ export function NouvelleVentePage() {
   const situation = useQuery({
     queryKey: ['clients', client?.id, 'situation'],
     queryFn: async () => (await api.get<SituationClient>(`/clients/${client!.id}/situation`)).data,
-    enabled: client !== null,
+    enabled: client !== null && !clientNouveau,
   });
 
   const rechercheClientRetardee = useDebounce(rechercheClient.trim(), 250);
@@ -212,6 +238,18 @@ export function NouvelleVentePage() {
         ajouterMouvementEnAttente('vente', { ...corps, saisieHorsLigneAt: new Date().toISOString() }, resume);
         return null;
       };
+      // Nouveau client : enregistré juste avant la vente, avec l'identifiant
+      // choisi ici (un renvoi ne le crée pas deux fois). Gardé sur
+      // l'appareil faute de réseau : la vente le suit dans la file.
+      if (client && clientNouveau) {
+        const creation = await envoyerOuGarder(
+          'client',
+          { idClient: client.id, nom: client.nom, categorie: client.categorie },
+          `Nouveau client · ${client.nom}`,
+          { enLigne },
+        );
+        if (creation.horsLigne) return garderSurAppareil();
+      }
       if (!enLigne) return garderSurAppareil();
       try {
         return (await api.post<VenteDetail>('/ventes', corps)).data;
@@ -228,7 +266,7 @@ export function NouvelleVentePage() {
       if (!vente) {
         setVenteEnAttente({ total: totaux.total, articles: lignes.length });
         setQuantites(new Map());
-        setClient(null);
+        choisirClient(null);
         setTauxRemise('');
         setAvance('');
         setEcheance('');
@@ -291,12 +329,16 @@ export function NouvelleVentePage() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-corps font-semibold text-ink-900">{client.nom}</p>
                       {client.nomCommerce && <p className="truncate text-meta text-steel-500">{client.nomCommerce}</p>}
-                      <p className="text-meta whitespace-nowrap text-steel-500">{client.telephone ?? 'Pas de téléphone'}</p>
+                      {clientNouveau ? (
+                        <p className="text-meta text-ok">Nouveau client · enregistré avec la vente</p>
+                      ) : (
+                        <p className="text-meta whitespace-nowrap text-steel-500">{client.telephone ?? 'Pas de téléphone'}</p>
+                      )}
                     </div>
                     <Badge variant={categorie === 'GROS' ? 'action' : categorie === 'DEMI_GROS' ? 'accent' : 'neutral'}>
                       {LIBELLES_CATEGORIE[categorie]}
                     </Badge>
-                    <Button variant="ghost" taille="sm" icone aria-label="Changer de client" onClick={() => setClient(null)}>
+                    <Button variant="ghost" taille="sm" icone aria-label="Changer de client" onClick={() => choisirClient(null)}>
                       <X className="size-4" aria-hidden="true" />
                     </Button>
                   </div>
@@ -341,10 +383,7 @@ export function NouvelleVentePage() {
                         <li key={c.id}>
                           <button
                             type="button"
-                            onClick={() => {
-                              setClient(c);
-                              setRechercheClient('');
-                            }}
+                            onClick={() => choisirClient(c)}
                             className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-entete-tableau"
                           >
                             <Vignette nom={c.nom} taille={30} className="rounded-full" />
@@ -356,8 +395,25 @@ export function NouvelleVentePage() {
                           </button>
                         </li>
                       ))}
-                      {clientsProposes?.length === 0 && (
-                        <li className="px-3 py-2.5 text-corps text-steel-500">Aucun client trouvé.</li>
+                      {/* Personne de ce nom : l'ajouter, il sera enregistré avec la vente. */}
+                      {clientsProposes && !clientsProposes.some((c) => c.nom.trim().toLocaleLowerCase('fr') === termeClient) && (
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => nouveauClient(rechercheClientRetardee)}
+                            className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-entete-tableau"
+                          >
+                            <span className="inline-flex size-[30px] shrink-0 items-center justify-center rounded-full bg-action-wash text-action">
+                              <UserPlus className="size-4" aria-hidden="true" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-corps font-medium text-ink-900">
+                                Nouveau client « {rechercheClientRetardee} »
+                              </span>
+                              <span className="block truncate text-meta text-steel-500">Enregistré automatiquement avec la vente</span>
+                            </span>
+                          </button>
+                        </li>
                       )}
                     </ul>
                   )}

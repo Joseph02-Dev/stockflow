@@ -25,15 +25,29 @@ export class CommandesService {
    * n'existe que côté frontend selon l'origine de la saisie des lignes.
    */
   async creer(entrepriseId: string, utilisateurId: string, dto: CreateCommandeDto) {
-    await this.verifierFournisseur(entrepriseId, dto.fournisseurId);
+    if (dto.fournisseurId && dto.nouveauFournisseur) {
+      throw new BadRequestException('Choisissez un fournisseur existant ou un nouveau fournisseur, pas les deux.');
+    }
+    if (dto.fournisseurId) await this.verifierFournisseur(entrepriseId, dto.fournisseurId);
     await this.verifierEmplacement(entrepriseId, dto.emplacementId);
     await this.verifierProduitsDeLEntreprise(entrepriseId, dto.lignes);
 
     return this.prisma.$transaction(async (tx) => {
+      // Nouveau fournisseur saisi par son nom : créé avec la commande (même
+      // transaction), ou repris s'il existe déjà sous ce nom.
+      let fournisseurId = dto.fournisseurId!;
+      if (dto.nouveauFournisseur) {
+        const nom = dto.nouveauFournisseur.nom;
+        const existant = await tx.fournisseur.findFirst({
+          where: { entrepriseId, nom: { equals: nom, mode: 'insensitive' } },
+          select: { id: true },
+        });
+        fournisseurId = existant?.id ?? (await tx.fournisseur.create({ data: { entrepriseId, nom }, select: { id: true } })).id;
+      }
       const commande = await tx.commandeFournisseur.create({
         data: {
           entrepriseId,
-          fournisseurId: dto.fournisseurId,
+          fournisseurId,
           emplacementId: dto.emplacementId,
           utilisateurId,
         },
