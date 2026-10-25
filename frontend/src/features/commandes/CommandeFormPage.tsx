@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -33,6 +33,8 @@ export function CommandeFormPage() {
   const prerempli = (location.state as EtatPrerempli | null) ?? null;
 
   const [fournisseurId, setFournisseurId] = useState(prerempli?.fournisseurId ?? '');
+  // Fournisseur pas encore enregistré, saisi par son nom : créé avec la commande.
+  const [nouveauFournisseur, setNouveauFournisseur] = useState<string | null>(null);
   const [emplacementId, setEmplacementId] = useState('');
   const [lignes, setLignes] = useState<LigneFormulaire[]>(
     prerempli?.lignes && prerempli.lignes.length > 0
@@ -58,7 +60,7 @@ export function CommandeFormPage() {
     mutationFn: async () =>
       (
         await api.post<{ id: string }>('/commandes', {
-          fournisseurId,
+          ...(nouveauFournisseur !== null ? { nouveauFournisseur: { nom: nouveauFournisseur.trim() } } : { fournisseurId }),
           emplacementId,
           lignes: lignes
             .filter((l) => l.produitId && l.quantiteCommandee > 0)
@@ -67,6 +69,7 @@ export function CommandeFormPage() {
       ).data,
     onSuccess: (nouvelle) => {
       queryClient.invalidateQueries({ queryKey: ['commandes'] });
+      if (nouveauFournisseur !== null) queryClient.invalidateQueries({ queryKey: ['fournisseurs'] });
       navigate(`/commandes/${nouvelle.id}`);
     },
     onError: (err) => setErreur(messageErreur(err, 'La création a échoué.')),
@@ -85,7 +88,12 @@ export function CommandeFormPage() {
   }
 
   const lignesValides = lignes.filter((l) => l.produitId && l.quantiteCommandee > 0);
-  const pretAEnvoyer = !!fournisseurId && !!emplacementId && lignesValides.length > 0;
+  const fournisseurChoisi = nouveauFournisseur !== null ? nouveauFournisseur.trim().length > 0 : !!fournisseurId;
+  const pretAEnvoyer = fournisseurChoisi && !!emplacementId && lignesValides.length > 0;
+  // Nom déjà connu (casse ignorée) : la commande ira à ce fournisseur, sans doublon (serveur).
+  const homonyme =
+    nouveauFournisseur?.trim() &&
+    fournisseurs.data?.find((f) => f.nom.toLocaleLowerCase('fr') === nouveauFournisseur.trim().toLocaleLowerCase('fr'));
 
   // Un même produit ne peut apparaître qu'une fois (contrainte serveur) :
   // on le signale avant l'envoi plutôt que de laisser échouer silencieusement.
@@ -111,14 +119,49 @@ export function CommandeFormPage() {
       <Card>
         <div className="flex flex-col gap-4 p-5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Selecteur
-              label="Fournisseur"
-              placeholder="Sélectionner un fournisseur…"
-              options={(fournisseurs.data ?? []).map((f) => ({ valeur: f.id, libelle: f.nom }))}
-              value={fournisseurId}
-              onChange={setFournisseurId}
-              vide={{ titre: 'Aucun fournisseur trouvé', nomPluriel: 'fournisseurs' }}
-            />
+            {nouveauFournisseur === null ? (
+              <Selecteur
+                label="Fournisseur"
+                placeholder="Sélectionner un fournisseur…"
+                options={(fournisseurs.data ?? []).map((f) => ({ valeur: f.id, libelle: f.nom }))}
+                value={fournisseurId}
+                onChange={setFournisseurId}
+                vide={{ titre: 'Aucun fournisseur trouvé', nomPluriel: 'fournisseurs' }}
+                creation={{
+                  libelle: 'Nouveau fournisseur',
+                  libelleDepuisRecherche: (terme) => `Nouveau fournisseur « ${terme} »`,
+                  onCreer: (terme) => {
+                    setFournisseurId('');
+                    setNouveauFournisseur(terme);
+                  },
+                }}
+              />
+            ) : (
+              <Input
+                label="Nouveau fournisseur"
+                placeholder="Nom du fournisseur"
+                autoFocus
+                maxLength={150}
+                value={nouveauFournisseur}
+                onChange={(e) => setNouveauFournisseur(e.target.value)}
+                hint={
+                  homonyme
+                    ? `« ${homonyme.nom} » existe déjà : la commande lui sera rattachée.`
+                    : 'Enregistré automatiquement à la création de la commande.'
+                }
+                actionDroite={
+                  <button
+                    type="button"
+                    onClick={() => setNouveauFournisseur(null)}
+                    aria-label="Choisir un fournisseur existant"
+                    title="Choisir un fournisseur existant"
+                    className="inline-flex size-7 items-center justify-center rounded text-steel-500 hover:bg-survol hover:text-ink-900"
+                  >
+                    <X className="size-4" aria-hidden="true" />
+                  </button>
+                }
+              />
+            )}
             <Selecteur
               label="Emplacement de réception"
               placeholder="Sélectionner un emplacement…"
