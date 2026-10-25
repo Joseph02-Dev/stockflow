@@ -108,6 +108,26 @@ ci-dessous servirait aussi à une application native.
      données sont dans IndexedDB. La base locale de cette décision est donc
      un prérequis pour iOS.
 
+### Contrat de `GET /sync` (livré par SYNC-02)
+
+- `GET /sync` (session requise) : instantané complet de l'entreprise.
+  `GET /sync?depuis=<curseur>` : seulement ce qui a changé depuis.
+- Réponse :
+  - `tables` : lignes complètes par table (`produits`, `stock`,
+    `emplacements`, `categories`, `marques`, `clients`, `fournisseurs`,
+    `alertes`, `lots`, `ventes` avec leurs `lignes`, `mouvements`), à
+    enregistrer par clé (`id`, ou `produitId` + `emplacementId` pour le
+    stock) ;
+  - `curseur` : opaque, à renvoyer tel quel à l'appel suivant ;
+  - `encore` : une table a rempli sa page (500 lignes) ; rappeler aussitôt ;
+  - `existants` : identifiants des catégories et marques encore présentes
+    (les seules vraiment supprimées) ; retirer localement les autres.
+- Ventes et mouvements : 90 derniers jours.
+- Une fois à jour, le curseur reprend 2 minutes en arrière : une même
+  ligne peut revenir, l'enregistrement local doit donc écraser sans
+  dupliquer.
+- Curseur illisible : `400`, l'appareil recommence un instantané complet.
+
 ## Conséquences
 
 - La synchronisation devient un composant central : tests d'intégration

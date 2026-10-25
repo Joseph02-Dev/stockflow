@@ -24,6 +24,7 @@ import { RetoursModule } from './modules/retours/retours.module.js';
 import { RapportsModule } from './modules/rapports/rapports.module.js';
 import { AlertesModule } from './modules/alertes/alertes.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
+import { SynchronisationModule } from './modules/synchronisation/synchronisation.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { StatistiquesModule } from './modules/statistiques/statistiques.module.js';
 import { PrismaModule } from './config/prisma.module.js';
@@ -100,6 +101,7 @@ import {
     RapportsModule,
     AlertesModule,
     NotificationsModule,
+    SynchronisationModule,
     DashboardModule,
     StatistiquesModule,
     CategoriesModule,
