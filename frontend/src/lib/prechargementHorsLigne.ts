@@ -1,6 +1,4 @@
 import { api } from './api';
-import { debutPeriode } from './periode';
-import { urlPage } from './pagination';
 
 /**
  * Préchargement des écrans pour le mode hors ligne.
@@ -20,8 +18,6 @@ const CLE_DERNIER = 'stockflow.dernier-prechargement';
 /** Pas plus d'un préchargement par intervalle, sauf demande explicite. */
 const INTERVALLE_MIN_MS = 5 * 60_000;
 const REQUETES_SIMULTANEES = 4;
-/** Fiches fournisseur préchargées (la page ouvre la première automatiquement). */
-const FICHES_FOURNISSEUR_MAX = 20;
 /** Situations client préchargées (dette et plafond, affichés à la vente). */
 const SITUATIONS_CLIENT_MAX = 100;
 
@@ -31,6 +27,12 @@ export interface ContextePrechargement {
   rangement: boolean;
 }
 
+/**
+ * Seulement ce que la base de l'appareil ne sait pas reconstituer (calculs
+ * du serveur, historiques au-delà de la base) : emplacements, stock,
+ * produits, clients, fournisseurs, alertes, commandes et ventes sont lus
+ * localement hors ligne (lib/lectureLocale.ts, ADR 0001, SYNC-08).
+ */
 function adressesFixes({ admin, lots, rangement }: ContextePrechargement): string[] {
   return [
     // Tableau de bord et barre du haut
@@ -39,26 +41,16 @@ function adressesFixes({ admin, lots, rangement }: ContextePrechargement): strin
     '/dashboard/overview',
     '/dashboard/indicateurs',
     '/mouvements?limite=7',
-    '/alertes?statut=ACTIVE',
     ...(lots ? ['/peremptions'] : []),
     // Ventes
     '/statistiques?periode=7j',
     '/creances',
-    urlPage('/ventes', new URLSearchParams({ du: debutPeriode(7) }), undefined),
-    // Stock, produits, alertes
-    '/emplacements',
-    '/stock',
-    '/stock?',
+    // Stock et catalogue
     '/mouvements?limite=50',
-    '/produits?',
-    '/produits',
     '/categories',
     '/marques',
-    // Approvisionnement, clients, pertes
-    '/commandes',
+    // Approvisionnement, pertes
     '/retours-fournisseur',
-    '/fournisseurs',
-    '/clients?',
     '/pertes/synthese',
     '/pertes?limite=50',
     // Statistiques
@@ -123,25 +115,19 @@ export function prechargerEcrans(contexte: ContextePrechargement, force = false)
     const reussies = await chargerParLots(fixes);
     if (reussies === 0) return;
 
-    // Adresses qui dépendent des données : stock par emplacement et
-    // situation des clients (nouvelle vente), fiches fournisseur.
-    const [emplacements, fournisseurs, clients, commandes] = await Promise.all([
-      api.get<{ id: string }[]>('/emplacements').then((r) => r.data, () => []),
-      api.get<{ id: string }[]>('/fournisseurs').then((r) => r.data, () => []),
+    // Adresses qui dépendent des données : situation des clients (dette et
+    // plafond, à la vente) et fiche des commandes à réceptionner.
+    const [clients, commandes] = await Promise.all([
       api.get<{ id: string; archive?: boolean }[]>('/clients?').then((r) => r.data, () => []),
       api.get<{ id: string; statut: string }[]>('/commandes').then((r) => r.data, () => []),
     ]);
     await chargerParLots([
-      ...emplacements.map((e) => `/stock?emplacement_id=${e.id}`),
       // Commandes envoyées : leur fiche, pour les réceptionner hors ligne.
       ...commandes.filter((c) => c.statut === 'ENVOYEE').map((c) => `/commandes/${c.id}`),
       ...clients
         .filter((c) => !c.archive)
         .slice(0, SITUATIONS_CLIENT_MAX)
         .map((c) => `/clients/${c.id}/situation`),
-      ...fournisseurs
-        .slice(0, FICHES_FOURNISSEUR_MAX)
-        .flatMap((f) => [`/fournisseurs/${f.id}`, `/fournisseurs/${f.id}/produits`, `/fournisseurs/${f.id}/receptions`]),
     ]);
 
     try {
