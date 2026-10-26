@@ -402,11 +402,22 @@ export class AuthService {
         },
       });
 
-      const lienBase = process.env.FRONTEND_URL ?? '';
       await this.emailService.send({
         to: utilisateur.email,
         subject: 'Réinitialisation de votre mot de passe NimbaFlow',
-        body: `Une réinitialisation de mot de passe a été demandée pour ce compte.\n\nLien : ${lienBase}/reinitialiser-mot-de-passe?token=${token}\n\nCe lien expire dans 30 minutes. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email — votre mot de passe reste inchangé.`,
+        ...composerEmail({
+          apercu: 'Choisissez un nouveau mot de passe pour votre compte NimbaFlow.',
+          titre: 'Réinitialisez votre mot de passe',
+          paragraphes: [
+            `Bonjour ${utilisateur.nom}, une réinitialisation du mot de passe a été demandée pour votre compte.`,
+            'Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe. Vos sessions ouvertes sur les autres appareils seront fermées.',
+          ],
+          bouton: { libelle: 'Choisir un nouveau mot de passe', url: `${adresseSite()}/reinitialiser-mot-de-passe?token=${token}` },
+          mentions: [
+            `Ce lien est personnel et expire dans ${dureeEnClair(ms(expiration))}.`,
+            "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email : votre mot de passe reste inchangé.",
+          ],
+        }),
       });
     }
 

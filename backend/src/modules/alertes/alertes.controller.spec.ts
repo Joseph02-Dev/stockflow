@@ -178,6 +178,8 @@ describe('Alertes (ALERT-003, ALERT-004) — intégration réelle, base PostgreS
     expect(emailsEnvoyes[0].to).toBe(email);
     expect(emailsEnvoyes[0].subject).toContain('Stock faible');
     expect(emailsEnvoyes[0].body).toContain('Vis inox 4mm');
+    expect(emailsEnvoyes[0].html).toContain('Stock sous le seuil d’alerte');
+    expect(emailsEnvoyes[0].html).toContain('/alertes"');
   });
 
   it('envoie un email spécifique en cas de rupture (stock à zéro)', async () => {
