@@ -877,7 +877,7 @@ export function AppLayout() {
           </div>
         </header>
 
-        <main className="flex-1 px-4 pt-5 pb-24 md:px-7 md:pt-7 md:pb-10">
+        <main className="flex-1 px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+104px)] md:px-7 md:pt-7 md:pb-10">
           {/* Clé = route : chaque changement d'écran rejoue l'entrée échelonnée des blocs. */}
           <div key={location.pathname} className="entree-page mx-auto w-full max-w-[1280px]">
             {ongletsSection && <OngletsSection onglets={ongletsSection.onglets} libelle={ongletsSection.libelle} />}
@@ -886,11 +886,10 @@ export function AppLayout() {
         </main>
       </div>
 
-      {/* Barre de navigation mobile : verre dépoli, onglet actif en pastille. */}
-      <nav
-        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-rule/70 bg-surface/80 px-2 pt-1.5 pb-[calc(env(safe-area-inset-bottom)+6px)] shadow-[0_-10px_30px_-18px_rgba(16,24,40,0.35)] backdrop-blur-xl backdrop-saturate-150 md:hidden"
-        aria-label="Navigation principale"
-      >
+      {/* Barre de navigation mobile : île flottante sombre ; l'onglet actif
+          s'élargit en pastille orange avec son libellé, les autres gardent
+          l'icône seule (libellé pour les lecteurs d'écran). */}
+      <nav className="ile-nav fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+12px)] z-40 mx-auto flex max-w-md items-center gap-1 rounded-full p-1.5 md:hidden" aria-label="Navigation principale">
         {navMobile.map(({ to, libelle, Icone, exact }) => (
           <NavLink
             key={to}
@@ -898,22 +897,15 @@ export function AppLayout() {
             end={exact}
             className={({ isActive }) =>
               cn(
-                'group flex flex-1 flex-col items-center gap-1 py-1 text-meta font-medium transition-colors',
-                isActive ? 'text-action' : 'text-steel-500',
+                'ile-nav-onglet flex h-12 items-center justify-center gap-2 rounded-full text-meta font-semibold whitespace-nowrap',
+                isActive ? 'ile-nav-actif shrink-0 bg-action px-4 text-sur-couleur' : 'min-w-0 flex-1',
               )
             }
           >
             {({ isActive }) => (
               <>
-                <span
-                  className={cn(
-                    'flex h-8 w-14 items-center justify-center rounded-full transition-colors',
-                    isActive ? 'bg-action-wash' : 'group-hover:bg-survol',
-                  )}
-                >
-                  <Icone className="size-5" aria-hidden="true" />
-                </span>
-                {libelle}
+                <Icone className="size-5 shrink-0" aria-hidden="true" />
+                <span className={isActive ? undefined : 'sr-only'}>{libelle}</span>
               </>
             )}
           </NavLink>

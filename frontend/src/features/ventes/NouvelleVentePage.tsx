@@ -657,7 +657,7 @@ export function NouvelleVentePage() {
       </div>
 
       {/* Mobile : total et validation toujours à portée de pouce, au-dessus de la barre de navigation. */}
-      <div className="fixed inset-x-0 bottom-[60px] z-30 flex items-center gap-3 border-t border-rule bg-surface px-4 py-3 shadow-pop md:hidden">
+      <div className="fixed inset-x-0 bottom-[calc(80px+env(safe-area-inset-bottom))] z-30 flex items-center gap-3 border-t border-rule bg-surface px-4 py-3 shadow-pop md:hidden">
         <div className="min-w-0 flex-1">
           <p className="text-meta text-steel-500">{modeEffectif === 'CREDIT' && resteDu > 0 ? `Reste dû ${gnf(resteDu)}` : 'Total'}</p>
           <p className="truncate text-panneau text-ink-900">{gnf(totaux.total)}</p>
