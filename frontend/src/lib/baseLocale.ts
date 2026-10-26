@@ -21,10 +21,16 @@ export type CategorieLocale = Ligne<{ id: string; nom: string }>;
 export type MarqueLocale = Ligne<{ id: string; nom: string }>;
 export type ClientLocal = Ligne<{ id: string; nom: string; archive: boolean }>;
 export type FournisseurLocal = Ligne<{ id: string; nom: string }>;
-export type AlerteLocale = Ligne<{ id: string; produitId: string; statut: string }>;
+export type AlerteLocale = Ligne<{ id: string; produitId: string; statut: string; createdAt: string }>;
 export type LotLocal = Ligne<{ id: string; produitId: string; emplacementId: string }>;
 export type VenteLocale = Ligne<{ id: string; createdAt: string; clientId: string | null; emplacementId: string }>;
 export type MouvementLocal = Ligne<{ id: string; createdAt: string; produitId: string; emplacementId: string }>;
+export type CommandeLocale = Ligne<{ id: string; createdAt: string; fournisseurId: string; emplacementId: string; statut: string }>;
+/** Association fournisseur ↔ produit (remplacée en entier à chaque synchronisation). */
+export interface FournisseurProduitLocal {
+  fournisseurId: string;
+  produitId: string;
+}
 
 /** État de la synchronisation : curseur de GET /sync, date du dernier succès. */
 export interface EtatSynchronisation {
@@ -47,6 +53,8 @@ export class BaseLocale extends Dexie {
   lots!: Table<LotLocal, string>;
   ventes!: Table<VenteLocale, string>;
   mouvements!: Table<MouvementLocal, string>;
+  commandes!: Table<CommandeLocale, string>;
+  fournisseursProduits!: Table<FournisseurProduitLocal, [string, string]>;
   etat!: Table<EtatSynchronisation, string>;
 
   constructor(entrepriseId: string) {
@@ -68,6 +76,15 @@ export class BaseLocale extends Dexie {
       mouvements: 'id, createdAt, produitId, emplacementId',
       etat: 'cle',
     });
+    // SYNC-07 : commandes fournisseur et associations fournisseur ↔ produit.
+    // Le curseur est oublié : instantané complet, pour recevoir aussi les
+    // règlements des ventes déjà recopiées.
+    this.version(2)
+      .stores({
+        commandes: 'id, createdAt, fournisseurId, statut',
+        fournisseursProduits: '[fournisseurId+produitId], produitId, fournisseurId',
+      })
+      .upgrade((tx) => tx.table('etat').clear());
   }
 }
 

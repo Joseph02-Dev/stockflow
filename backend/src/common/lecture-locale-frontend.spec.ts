@@ -89,10 +89,92 @@ describe('Lecture locale (SYNC-06)', () => {
     expect(await ids('/clients?archive=true')).toEqual(['c3', 'c2', 'c1']);
   });
 
+  it('fournisseurs, alertes avec fournisseurs associés, commandes avec valeur estimée', async () => {
+    const base = await remplir();
+    await base.produits.update('riz', { prixAchat: 200_000 });
+    await base.fournisseurs.bulkPut([
+      { id: 'f2', nom: 'Sotragui SA', updatedAt: 'x' },
+      { id: 'f1', nom: 'Baldé Import', updatedAt: 'x' },
+    ]);
+    await base.fournisseursProduits.put({ fournisseurId: 'f2', produitId: 'riz' });
+    await base.alertes.bulkPut([
+      { id: 'a1', produitId: 'riz', statut: 'ACTIVE', createdAt: '2026-10-25T08:00:00.000Z', updatedAt: 'x' },
+      { id: 'a2', produitId: 'huile', statut: 'RESOLUE', createdAt: '2026-10-24T08:00:00.000Z', updatedAt: 'x' },
+    ]);
+    await base.commandes.put({
+      id: 'cmd',
+      createdAt: '2026-10-25T09:00:00.000Z',
+      fournisseurId: 'f2',
+      emplacementId: 'depot',
+      statut: 'ENVOYEE',
+      lignes: [{ produitId: 'riz', quantiteCommandee: 3 }, { produitId: 'huile', quantiteCommandee: 2 }],
+      updatedAt: 'x',
+    });
+
+    expect(((await lireLocalement('/fournisseurs')) as { nom: string }[]).map((f) => f.nom)).toEqual(['Baldé Import', 'Sotragui SA']);
+    const alertes = (await lireLocalement('/alertes?statut=ACTIVE')) as { id: string; produit: { fournisseursAssocies: { fournisseur: { nom: string } }[] } }[];
+    expect(alertes.map((a) => a.id)).toEqual(['a1']);
+    expect(alertes[0].produit.fournisseursAssocies.map((f) => f.fournisseur.nom)).toEqual(['Sotragui SA']);
+    const [commande] = (await lireLocalement('/commandes', { statut: 'ENVOYEE' })) as Record<string, unknown>[];
+    // Huile sans prix d'achat : valeur incomplète, comme le serveur.
+    expect(commande).toMatchObject({ fournisseur: { nom: 'Sotragui SA' }, _count: { lignes: 2 }, valeurEstimee: 600_000, valeurIncomplete: true });
+    expect(await lireLocalement('/commandes?fournisseur_id=f1')).toEqual([]);
+  });
+
+  it('fiche fournisseur : fournisseur, produits associés, réceptions ; inconnu : pas de réponse locale', async () => {
+    const base = await remplir();
+    await base.fournisseurs.put({ id: 'f1', nom: 'Sotragui SA', updatedAt: 'x' });
+    await base.fournisseursProduits.put({ fournisseurId: 'f1', produitId: 'riz' });
+    const mouvement = (id: string, type: string, fournisseurId: string | null, createdAt: string) => ({
+      id, type, fournisseurId, createdAt, produitId: 'riz', emplacementId: 'depot', quantite: 10, updatedAt: 'x',
+    });
+    await base.mouvements.bulkPut([
+      mouvement('m1', 'ENTREE', 'f1', '2026-10-20T08:00:00.000Z'),
+      mouvement('m2', 'ENTREE', 'f1', '2026-10-22T08:00:00.000Z'),
+      mouvement('m3', 'SORTIE', null, '2026-10-23T08:00:00.000Z'),
+    ]);
+    expect(await lireLocalement('/fournisseurs/f1')).toMatchObject({ nom: 'Sotragui SA' });
+    expect(((await lireLocalement('/fournisseurs/f1/produits')) as { id: string }[]).map((pr) => pr.id)).toEqual(['riz']);
+    const receptions = (await lireLocalement('/fournisseurs/f1/receptions')) as { id: string; produit: { nom: string } }[];
+    expect(receptions.map((r) => r.id)).toEqual(['m2', 'm1']);
+    expect(receptions[0].produit.nom).toBe('Riz parfumé 25 kg');
+    expect(await lireLocalement('/fournisseurs/inconnu')).toBeUndefined();
+    expect(await lireLocalement('/fournisseurs/inconnu/produits')).toBeUndefined();
+  });
+
+  it('ventes : filtres, ordre, pages « après », payé et reste dû depuis les règlements', async () => {
+    const base = await remplir();
+    const vente = (id: string, createdAt: string, extra: Record<string, unknown> = {}) => ({
+      id,
+      createdAt,
+      clientId: 'c1',
+      emplacementId: 'depot',
+      statut: 'VALIDEE',
+      total: 100_000,
+      lignes: [{}, {}],
+      reglements: [{ montant: 30_000 }],
+      updatedAt: 'x',
+      ...extra,
+    });
+    await base.ventes.bulkPut([
+      vente('v1', '2026-10-20T10:00:00.000Z'),
+      vente('v2', '2026-10-22T10:00:00.000Z', { clientId: 'c2', reglements: [] }),
+      vente('v3', '2026-10-24T10:00:00.000Z', { statut: 'ANNULEE' }),
+    ]);
+    const lire = async (url: string) => (await lireLocalement(url)) as Record<string, unknown>[];
+    expect((await lire('/ventes')).map((v) => v.id)).toEqual(['v3', 'v2', 'v1']);
+    expect((await lire('/ventes?limite=2&apres=v3')).map((v) => v.id)).toEqual(['v2', 'v1']);
+    expect((await lire('/ventes?du=2026-10-21T00:00:00.000Z')).map((v) => v.id)).toEqual(['v3', 'v2']);
+    expect((await lire('/ventes?clientId=c2')).map((v) => v.id)).toEqual(['v2']);
+    const [v1] = await lire('/ventes?clientId=c1&au=2026-10-21T00:00:00.000Z');
+    expect(v1).toMatchObject({ paye: 30_000, resteDu: 70_000, nombreLignes: 2, client: { nom: 'Mariama Sow' }, emplacement: { nom: 'Dépôt' } });
+    expect((await lire('/ventes?clientId=c1')).find((v) => v.id === 'v3')).toMatchObject({ paye: 0, resteDu: 0 });
+  });
+
   it('rien sans session, sans synchronisation réussie, ou pour une route non couverte', async () => {
     expect(await lireLocalement('/produits')).toBeUndefined();
     const base = await remplir();
-    expect(await lireLocalement('/ventes')).toBeUndefined();
+    expect(await lireLocalement('/statistiques')).toBeUndefined();
     await base.etat.put({ cle: 'synchronisation', curseur: null, derniereReussite: null });
     expect(await lireLocalement('/produits')).toBeUndefined();
   });

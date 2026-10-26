@@ -31,7 +31,8 @@ function chemin(id: string, parId: Map<string, EmplacementLocal>): string {
   return noms.join(SEPARATEUR_CHEMIN);
 }
 
-type Lecteur = (base: BaseLocale, parametres: URLSearchParams) => Promise<unknown>;
+/** `segments` : parties variables de l'adresse (ex. l'identifiant d'un fournisseur). */
+type Lecteur = (base: BaseLocale, parametres: URLSearchParams, segments: string[]) => Promise<unknown>;
 
 /** Routes lues localement, à l'image de leur service côté serveur. */
 const LECTEURS: Partial<Record<string, Lecteur>> = {
@@ -110,7 +111,150 @@ const LECTEURS: Partial<Record<string, Lecteur>> = {
       .filter((c) => !recherche || contient(c.nom, recherche) || contient(c.nomCommerce, recherche) || contient(c.telephone, recherche))
       .sort(parNom);
   },
+
+  // FournisseursService.lister
+  '/fournisseurs': async (base) => (await base.fournisseurs.toArray()).sort(parNom),
+
+  // AlertesService.lister : produit, et ses fournisseurs pour « Préparer la commande ».
+  '/alertes': async (base, p) => {
+    const statut = p.get('statut') ?? 'ACTIVE';
+    const [alertes, produits, fournisseurs, associations] = await Promise.all([
+      base.alertes.where('statut').equals(statut).toArray(),
+      base.produits.toArray(),
+      base.fournisseurs.toArray(),
+      base.fournisseursProduits.toArray(),
+    ]);
+    const produitsParId = new Map(produits.map((pr) => [pr.id, pr]));
+    const fournisseursParId = new Map(fournisseurs.map((f) => [f.id, f]));
+    return alertes
+      .flatMap((a) => {
+        const produit = produitsParId.get(a.produitId);
+        if (!produit) return [];
+        const fournisseursAssocies = associations
+          .filter((asso) => asso.produitId === produit.id)
+          .flatMap((asso) => {
+            const fournisseur = fournisseursParId.get(asso.fournisseurId);
+            return fournisseur ? [{ ...asso, fournisseur: { id: fournisseur.id, nom: fournisseur.nom } }] : [];
+          });
+        return [{ ...a, produit: { ...produit, fournisseursAssocies } }];
+      })
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+
+  // CommandesService.lister : valeur estimée au prix d'achat actuel, comme le serveur.
+  '/commandes': async (base, p) => {
+    const fournisseurId = p.get('fournisseur_id');
+    const statut = p.get('statut');
+    const [commandes, produits, fournisseurs, emplacements] = await Promise.all([
+      base.commandes.toArray(),
+      base.produits.toArray(),
+      base.fournisseurs.toArray(),
+      base.emplacements.toArray(),
+    ]);
+    const prixAchat = new Map(produits.map((pr) => [pr.id, pr.prixAchat]));
+    const fournisseursParId = new Map(fournisseurs.map((f) => [f.id, f]));
+    const emplacementsParId = new Map(emplacements.map((e) => [e.id, e]));
+    return commandes
+      .filter((c) => (!fournisseurId || c.fournisseurId === fournisseurId) && (!statut || c.statut === statut))
+      .map(({ lignes, ...c }) => {
+        const liste = Array.isArray(lignes) ? (lignes as { produitId: string; quantiteCommandee: number }[]) : [];
+        let valeur = 0;
+        let incomplete = false;
+        for (const l of liste) {
+          const prix = prixAchat.get(l.produitId);
+          if (typeof prix === 'number') valeur += l.quantiteCommandee * prix;
+          else incomplete = true;
+        }
+        const fournisseur = fournisseursParId.get(c.fournisseurId);
+        const emplacement = emplacementsParId.get(c.emplacementId);
+        return {
+          ...c,
+          fournisseur: fournisseur ? { id: fournisseur.id, nom: fournisseur.nom } : null,
+          emplacement: emplacement ? { id: emplacement.id, nom: emplacement.nom } : null,
+          _count: { lignes: liste.length },
+          valeurEstimee: valeur,
+          valeurIncomplete: incomplete,
+        };
+      })
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+
+  // VentesService.lister : filtres, du plus récent au plus ancien, pages « après » une vente.
+  '/ventes': async (base, p) => {
+    const [ventes, clients, emplacements] = await Promise.all([
+      base.ventes.toArray(),
+      base.clients.toArray(),
+      base.emplacements.toArray(),
+    ]);
+    const clientsParId = new Map(clients.map((c) => [c.id, c]));
+    const emplacementsParId = new Map(emplacements.map((e) => [e.id, e]));
+    const du = p.get('du');
+    const au = p.get('au');
+    const triees = ventes
+      .filter((v) => !p.get('clientId') || v.clientId === p.get('clientId'))
+      .filter((v) => !p.get('emplacementId') || v.emplacementId === p.get('emplacementId'))
+      .filter((v) => p.get('aRegulariser') !== 'true' || v.aRegulariser === true)
+      .filter((v) => (!du || Date.parse(v.createdAt) >= Date.parse(du)) && (!au || Date.parse(v.createdAt) <= Date.parse(au)))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+    const apres = p.get('apres');
+    const debut = apres ? triees.findIndex((v) => v.id === apres) + 1 : 0;
+    const limite = Number(p.get('limite')) || 50;
+    return triees.slice(debut, debut + limite).map(({ lignes, reglements, ...v }) => {
+      const client = v.clientId ? clientsParId.get(v.clientId) : undefined;
+      const emplacement = emplacementsParId.get(v.emplacementId);
+      const total = typeof v.total === 'number' ? v.total : 0;
+      const paye =
+        v.statut === 'VALIDEE' && Array.isArray(reglements)
+          ? (reglements as { montant: number }[]).reduce((somme, r) => somme + r.montant, 0)
+          : 0;
+      return {
+        ...v,
+        client: client ? { id: client.id, nom: client.nom, telephone: client.telephone ?? null } : null,
+        emplacement: emplacement ? { id: emplacement.id, nom: emplacement.nom } : null,
+        nombreLignes: Array.isArray(lignes) ? lignes.length : 0,
+        paye,
+        resteDu: v.statut === 'VALIDEE' ? total - paye : 0,
+      };
+    });
+  },
 };
+
+/**
+ * Routes avec identifiant. undefined (pas de réponse locale) quand l'élément
+ * n'est pas sur l'appareil : l'écran affiche alors l'erreur réseau habituelle.
+ */
+const LECTEURS_PARAMETRES: [RegExp, Lecteur][] = [
+  // FournisseursService.obtenir
+  [/^\/fournisseurs\/([^/]+)$/, async (base, _p, [id]) => base.fournisseurs.get(id)],
+  // FournisseursService.listerProduitsAssocies
+  [
+    /^\/fournisseurs\/([^/]+)\/produits$/,
+    async (base, _p, [id]) => {
+      if (!(await base.fournisseurs.get(id))) return undefined;
+      const associations = await base.fournisseursProduits.where('fournisseurId').equals(id).toArray();
+      const produits = await base.produits.bulkGet(associations.map((a) => a.produitId));
+      return produits.filter((pr) => pr !== undefined);
+    },
+  ],
+  // FournisseursService.listerReceptions : entrées de ce fournisseur (90 derniers jours sur l'appareil).
+  [
+    /^\/fournisseurs\/([^/]+)\/receptions$/,
+    async (base, _p, [id]) => {
+      if (!(await base.fournisseurs.get(id))) return undefined;
+      const [mouvements, produits, emplacements] = await Promise.all([
+        base.mouvements.toArray(),
+        base.produits.toArray(),
+        base.emplacements.toArray(),
+      ]);
+      const produitsParId = new Map(produits.map((pr) => [pr.id, pr]));
+      const emplacementsParId = new Map(emplacements.map((e) => [e.id, e]));
+      return mouvements
+        .filter((m) => m.fournisseurId === id && m.type === 'ENTREE')
+        .map((m) => ({ ...m, produit: produitsParId.get(m.produitId) ?? null, emplacement: emplacementsParId.get(m.emplacementId) ?? null }))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+  ],
+];
 
 /**
  * Réponse reconstituée pour cette requête GET, ou undefined : route non
@@ -120,7 +264,16 @@ const LECTEURS: Partial<Record<string, Lecteur>> = {
 export async function lireLocalement(url: string | undefined, params?: unknown): Promise<unknown> {
   if (!url) return undefined;
   const adresse = new URL(url, 'http://appareil.local');
-  const lecteur = LECTEURS[adresse.pathname.replace(/\/+$/, '')];
+  const chemin = adresse.pathname.replace(/\/+$/, '');
+  let lecteur = LECTEURS[chemin];
+  let segments: string[] = [];
+  for (const [motif, avecParametres] of LECTEURS_PARAMETRES) {
+    const correspondance = lecteur ? null : motif.exec(chemin);
+    if (correspondance) {
+      lecteur = avecParametres;
+      segments = correspondance.slice(1).map(decodeURIComponent);
+    }
+  }
   const entrepriseId = getSession()?.entreprise.id;
   const base = lecteur && entrepriseId ? baseLocale(entrepriseId) : null;
   if (!lecteur || !base) return undefined;
@@ -130,5 +283,5 @@ export async function lireLocalement(url: string | undefined, params?: unknown):
       if (valeur !== undefined && valeur !== null) adresse.searchParams.set(cle, String(valeur));
     }
   }
-  return lecteur(base, adresse.searchParams);
+  return lecteur(base, adresse.searchParams, segments);
 }

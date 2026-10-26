@@ -149,6 +149,62 @@ describe('Synchronisation incrémentale (SYNC-02) — intégration réelle, base
     expect(r.tables.mouvements.map((m) => m.id)).toEqual([recent.id]);
   });
 
+  it('commandes (avec lignes), règlements des ventes et associations fournisseur-produit', async () => {
+    const { entreprise, synchroniser } = await contexte('Synchro commandes');
+    const utilisateur = await prisma.utilisateur.findFirstOrThrow({ where: { entrepriseId: entreprise.id } });
+    const emplacement = await prisma.emplacement.create({ data: { entrepriseId: entreprise.id, nom: 'Dépôt' } });
+    const produit = await prisma.produit.create({ data: { entrepriseId: entreprise.id, nom: 'Ciment 50 kg' } });
+    const fournisseur = await prisma.fournisseur.create({ data: { entrepriseId: entreprise.id, nom: 'Sotragui SA' } });
+    await prisma.fournisseurProduit.create({ data: { fournisseurId: fournisseur.id, produitId: produit.id } });
+    const commande = await prisma.commandeFournisseur.create({
+      data: {
+        entrepriseId: entreprise.id,
+        fournisseurId: fournisseur.id,
+        emplacementId: emplacement.id,
+        utilisateurId: utilisateur.id,
+        lignes: { create: [{ produitId: produit.id, quantiteCommandee: 20 }] },
+      },
+    });
+    const vente = await prisma.vente.create({
+      data: {
+        entrepriseId: entreprise.id,
+        numero: 'V-2026-0001',
+        emplacementId: emplacement.id,
+        utilisateurId: utilisateur.id,
+        sousTotal: 100_000,
+        montantTva: 0,
+        total: 100_000,
+        modePaiement: 'CREDIT',
+      },
+    });
+
+    const premier = await synchroniser();
+    const recue = premier.tables.commandes[0] as { id: string; lignes: unknown[]; utilisateur: { nom: string } };
+    expect(recue).toMatchObject({ id: commande.id, lignes: [expect.objectContaining({ quantiteCommandee: 20 })] });
+    expect(Object.keys(recue.utilisateur).sort()).toEqual(['id', 'nom']);
+    expect((premier.tables.ventes[0] as { reglements: unknown[] }).reglements).toEqual([]);
+    expect((premier as unknown as { associations: unknown }).associations).toEqual({
+      fournisseursProduits: [{ fournisseurId: fournisseur.id, produitId: produit.id }],
+    });
+
+    // Une ligne modifiée renvoie sa commande ; un règlement renvoie sa vente.
+    await pause();
+    await prisma.commandeLigne.updateMany({ where: { commandeId: commande.id }, data: { quantiteCommandee: 25 } });
+    await prisma.reglement.create({ data: { venteId: vente.id, montant: 40_000, mode: 'ESPECES', utilisateurId: utilisateur.id } });
+    const second = await synchroniser(premier.curseur);
+    expect(second.tables.commandes).toEqual([
+      expect.objectContaining({ id: commande.id, lignes: [expect.objectContaining({ quantiteCommandee: 25 })] }),
+    ]);
+    expect(second.tables.ventes).toEqual([
+      expect.objectContaining({ id: vente.id, reglements: [expect.objectContaining({ montant: 40_000 })] }),
+    ]);
+    await prisma.reglement.deleteMany({ where: { venteId: vente.id } });
+    await prisma.commandeLigne.deleteMany({ where: { commandeId: commande.id } });
+    await prisma.commandeFournisseur.deleteMany({ where: { id: commande.id } });
+    await prisma.vente.deleteMany({ where: { id: vente.id } });
+    await prisma.fournisseurProduit.deleteMany({ where: { fournisseurId: fournisseur.id } });
+  });
+
   it('refuse un curseur illisible ou falsifié', async () => {
     const { jeton } = await contexte('Synchro curseur');
     for (const depuis of ['pas-un-curseur', Buffer.from('{"inconnue":["2026-01-01",""]}').toString('base64url')]) {

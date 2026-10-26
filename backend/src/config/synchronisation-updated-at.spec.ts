@@ -15,6 +15,7 @@ const TABLES_SYNCHRONISEES = [
   'lot',
   'vente',
   'mouvement',
+  'commande_fournisseur',
 ];
 
 describe('Synchronisation — date de modification tenue par la base, PostgreSQL réel', () => {
