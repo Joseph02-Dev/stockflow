@@ -154,9 +154,16 @@ ci-dessous servirait aussi à une application native.
   coupure, changement de compte).
 - Volume local à surveiller : estimation de la taille par entreprise avant
   d'élargir l'historique au-delà de 90 jours.
-- Le préchargement actuel (`prechargementHorsLigne.ts`) et le cache des
-  réponses API du service worker sont retirés à la fin de la migration ;
-  le service worker garde la mise en cache de l'application elle-même.
+- Préchargement et cache des réponses API du service worker (SYNC-08) :
+  le préchargement ne demande plus ce que la base de l'appareil reconstitue
+  (listes d'emplacements, stock, produits, clients, fournisseurs, alertes,
+  commandes, ventes, fiches fournisseur) ; à la connexion, 68 requêtes
+  deviennent 40 (base de démonstration). Il garde ce qui est calculé par le
+  serveur ou sort de la base : tableau de bord, notifications,
+  statistiques, créances, pertes, péremptions, journal des mouvements,
+  retours fournisseur, situation des clients, fiche des commandes à
+  réceptionner. Le cache des réponses du service worker reste donc, pour
+  ces écrans ; il ne disparaîtra qu'avec leur passage en lecture locale.
 
 ## Découpage en tickets (ordre de livraison)
 
@@ -169,7 +176,7 @@ ci-dessous servirait aussi à une application native.
 | 5 | SYNC-05 Écritures locales | File d'opérations superposée à la lecture de la base locale (vue locale) | 4 |
 | 6 | SYNC-06 Écrans terrain | Nouvelle vente, Stock, Produits, Clients en lecture locale | 4, 5 |
 | 7 | SYNC-07 Écrans suivants | Fournisseurs, Commandes, Alertes, Ventes (historique 90 j) | 6 |
-| 8 | SYNC-08 Nettoyage | Retrait du préchargement et du cache API du service worker | 7 |
+| 8 | SYNC-08 Nettoyage | Préchargement réduit à ce que la base de l'appareil ne couvre pas | 7 |
 | 9 | STORE-01 Google Play | TWA (Bubblewrap), `assetlinks.json`, fiche Play | indépendant (possible tout de suite) |
 | 10 | STORE-02 App Store | Capacitor iOS : session (trousseau), notifications APNs | 6 |
 
