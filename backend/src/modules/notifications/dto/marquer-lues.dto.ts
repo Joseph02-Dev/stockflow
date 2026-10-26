@@ -5,7 +5,7 @@ export class MarquerLuesDto {
   @ArrayMinSize(1)
   @ArrayMaxSize(200)
   @IsString({ each: true })
-  @Matches(/^(alerte|lot):[0-9a-f-]{36}:[A-Z0-9_]{1,20}$/, {
+  @Matches(/^(alerte|lot|bienvenue):[0-9a-f-]{36}:[A-Z0-9_]{1,20}$/, {
     each: true,
     message: 'Clé de notification invalide.',
   })

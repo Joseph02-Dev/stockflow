@@ -8,6 +8,7 @@ import { PrismaService } from '../../config/prisma.service.js';
 import { EMAIL_SERVICE, type EmailService } from '../../common/email/email.service.js';
 import { domaineEmailExiste } from '../../common/email/domaine-email.util.js';
 import { adresseSite, composerEmail, dureeEnClair, LIBELLE_ROLE } from '../../common/email/gabarit-email.js';
+import { contenuBienvenue } from './bienvenue.js';
 import { hashToken } from './token-hash.util.js';
 import { erreurCompteDesactive } from '../../common/compte-desactive.js';
 import { erreurEntrepriseSuspendue } from '../../common/entreprise-suspendue.js';
@@ -310,6 +311,7 @@ export class AuthService {
     });
 
     await this.notifierInvitationAcceptee(invitation.invitedById, entreprise.id, utilisateur);
+    await this.envoyerBienvenue(utilisateur, entreprise.nom, false);
     return this.construireReponseAuth(utilisateur, entreprise);
   }
 
@@ -369,6 +371,19 @@ export class AuthService {
         this.emailService.send({ to: admin.email, subject: `${membre.nom} a rejoint votre entreprise sur NimbaFlow`, ...contenu }),
       ),
     );
+  }
+
+  /** Email de bienvenue, envoyé en arrière-plan : il ne retarde ni ne fait échouer l'inscription. */
+  private async envoyerBienvenue(
+    utilisateur: { email: string; nom: string; role: 'ADMIN' | 'GESTIONNAIRE' },
+    entreprise: string,
+    createur: boolean,
+  ): Promise<void> {
+    await this.emailService.send({
+      to: utilisateur.email,
+      subject: createur ? `Bienvenue sur NimbaFlow : ${entreprise} est prêt` : `Bienvenue dans l'équipe ${entreprise} sur NimbaFlow`,
+      ...composerEmail(contenuBienvenue({ nom: utilisateur.nom, entreprise, role: utilisateur.role, createur })),
+    });
   }
 
   /**
@@ -482,6 +497,8 @@ export class AuthService {
       return { utilisateur, entreprise };
     });
 
+    // Le lien ne sert qu'une fois : la bienvenue ne part qu'une fois.
+    await this.envoyerBienvenue(utilisateur, entreprise.nom, true);
     return this.construireReponseAuth(utilisateur, entreprise);
   }
 

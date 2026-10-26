@@ -27,10 +27,14 @@ describe('Notifications (cloche) — intégration réelle, base PostgreSQL', () 
     await app.close();
   });
 
-  async function contexte(nom: string, moduleLots = true) {
+  async function contexte(nom: string, moduleLots = true, nouveauCompte = false) {
     const { entreprise, utilisateur } = await creerEntrepriseAvecAdmin(prisma, nom);
     entrepriseIds.push(entreprise.id);
     await prisma.entreprise.update({ where: { id: entreprise.id }, data: { moduleLots } });
+    // Compte ancien par défaut : seuls les tests de bienvenue la voient.
+    if (!nouveauCompte) {
+      await prisma.utilisateur.update({ where: { id: utilisateur.id }, data: { createdAt: new Date(Date.now() - 30 * 86_400_000) } });
+    }
     const jeton = (await connecterClient(app, utilisateur.email)).body.accessToken as string;
     const avec = (r: request.Test) => r.set('Authorization', `Bearer ${jeton}`);
     const http = {
@@ -104,6 +108,24 @@ describe('Notifications (cloche) — intégration réelle, base PostgreSQL', () 
       expect((await c.http.post('/notifications/lues', { cles })).status).toBe(400);
     }
     expect((await request(app.getHttpServer()).get('/notifications')).status).toBe(401);
+  });
+
+  it('nouveau compte : bienvenue en tête, avant les alertes, jusqu’à lecture', async () => {
+    const c = await contexte('Bienvenue', true, true);
+    const p = (await c.http.post('/produits', { nom: 'Savon', seuilAlerte: 5 })).body.id as string;
+    await c.http.post('/mouvements/entree', { produitId: p, emplacementId: c.depot, quantite: 6 });
+    await c.http.post('/mouvements/sortie', { produitId: p, emplacementId: c.depot, quantite: 6 });
+    const avant = (await c.http.get('/notifications')).body;
+    expect(avant.nonLues).toBe(2);
+    expect(avant.notifications[0]).toMatchObject({
+      type: 'BIENVENUE',
+      niveau: 'INFO',
+      lue: false,
+      bienvenue: { entreprise: 'Bienvenue', role: 'ADMIN', createur: true },
+    });
+    expect(avant.notifications[1].type).toBe('RUPTURE');
+    expect((await c.http.post('/notifications/lues', { cles: [avant.notifications[0].cle] })).status).toBe(204);
+    expect((await c.http.get('/notifications')).body.nonLues).toBe(1);
   });
 
   it('une entreprise ne voit pas les notifications d’une autre', async () => {

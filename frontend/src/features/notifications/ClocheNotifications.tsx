@@ -9,6 +9,7 @@ import {
   CheckCheck,
   PackageX,
   ShoppingCart,
+  Sparkles,
   TriangleAlert,
   type LucideIcon,
 } from 'lucide-react';
@@ -20,7 +21,7 @@ import { datePeremption } from '@/features/peremptions/presentation';
 import { ActivationPush } from './ActivationPush';
 
 type Niveau = 'CRITIQUE' | 'AVERTISSEMENT' | 'INFO';
-type TypeNotification = 'RUPTURE' | 'STOCK_FAIBLE' | 'LOT_PERIME' | 'LOT_BIENTOT_PERIME' | 'LOT_A_SURVEILLER';
+type TypeNotification = 'RUPTURE' | 'STOCK_FAIBLE' | 'LOT_PERIME' | 'LOT_BIENTOT_PERIME' | 'LOT_A_SURVEILLER' | 'BIENVENUE';
 
 interface Notification {
   cle: string;
@@ -28,7 +29,9 @@ interface Notification {
   type: TypeNotification;
   date: string;
   lue: boolean;
-  produit: { id: string; nom: string; reference: string | null; uniteMesure: string | null };
+  /** Absent du seul message de bienvenue. */
+  produit?: { id: string; nom: string; reference: string | null; uniteMesure: string | null };
+  bienvenue?: { nom: string; entreprise: string; role: 'ADMIN' | 'GESTIONNAIRE'; createur: boolean };
   stock?: { actuel: number; seuil: number };
   lot?: { id: string; numero: string; quantite: number; joursRestants: number; valeur: number; emplacement: string };
 }
@@ -61,15 +64,35 @@ const PRESENTATION: Record<TypeNotification, { genre: string; Icone: LucideIcon 
   LOT_PERIME: { genre: 'Lot périmé', Icone: CalendarX },
   LOT_BIENTOT_PERIME: { genre: 'Péremption proche', Icone: CalendarClock },
   LOT_A_SURVEILLER: { genre: 'À surveiller', Icone: CalendarClock },
+  BIENVENUE: { genre: 'Bienvenue', Icone: Sparkles },
 };
+
+/** Premiers pas proposés dans la bienvenue : configurer (créateur) ou travailler (personne invitée). */
+function premiersPas(b: NonNullable<Notification['bienvenue']>): { libelle: string; chemin: string }[] {
+  return b.createur
+    ? [
+        { libelle: 'Ajouter un produit', chemin: '/produits/nouveau' },
+        { libelle: 'Mes emplacements', chemin: '/emplacements' },
+        { libelle: 'Inviter l’équipe', chemin: '/parametres?onglet=utilisateurs' },
+      ]
+    : [
+        { libelle: 'Voir le stock', chemin: '/stock' },
+        { libelle: 'Nouvelle vente', chemin: '/ventes/nouvelle' },
+      ];
+}
 
 function quantite(n: number, unite: string | null) {
   return `${formatNombre(n)} ${unite ?? pluriel('unité', n)}`;
 }
 
 function phrase(n: Notification): string {
+  if (n.bienvenue) {
+    return n.bienvenue.createur
+      ? `votre espace ${n.bienvenue.entreprise} est prêt. Voici les premiers pas.`
+      : `vous avez rejoint ${n.bienvenue.entreprise}. Voici l’essentiel pour démarrer.`;
+  }
   if (n.type === 'RUPTURE') return 'est en rupture.';
-  if (n.type === 'STOCK_FAIBLE') return `passe sous le seuil (${quantite(n.stock?.actuel ?? 0, n.produit.uniteMesure)}).`;
+  if (n.type === 'STOCK_FAIBLE') return `passe sous le seuil (${quantite(n.stock?.actuel ?? 0, n.produit?.uniteMesure ?? null)}).`;
   const jours = n.lot?.joursRestants ?? 0;
   if (jours < 0) return `· lot ${n.lot?.numero} périmé.`;
   if (jours === 0) return 'expire aujourd’hui.';
@@ -303,8 +326,10 @@ export function ClocheNotifications() {
                     <span className="min-w-0">
                       <span className={cn('block text-meta font-semibold', style.texte)}>{genre}</span>
                       <span className="mt-0.5 block text-corps text-steel-700">
-                        <span className={cn('text-ink-900', n.lue ? 'font-medium' : 'font-semibold')}>{n.produit.nom}</span>
-                        {n.produit.reference && <span className="font-mono text-meta text-steel-500"> {n.produit.reference}</span>} {phrase(n)}
+                        <span className={cn('text-ink-900', n.lue ? 'font-medium' : 'font-semibold')}>
+                          {n.bienvenue ? `${n.bienvenue.nom},` : n.produit?.nom}
+                        </span>
+                        {n.produit?.reference && <span className="font-mono text-meta text-steel-500"> {n.produit.reference}</span>} {phrase(n)}
                       </span>
                       <span className="mt-1 block text-meta text-steel-500">{quand(n, maintenant)}</span>
                     </span>
@@ -315,15 +340,23 @@ export function ClocheNotifications() {
 
                   {estDeplie && (
                     <div className="apparition mx-3 mb-3 ml-[60px] flex flex-col gap-2.5 rounded-md bg-survol px-3 py-2.5">
-                      <Chiffres n={n} />
-                      {confirmation === n.cle ? (
+                      {!n.bienvenue && <Chiffres n={n} />}
+                      {n.bienvenue ? (
+                        <div className="flex flex-wrap gap-2">
+                          {premiersPas(n.bienvenue).map((pas, i) => (
+                            <Button key={pas.chemin} taille="sm" variant={i === 0 ? 'primary' : 'secondary'} onClick={() => aller(pas.chemin)}>
+                              {pas.libelle}
+                            </Button>
+                          ))}
+                        </div>
+                      ) : confirmation === n.cle ? (
                         <div className="flex flex-col gap-2">
                           <p className="text-meta text-steel-700">
                             Le lot entier quitte le stock et l’historique l’enregistre comme une perte (périmé).
                           </p>
                           <div className="flex flex-wrap gap-2">
                             <Button taille="sm" variant="danger" loading={sortirLot.isPending} onClick={() => sortirLot.mutate(n)}>
-                              Sortir {quantite(n.lot!.quantite, n.produit.uniteMesure)}
+                              Sortir {quantite(n.lot!.quantite, n.produit!.uniteMesure)}
                             </Button>
                             <Button taille="sm" variant="secondary" onClick={() => setConfirmation(null)}>
                               Garder le lot
@@ -338,14 +371,14 @@ export function ClocheNotifications() {
                                 taille="sm"
                                 onClick={() =>
                                   aller('/commandes/nouvelle', {
-                                    lignes: [{ produitId: n.produit.id, quantiteCommandee: Math.max(n.stock!.seuil - n.stock!.actuel, 1) }],
+                                    lignes: [{ produitId: n.produit!.id, quantiteCommandee: Math.max(n.stock!.seuil - n.stock!.actuel, 1) }],
                                   })
                                 }
                               >
                                 <ShoppingCart className="size-4" aria-hidden="true" />
                                 Commander
                               </Button>
-                              <Button taille="sm" variant="secondary" onClick={() => aller(`/produits/${n.produit.id}`)}>
+                              <Button taille="sm" variant="secondary" onClick={() => aller(`/produits/${n.produit!.id}`)}>
                                 Voir le produit
                               </Button>
                             </>
@@ -386,7 +419,7 @@ export function ClocheNotifications() {
 }
 
 function Chiffres({ n }: { n: Notification }) {
-  const unite = n.produit.uniteMesure;
+  const unite = n.produit?.uniteMesure ?? null;
   const paires: [string, string][] = n.stock
     ? [
         ['Stock', quantite(n.stock.actuel, unite)],

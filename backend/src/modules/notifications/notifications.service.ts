@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
 import { debutJour, joursRestants } from '../lots/fefo.js';
 import { trancheDe } from '../lots/lots.service.js';
+import { BIENVENUE_JOURS } from '../auth/bienvenue.js';
 
 export type NiveauNotification = 'CRITIQUE' | 'AVERTISSEMENT' | 'INFO';
 export type TypeNotification =
@@ -9,7 +10,8 @@ export type TypeNotification =
   | 'STOCK_FAIBLE'
   | 'LOT_PERIME'
   | 'LOT_BIENTOT_PERIME'
-  | 'LOT_A_SURVEILLER';
+  | 'LOT_A_SURVEILLER'
+  | 'BIENVENUE';
 
 export interface Notification {
   /** Clé stable : une aggravation (rupture, lot périmé) change de clé, donc redevient non lue. */
@@ -19,7 +21,9 @@ export interface Notification {
   /** Déclenchement de l'alerte, ou date de péremption du lot. */
   date: Date;
   lue: boolean;
-  produit: { id: string; nom: string; reference: string | null; uniteMesure: string | null };
+  /** Absent du message de bienvenue, seul à ne concerner aucun produit. */
+  produit?: { id: string; nom: string; reference: string | null; uniteMesure: string | null };
+  bienvenue?: { nom: string; entreprise: string; role: 'ADMIN' | 'GESTIONNAIRE'; createur: boolean };
   stock?: { actuel: number; seuil: number };
   lot?: {
     id: string;
@@ -59,8 +63,9 @@ export class NotificationsService {
   async lister(entrepriseId: string, utilisateurId: string, maintenant = new Date()) {
     const entreprise = await this.prisma.entreprise.findUniqueOrThrow({
       where: { id: entrepriseId },
-      select: { moduleLots: true },
+      select: { moduleLots: true, nom: true },
     });
+    const bienvenue = await this.bienvenue(entrepriseId, utilisateurId, entreprise.nom, maintenant);
 
     const produit = { select: { id: true, nom: true, reference: true, uniteMesure: true } };
     const alertes = await this.prisma.alerte.findMany({
@@ -95,6 +100,7 @@ export class NotificationsService {
       : [];
 
     const notifications: Omit<Notification, 'lue'>[] = [
+      ...(bienvenue ? [bienvenue] : []),
       ...alertes.map(({ id, type, createdAt, produit: { seuilAlerte, ...p } }) => ({
         cle: `alerte:${id}:${type}`,
         niveau: (type === 'RUPTURE' ? 'CRITIQUE' : 'AVERTISSEMENT') as NiveauNotification,
@@ -122,7 +128,8 @@ export class NotificationsService {
           },
         };
       }),
-    ].sort((a, b) => RANG[a.niveau] - RANG[b.niveau]);
+    // La bienvenue reste en tête ; le reste par gravité (tri stable).
+    ].sort((a, b) => Number(b.type === 'BIENVENUE') - Number(a.type === 'BIENVENUE') || RANG[a.niveau] - RANG[b.niveau]);
 
     const lues = await this.prisma.notificationLue.findMany({
       where: { utilisateurId, cle: { in: notifications.map((n) => n.cle) } },
@@ -131,6 +138,30 @@ export class NotificationsService {
     const dejaLues = new Set(lues.map((l) => l.cle));
     const resultat = notifications.map((n) => ({ ...n, lue: dejaLues.has(n.cle) }));
     return { notifications: resultat, nonLues: resultat.filter((n) => !n.lue).length };
+  }
+
+  /**
+   * Message de bienvenue des nouveaux comptes, pendant BIENVENUE_JOURS
+   * (plus court que la conservation des lectures : une fois lu, il ne
+   * revient pas). Créateur de l'entreprise : aucune invitation acceptée
+   * à son adresse.
+   */
+  private async bienvenue(entrepriseId: string, utilisateurId: string, entreprise: string, maintenant: Date) {
+    const utilisateur = await this.prisma.utilisateur.findUniqueOrThrow({
+      where: { id: utilisateurId },
+      select: { nom: true, email: true, role: true, createdAt: true },
+    });
+    if (maintenant.getTime() - utilisateur.createdAt.getTime() > BIENVENUE_JOURS * JOUR_MS) return null;
+    const invite = await this.prisma.invitation.count({
+      where: { entrepriseId, email: utilisateur.email, acceptedAt: { not: null } },
+    });
+    return {
+      cle: `bienvenue:${utilisateurId}:BIENVENUE`,
+      niveau: 'INFO' as NiveauNotification,
+      type: 'BIENVENUE' as TypeNotification,
+      date: utilisateur.createdAt,
+      bienvenue: { nom: utilisateur.nom, entreprise, role: utilisateur.role, createur: invite === 0 },
+    };
   }
 
   async marquerLues(entrepriseId: string, utilisateurId: string, cles: string[], maintenant = new Date()) {
