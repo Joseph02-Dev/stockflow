@@ -128,13 +128,15 @@ export class PushService implements OnModuleDestroy {
    * l'entreprise. La requête de l'utilisateur n'attend que la lecture des
    * abonnements, jamais les services push. Ne lève jamais.
    */
-  async envoyer(entrepriseId: string, notification: NotificationPush): Promise<void> {
+  async envoyer(entrepriseId: string, notification: NotificationPush, saufUtilisateurId?: string): Promise<void> {
     if (!this.cles) return;
     const { publique, privee, contact } = this.cles;
     try {
       const abonnements = await this.prisma.abonnementPush.findMany({
         where: {
           entrepriseId,
+          // Personne à l'origine de l'événement : déjà au courant.
+          ...(saufUtilisateurId ? { utilisateurId: { not: saufUtilisateurId } } : {}),
           utilisateur: {
             desactiveAt: null,
             refreshTokens: { some: { revokedAt: null, expiresAt: { gt: new Date() } } },

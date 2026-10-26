@@ -8,6 +8,7 @@ import {
 import { refusNumerosSerie } from '../lots/strategie-sortie.js';
 import { MouvementsService } from '../mouvements/mouvements.service.js';
 import { RangementService } from '../rangement/rangement.service.js';
+import { ReceptionNotificationService } from './reception-notification.service.js';
 import type { CreateCommandeDto } from './dto/create-commande.dto.js';
 import type { UpdateCommandeDto } from './dto/update-commande.dto.js';
 
@@ -17,6 +18,7 @@ export class CommandesService {
     private readonly prisma: PrismaService,
     private readonly mouvementsService: MouvementsService,
     private readonly rangement: RangementService,
+    private readonly notification: ReceptionNotificationService,
   ) {}
 
   /**
@@ -224,6 +226,7 @@ export class CommandesService {
         .create({ data: { entrepriseId, idClient: dto.idClient, nature: 'reception' } })
         .catch(() => undefined);
     }
+    await this.notification.notifier(entrepriseId, utilisateurId, commandeId);
     return recue;
   }
 
