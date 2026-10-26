@@ -858,6 +858,8 @@ model CommandeFournisseur {
   statut        StatutCommande @default(BROUILLON)
   utilisateurId String         @map("utilisateur_id")
   createdAt     DateTime       @default(now()) @map("created_at")
+  // Mis à jour par un déclencheur PostgreSQL, lignes comprises (synchronisation, docs/adr/0001).
+  updatedAt     DateTime       @default(now()) @map("updated_at")
   envoyeeAt     DateTime?      @map("envoyee_at")
   recueAt       DateTime?      @map("recue_at")
   // Brouillon généré par le réapprovisionnement automatique (règles min/max).
@@ -870,6 +872,7 @@ model CommandeFournisseur {
   lignes      CommandeLigne[]
 
   @@index([entrepriseId, fournisseurId])
+  @@index([entrepriseId, updatedAt])
   @@map("commande_fournisseur")
 }
 

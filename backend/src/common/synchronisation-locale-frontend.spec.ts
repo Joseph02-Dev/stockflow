@@ -59,6 +59,17 @@ describe('Synchronisation de la base locale (SYNC-04)', () => {
     expect((await base.categories.toArray()).map((c) => c.id)).toEqual(['c-garde']);
   });
 
+  it('associations fournisseur-produit : remplacées en entier à chaque synchronisation', async () => {
+    const base = baseLocale('e1')!;
+    await base.fournisseursProduits.bulkPut([{ fournisseurId: 'f1', produitId: 'p1' }, { fournisseurId: 'f1', produitId: 'retire' }]);
+    await synchroniserBase(
+      base,
+      async () => ({ ...page({}, 'c1'), associations: { fournisseursProduits: [{ fournisseurId: 'f1', produitId: 'p1' }, { fournisseurId: 'f2', produitId: 'p1' }] } }),
+      maintenant,
+    );
+    expect((await base.fournisseursProduits.toArray()).map((a) => `${a.fournisseurId}:${a.produitId}`).sort()).toEqual(['f1:p1', 'f2:p1']);
+  });
+
   it('curseur refusé par le serveur : vide la base et repart d’un instantané complet', async () => {
     const base = baseLocale('e1')!;
     await base.produits.put({ id: 'ancien', nom: 'Produit supprimé', archive: false, categorieId: null, marqueId: null, updatedAt: 'x' });

@@ -22,6 +22,7 @@ export const TABLES_SYNCHRONISEES = [
   'lots',
   'ventes',
   'mouvements',
+  'commandes',
 ] as const;
 export type TableSynchronisee = (typeof TABLES_SYNCHRONISEES)[number];
 
@@ -57,6 +58,11 @@ export interface ReponseSynchronisation {
    * (les autres archivent, et la modification passe par updated_at).
    */
   existants: { categories: string[]; marques: string[] };
+  /**
+   * Associations fournisseur ↔ produit, au complet à chaque appel (petite
+   * table, sans date de modification) : l'appareil remplace les siennes.
+   */
+  associations: { fournisseursProduits: { fournisseurId: string; produitId: string }[] };
 }
 
 function lireCurseur(brut: string | undefined): Curseur {
@@ -117,7 +123,7 @@ export class SynchronisationService {
 
     const p = this.prisma;
     const position = curseur.stock;
-    const [produits, stock, emplacements, categories, marques, clients, fournisseurs, alertes, lots, ventes, mouvements] =
+    const [produits, stock, emplacements, categories, marques, clients, fournisseurs, alertes, lots, ventes, mouvements, commandes] =
       await Promise.all([
         p.produit.findMany({ where: pourEntreprise('produits'), ...page }),
         p.stock.findMany({
@@ -143,10 +149,20 @@ export class SynchronisationService {
         p.lot.findMany({ where: pourEntreprise('lots'), ...page }),
         p.vente.findMany({
           where: { ...pourEntreprise('ventes'), createdAt: { gte: debutHistorique } },
-          include: { lignes: true },
+          // Règlements : ce qui est payé et reste dû (un nouveau règlement renvoie la vente).
+          include: { lignes: true, reglements: { select: { id: true, montant: true, mode: true, createdAt: true } } },
           ...page,
         }),
         p.mouvement.findMany({ where: { ...pourEntreprise('mouvements'), createdAt: { gte: debutHistorique } }, ...page }),
+        // Commandes : toutes (peu nombreuses), avec lignes et auteur (nom seul).
+        p.commandeFournisseur.findMany({
+          where: pourEntreprise('commandes'),
+          include: {
+            lignes: { select: { id: true, produitId: true, quantiteCommandee: true } },
+            utilisateur: { select: { id: true, nom: true } },
+          },
+          ...page,
+        }),
       ]);
 
     const tables: Record<TableSynchronisee, { updatedAt: Date }[]> = {
@@ -161,6 +177,7 @@ export class SynchronisationService {
       lots,
       ventes,
       mouvements,
+      commandes,
     };
     const suivant: Curseur = {};
     let encore = false;
@@ -179,9 +196,13 @@ export class SynchronisationService {
       }
     }
 
-    const [idsCategories, idsMarques] = await Promise.all([
+    const [idsCategories, idsMarques, fournisseursProduits] = await Promise.all([
       p.categorie.findMany({ where: { entrepriseId }, select: { id: true } }),
       p.marque.findMany({ where: { entrepriseId }, select: { id: true } }),
+      p.fournisseurProduit.findMany({
+        where: { fournisseur: { entrepriseId } },
+        select: { fournisseurId: true, produitId: true },
+      }),
     ]);
 
     return {
@@ -189,6 +210,7 @@ export class SynchronisationService {
       encore,
       tables,
       existants: { categories: idsCategories.map((c) => c.id), marques: idsMarques.map((m) => m.id) },
+      associations: { fournisseursProduits },
     };
   }
 }

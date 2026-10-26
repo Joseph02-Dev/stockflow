@@ -59,7 +59,8 @@ ci-dessous servirait aussi à une application native.
   récents (90 jours, configurable).
 - **Écrans en lecture locale** (SYNC-06) : un adaptateur unique, dans
   `lib/api.ts`, répond aux lectures (`GET /emplacements`, `/stock`,
-  `/produits`, `/clients`) depuis la base de l'appareil quand le serveur est
+  `/produits`, `/clients`, puis avec SYNC-07 `/fournisseurs` et la fiche
+  fournisseur, `/alertes`, `/commandes`, `/ventes`) depuis la base de l'appareil quand le serveur est
   injoignable (`lib/lectureLocale.ts`). Les réponses ont la forme de celles
   du serveur, avec les mêmes filtres : recherche, archives, emplacement. Les
   écrans restent inchangés ; une recherche jamais faite en ligne fonctionne
@@ -128,13 +129,18 @@ ci-dessous servirait aussi à une application native.
 - Réponse :
   - `tables` : lignes complètes par table (`produits`, `stock`,
     `emplacements`, `categories`, `marques`, `clients`, `fournisseurs`,
-    `alertes`, `lots`, `ventes` avec leurs `lignes`, `mouvements`), à
+    `alertes`, `lots`, `ventes` avec leurs `lignes` et `reglements`,
+    `mouvements`, `commandes` avec leurs `lignes` et leur auteur), à
     enregistrer par clé (`id`, ou `produitId` + `emplacementId` pour le
     stock) ;
   - `curseur` : opaque, à renvoyer tel quel à l'appel suivant ;
   - `encore` : une table a rempli sa page (500 lignes) ; rappeler aussitôt ;
   - `existants` : identifiants des catégories et marques encore présentes
-    (les seules vraiment supprimées) ; retirer localement les autres.
+    (les seules vraiment supprimées) ; retirer localement les autres ;
+  - `associations.fournisseursProduits` : toutes les associations
+    fournisseur ↔ produit, à substituer aux locales (SYNC-07).
+- Une ligne de commande modifiée renvoie sa commande ; un règlement renvoie
+  sa vente (déclencheurs PostgreSQL, SYNC-07).
 - Ventes et mouvements : 90 derniers jours.
 - Une fois à jour, le curseur reprend 2 minutes en arrière : une même
   ligne peut revenir, l'enregistrement local doit donc écraser sans

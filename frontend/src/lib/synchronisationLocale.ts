@@ -13,6 +13,8 @@ export interface ReponseSync {
   encore: boolean;
   tables: Record<string, Record<string, unknown>[]>;
   existants: { categories: string[]; marques: string[] };
+  /** Absent d'un serveur antérieur à SYNC-07. */
+  associations?: { fournisseursProduits: { fournisseurId: string; produitId: string }[] };
 }
 
 /** Lecture d'une page ; `curseur` absent : instantané complet. */
@@ -38,6 +40,7 @@ const TABLES = [
   'lots',
   'ventes',
   'mouvements',
+  'commandes',
 ] as const;
 
 /** Applique une page : lignes enregistrées par clé (une ligne revenue remplace l'ancienne), suppressions, curseur. */
@@ -49,6 +52,10 @@ export async function appliquerPage(base: BaseLocale, reponse: ReponseSync, main
     }
     await base.categories.where('id').noneOf(reponse.existants.categories).delete();
     await base.marques.where('id').noneOf(reponse.existants.marques).delete();
+    if (reponse.associations) {
+      await base.fournisseursProduits.clear();
+      await base.fournisseursProduits.bulkPut(reponse.associations.fournisseursProduits);
+    }
     const precedent = await base.etat.get('synchronisation');
     await base.etat.put({
       cle: 'synchronisation',
