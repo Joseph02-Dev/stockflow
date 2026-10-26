@@ -6,6 +6,7 @@ import { usePanneauFlottant } from '@/lib/usePanneauFlottant';
 import { supprimerMouvementEnAttente, type EtatFile, type TypeMouvementHorsLigne } from '@/lib/mouvementsHorsLigne';
 import type { StatutSynchronisation } from '@/lib/useSynchronisation';
 import { dernierPrechargement, souscrirePrechargement } from '@/lib/prechargementHorsLigne';
+import { useEtatBaseLocale } from '@/lib/useSynchronisationLocale';
 
 const LARGEUR_PANNEAU = 380;
 
@@ -49,6 +50,7 @@ export function IndicateurSynchro({ statut, file, libelleReseau, synchroniser, v
   const idPanneau = useId();
 
   const prechargement = useSyncExternalStore(souscrirePrechargement, dernierPrechargement, dernierPrechargement);
+  const baseLocale = useEtatBaseLocale();
   const horsLigne = statut === 'hors-ligne';
   const enCours = statut === 'synchronisation';
   const nombre = file.mouvements.length;
@@ -227,6 +229,13 @@ export function IndicateurSynchro({ statut, file, libelleReseau, synchroniser, v
           {prechargement
             ? `Écrans disponibles hors ligne, avec les données de ${moment(prechargement)}.`
             : 'Écrans hors ligne : pas encore préparés sur cet appareil.'}
+        </p>
+        <p className="text-meta text-steel-400">
+          {baseLocale.enCours
+            ? 'Données de l’appareil : mise à jour en cours…'
+            : baseLocale.derniereReussite
+              ? `Données de l’appareil à jour de ${moment(baseLocale.derniereReussite)}.`
+              : 'Données de l’appareil : pas encore recopiées.'}
         </p>
       </div>
     </div>
