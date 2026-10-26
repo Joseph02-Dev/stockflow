@@ -6,7 +6,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { AppModule } from '../../app.module.js';
 import { PrismaService } from '../../config/prisma.service.js';
 import { connecterClient, creerEntrepriseAvecAdmin, nettoyer } from '../console/console-test.utils.js';
-import { contactVapid, endpointAutorise, PushService } from './push.service.js';
+import { contactVapid, endpointAutorise, problemeClesVapid, PushService } from './push.service.js';
 import { AlerteNotificationService } from '../alertes/alerte-notification.service.js';
 
 describe('Notifications push — règles', () => {
@@ -26,6 +26,34 @@ describe('Notifications push — règles', () => {
     expect(contactVapid('alertes@exemple.com')).toBe('mailto:alertes@exemple.com');
     expect(contactVapid('NimbaFlow')).toBeNull();
     expect(contactVapid(undefined)).toBeNull();
+  });
+});
+
+describe('Notifications push — clés VAPID', () => {
+  const { publicKey, privateKey } = webpush.generateVAPIDKeys();
+
+  it('accepte un couple généré par web-push', () => {
+    expect(problemeClesVapid(publicKey, privateKey)).toBeNull();
+  });
+
+  it('nomme l’erreur de saisie : guillemets, clés inversées, couple dépareillé', () => {
+    expect(problemeClesVapid(`"${publicKey}"`, privateKey)).toMatch(/caractères inattendus/);
+    expect(problemeClesVapid(`Public Key: ${publicKey}`, privateKey)).toMatch(/caractères inattendus/);
+    expect(problemeClesVapid(privateKey, publicKey)).toMatch(/inversées/);
+    expect(problemeClesVapid(publicKey, webpush.generateVAPIDKeys().privateKey)).toMatch(/même génération/);
+    expect(problemeClesVapid(publicKey.slice(0, 40), privateKey)).toMatch(/VAPID_PUBLIC_KEY/);
+  });
+
+  it('désactive le push plutôt que de servir une clé invalide', () => {
+    const avant = { ...process.env };
+    try {
+      Object.assign(process.env, { VAPID_PUBLIC_KEY: privateKey, VAPID_PRIVATE_KEY: publicKey, EMAIL_FROM: 'alertes@exemple.com' });
+      expect(new PushService({} as PrismaService).clePublique).toBeNull();
+      Object.assign(process.env, { VAPID_PUBLIC_KEY: publicKey, VAPID_PRIVATE_KEY: privateKey });
+      expect(new PushService({} as PrismaService).clePublique).toBe(publicKey);
+    } finally {
+      process.env = avant;
+    }
   });
 });
 

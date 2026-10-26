@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BellOff, BellRing } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { activerPush, desactiverPush, useEtatPush } from '@/lib/notificationsPush';
+import { activerPush, desactiverPush, messageEchecPush, useEtatPush } from '@/lib/notificationsPush';
 
 /**
  * Haut du panneau de la cloche : activer, sur cet appareil, les alertes en
@@ -11,15 +11,15 @@ import { activerPush, desactiverPush, useEtatPush } from '@/lib/notificationsPus
 export function ActivationPush() {
   const etat = useEtatPush();
   const [enCours, setEnCours] = useState(false);
-  const [erreur, setErreur] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
 
   const agir = async (action: () => Promise<void>) => {
     setEnCours(true);
-    setErreur(false);
+    setErreur(null);
     try {
       await action();
-    } catch {
-      setErreur(true);
+    } catch (e) {
+      setErreur(messageEchecPush(e));
     } finally {
       setEnCours(false);
     }
@@ -63,7 +63,7 @@ export function ActivationPush() {
       <div className="min-w-0 flex-1">
         <p className="text-meta font-semibold text-ink-900">Recevoir les alertes sur cet appareil</p>
         <p className="text-meta text-steel-700">
-          {erreur ? 'L’activation a échoué. Réessayez.' : 'Avec le son du téléphone, même en veille.'}
+          {erreur ?? 'Avec le son du téléphone, même en veille.'}
         </p>
       </div>
       <Button taille="sm" loading={enCours} onClick={() => void agir(activerPush)}>
