@@ -4,10 +4,12 @@ import request from 'supertest';
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { AppModule } from '../../app.module.js';
 import { PrismaService } from '../../config/prisma.service.js';
+import { DevEmailService } from '../../common/email/dev-email.service.js';
 
 describe('Commandes fournisseur — intégration réelle, base PostgreSQL', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let devEmail: DevEmailService;
   const emailsCrees: string[] = [];
 
   beforeAll(async () => {
@@ -16,6 +18,7 @@ describe('Commandes fournisseur — intégration réelle, base PostgreSQL', () =
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await app.init();
     prisma = moduleRef.get(PrismaService);
+    devEmail = moduleRef.get(DevEmailService);
   });
 
   afterEach(async () => {
@@ -78,6 +81,7 @@ describe('Commandes fournisseur — intégration réelle, base PostgreSQL', () =
 
     return {
       accessToken,
+      email,
       emplacementId: emplacement.body.id as string,
       fournisseurId: fournisseur.body.id as string,
       produitAId: produitA.body.id as string,
@@ -225,6 +229,31 @@ describe('Commandes fournisseur — intégration réelle, base PostgreSQL', () =
       where: { produitId: { in: [produitAId, produitBId] }, type: 'ENTREE', fournisseurId },
     });
     expect(mouvements).toHaveLength(2);
+  });
+
+  it('la réception prévient le reste de l’équipe par email, pas son auteur', async () => {
+    const { accessToken, email, emplacementId, fournisseurId, produitAId } = await creerContexte();
+    const admin = await prisma.utilisateur.findUniqueOrThrow({ where: { email } });
+    const emailCollegue = `test-commande-collegue-${Date.now()}@stockflow.dev`;
+    emailsCrees.push(emailCollegue);
+    await prisma.utilisateur.create({
+      data: { entrepriseId: admin.entrepriseId, email: emailCollegue, nom: 'Mamadou Bah', passwordHash: 'x', role: 'GESTIONNAIRE' },
+    });
+    const commande = await request(app.getHttpServer())
+      .post('/commandes')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ fournisseurId, emplacementId, lignes: [{ produitId: produitAId, quantiteCommandee: 50 }] });
+    await request(app.getHttpServer()).post(`/commandes/${commande.body.id}/envoyer`).set('Authorization', `Bearer ${accessToken}`);
+    devEmail.clear();
+
+    await request(app.getHttpServer()).post(`/commandes/${commande.body.id}/recevoir`).set('Authorization', `Bearer ${accessToken}`);
+
+    const envoyes = devEmail.getSentEmails().filter((e) => e.subject.startsWith('Commande réceptionnée'));
+    expect(envoyes.map((e) => e.to)).toEqual([emailCollegue]);
+    expect(envoyes[0].subject).toBe('Commande réceptionnée : Sotragui SA');
+    expect(envoyes[0].body).toContain('Admin Commandes a réceptionné la commande Sotragui SA (1 produit) à Dépôt Madina.');
+    expect(envoyes[0].body).toContain('Fer à béton 12mm : +50');
+    expect(envoyes[0].html).toContain(`/commandes/${commande.body.id}"`);
   });
 
   it('refuse de recevoir une commande encore en brouillon', async () => {

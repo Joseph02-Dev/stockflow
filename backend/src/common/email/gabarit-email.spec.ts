@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { composerEmail, dureeEnClair } from './gabarit-email.js';
+import { composerEmail, dureeEnClair, RESEAUX_SOCIAUX } from './gabarit-email.js';
+import { RESEAUX_SOCIAUX as RESEAUX_ACCUEIL } from '../../../../frontend/src/features/accueil/contenu.js';
 
 const CONTENU = {
   apercu: 'Aperçu',
@@ -49,11 +50,45 @@ describe('Gabarit des emails', () => {
   });
 });
 
+describe('Gabarit des emails — identité NimbaFlow', () => {
+  const frontendUrl = process.env.FRONTEND_URL;
+  afterEach(() => {
+    process.env.FRONTEND_URL = frontendUrl;
+  });
+
+  it('pied de page : icônes des réseaux sociaux et copyright centré', () => {
+    process.env.FRONTEND_URL = 'https://stockflowgn.com';
+    const { body, html } = composerEmail(CONTENU);
+    for (const { cle } of RESEAUX_SOCIAUX) expect(html).toContain(`src="https://stockflowgn.com/email/${cle}.png"`);
+    expect(html).toContain(`© ${new Date().getFullYear()} NimbaFlow`);
+    expect(body).toContain(`© ${new Date().getFullYear()} NimbaFlow`);
+  });
+
+  it('un réseau sans adresse s’affiche sans lien (aucune adresse inventée)', () => {
+    process.env.FRONTEND_URL = 'https://stockflowgn.com';
+    const { html } = composerEmail(CONTENU);
+    for (const { nom, url } of RESEAUX_SOCIAUX) {
+      if (!url) expect(html).not.toContain(`title="NimbaFlow sur ${nom}"`);
+    }
+  });
+
+  it('mêmes réseaux et mêmes adresses que la page d’accueil', () => {
+    expect(Object.fromEntries(RESEAUX_SOCIAUX.map((r) => [r.cle, r.url]))).toEqual(RESEAUX_ACCUEIL);
+  });
+
+  it('encadré de détails, échappé, aussi dans la version texte', () => {
+    const { body, html } = composerEmail({ ...CONTENU, details: [{ libelle: 'Produit', valeur: 'Riz <25 kg>' }] });
+    expect(html).toContain('Riz &lt;25 kg&gt;');
+    expect(body).toContain('Produit : Riz <25 kg>');
+  });
+});
+
 describe('Durée lisible', () => {
   it('jours entiers au-delà de 24 h, heures sinon', () => {
     expect(dureeEnClair(7 * 86_400_000)).toBe('7 jours');
     expect(dureeEnClair(86_400_000)).toBe('24 heures');
-    expect(dureeEnClair(30 * 60_000)).toBe('1 heure');
+    expect(dureeEnClair(30 * 60_000)).toBe('30 minutes');
+    expect(dureeEnClair(3_600_000)).toBe('1 heure');
     expect(dureeEnClair(36 * 3_600_000)).toBe('36 heures');
   });
 });

@@ -8,6 +8,7 @@ import { PrismaService } from '../../config/prisma.service.js';
 import { EMAIL_SERVICE, type EmailService } from '../../common/email/email.service.js';
 import { domaineEmailExiste } from '../../common/email/domaine-email.util.js';
 import { adresseSite, composerEmail, dureeEnClair, LIBELLE_ROLE } from '../../common/email/gabarit-email.js';
+import { contenuBienvenue } from './bienvenue.js';
 import { hashToken } from './token-hash.util.js';
 import { erreurCompteDesactive } from '../../common/compte-desactive.js';
 import { erreurEntrepriseSuspendue } from '../../common/entreprise-suspendue.js';
@@ -310,6 +311,7 @@ export class AuthService {
     });
 
     await this.notifierInvitationAcceptee(invitation.invitedById, entreprise.id, utilisateur);
+    await this.envoyerBienvenue(utilisateur, entreprise.nom, false);
     return this.construireReponseAuth(utilisateur, entreprise);
   }
 
@@ -371,6 +373,19 @@ export class AuthService {
     );
   }
 
+  /** Email de bienvenue, envoyé en arrière-plan : il ne retarde ni ne fait échouer l'inscription. */
+  private async envoyerBienvenue(
+    utilisateur: { email: string; nom: string; role: 'ADMIN' | 'GESTIONNAIRE' },
+    entreprise: string,
+    createur: boolean,
+  ): Promise<void> {
+    await this.emailService.send({
+      to: utilisateur.email,
+      subject: createur ? `Bienvenue sur NimbaFlow : ${entreprise} est prêt` : `Bienvenue dans l'équipe ${entreprise} sur NimbaFlow`,
+      ...composerEmail(contenuBienvenue({ nom: utilisateur.nom, entreprise, role: utilisateur.role, createur })),
+    });
+  }
+
   /**
    * Demande de réinitialisation. Répond toujours avec le même message de
    * succès, que l'email existe ou non — sinon la réponse elle-même
@@ -402,11 +417,22 @@ export class AuthService {
         },
       });
 
-      const lienBase = process.env.FRONTEND_URL ?? '';
       await this.emailService.send({
         to: utilisateur.email,
         subject: 'Réinitialisation de votre mot de passe NimbaFlow',
-        body: `Une réinitialisation de mot de passe a été demandée pour ce compte.\n\nLien : ${lienBase}/reinitialiser-mot-de-passe?token=${token}\n\nCe lien expire dans 30 minutes. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email — votre mot de passe reste inchangé.`,
+        ...composerEmail({
+          apercu: 'Choisissez un nouveau mot de passe pour votre compte NimbaFlow.',
+          titre: 'Réinitialisez votre mot de passe',
+          paragraphes: [
+            `Bonjour ${utilisateur.nom}, une réinitialisation du mot de passe a été demandée pour votre compte.`,
+            'Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe. Vos sessions ouvertes sur les autres appareils seront fermées.',
+          ],
+          bouton: { libelle: 'Choisir un nouveau mot de passe', url: `${adresseSite()}/reinitialiser-mot-de-passe?token=${token}` },
+          mentions: [
+            `Ce lien est personnel et expire dans ${dureeEnClair(ms(expiration))}.`,
+            "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email : votre mot de passe reste inchangé.",
+          ],
+        }),
       });
     }
 
@@ -471,6 +497,8 @@ export class AuthService {
       return { utilisateur, entreprise };
     });
 
+    // Le lien ne sert qu'une fois : la bienvenue ne part qu'une fois.
+    await this.envoyerBienvenue(utilisateur, entreprise.nom, true);
     return this.construireReponseAuth(utilisateur, entreprise);
   }
 

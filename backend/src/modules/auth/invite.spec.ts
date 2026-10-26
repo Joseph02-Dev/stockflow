@@ -219,6 +219,12 @@ describe("Flux d'invitation AUTH-003 (intégration réelle, base PostgreSQL)", (
     expect(notification?.subject).toBe('Fatoumata Camara a rejoint votre entreprise sur NimbaFlow');
     expect(notification?.body).toContain(emailInvite);
     expect(notification?.body).toContain('gestionnaire de stock');
+
+    // La personne invitée reçoit sa bienvenue, sans les étapes de configuration.
+    const bienvenue = devEmail.getSentEmails().find((e) => e.to === emailInvite && e.subject.startsWith('Bienvenue'));
+    expect(bienvenue?.subject).toMatch(/^Bienvenue dans l'équipe .+ sur NimbaFlow$/);
+    expect(bienvenue?.body).toContain('en tant que gestionnaire de stock');
+    expect(bienvenue?.body).not.toContain('Invitez votre équipe');
   });
 
   it('rejette avec 404 un token d’invitation invalide', async () => {

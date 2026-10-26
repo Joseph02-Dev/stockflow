@@ -106,6 +106,13 @@ describe('POST /auth/register (intégration réelle, base PostgreSQL)', () => {
     expect(verification.status).toBe(200);
     expect(verification.body.accessToken).toBeDefined();
 
+    // Bienvenue du créateur : premiers pas de configuration.
+    const bienvenue = devEmail.getSentEmails().find((e) => e.subject.startsWith('Bienvenue sur NimbaFlow'));
+    expect(bienvenue?.to).toBe(email);
+    expect(bienvenue?.subject).toBe('Bienvenue sur NimbaFlow : Entreprise Vérifiée est prêt');
+    expect(bienvenue?.body).toContain('Invitez votre équipe');
+    expect(bienvenue?.html).toContain('Bienvenue sur NimbaFlow, Testeur');
+
     const connexion = await request(app.getHttpServer())
       .post('/auth/login')
       .send({ email, password: 'motdepasse-solide-123' });

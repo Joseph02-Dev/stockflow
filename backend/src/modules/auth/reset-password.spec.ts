@@ -86,6 +86,8 @@ describe('Réinitialisation de mot de passe — intégration réelle, base Postg
     expect(emails).toHaveLength(1);
     expect(emails[0].to).toBe(email);
     expect(emails[0].body).toContain('token=');
+    expect(emails[0].body).toContain('expire dans 30 minutes');
+    expect(emails[0].html).toContain('/reinitialiser-mot-de-passe?token=');
   });
 
   it('réinitialise le mot de passe avec un jeton valide, et permet de se reconnecter avec le nouveau', async () => {

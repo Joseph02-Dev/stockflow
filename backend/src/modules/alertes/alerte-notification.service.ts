@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
 import { EMAIL_SERVICE, type EmailService } from '../../common/email/email.service.js';
+import { adresseSite, composerEmail } from '../../common/email/gabarit-email.js';
 import { emettreEvenement } from '../webhooks/emission.js';
 import { PushService } from '../notifications/push.service.js';
 
@@ -50,24 +51,32 @@ export class AlerteNotificationService {
     });
 
     try {
-      const destinataires = await this.prisma.utilisateur.findMany({
-        where: { entrepriseId },
-        select: { email: true },
+      const [destinataires, entreprise] = await Promise.all([
+        this.prisma.utilisateur.findMany({ where: { entrepriseId, desactiveAt: null }, select: { email: true } }),
+        this.prisma.entreprise.findUniqueOrThrow({ where: { id: entrepriseId }, select: { nom: true } }),
+      ]);
+
+      const rupture = type === 'RUPTURE';
+      const sujet = rupture ? `Rupture de stock : ${produitNom}` : `Stock faible : ${produitNom}`;
+      const contenu = composerEmail({
+        apercu: rupture ? `${produitNom} n'est plus disponible.` : `${produitNom} passe sous son seuil d'alerte.`,
+        titre: rupture ? 'Rupture de stock' : 'Stock sous le seuil d’alerte',
+        paragraphes: [
+          rupture
+            ? `Le produit « ${produitNom} » est en rupture de stock.`
+            : `Le stock du produit « ${produitNom} » est passé sous son seuil d'alerte.`,
+          'Enregistrez un réapprovisionnement ou passez une commande au fournisseur pour éviter de manquer des ventes.',
+        ],
+        details: [
+          { libelle: 'Produit', valeur: produitNom },
+          { libelle: 'Quantité restante', valeur: String(quantite) },
+        ],
+        bouton: { libelle: 'Voir les alertes', url: `${adresseSite()}/alertes` },
+        mentions: [`Vous recevez cet email car vous êtes membre de ${entreprise.nom} sur NimbaFlow.`],
       });
 
-      const sujet =
-        type === 'RUPTURE'
-          ? `Rupture de stock : ${produitNom}`
-          : `Stock faible : ${produitNom}`;
-      const corps =
-        type === 'RUPTURE'
-          ? `Le produit "${produitNom}" est en rupture de stock (quantité restante : ${quantite}).\n\nConnectez-vous à NimbaFlow pour enregistrer un réapprovisionnement.`
-          : `Le stock du produit "${produitNom}" est passé sous son seuil d'alerte (quantité restante : ${quantite}).\n\nConnectez-vous à NimbaFlow pour enregistrer un réapprovisionnement.`;
-
       await Promise.all(
-        destinataires.map((destinataire) =>
-          this.emailService.send({ to: destinataire.email, subject: sujet, body: corps }),
-        ),
+        destinataires.map((destinataire) => this.emailService.send({ to: destinataire.email, subject: sujet, ...contenu })),
       );
     } catch (error) {
       // Volontairement non propagé : le mouvement de stock est déjà
