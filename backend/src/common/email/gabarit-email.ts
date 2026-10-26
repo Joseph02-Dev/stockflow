@@ -107,7 +107,7 @@ function details(lignes: { libelle: string; valeur: string }[]): string {
     .map(
       (l) => `<tr>
         <td style="padding:6px 0;font-family:${POLICE};font-size:14px;line-height:20px;color:${COULEURS.secondaire};">${echapperHtml(l.libelle)}</td>
-        <td align="right" style="padding:6px 0;font-family:${POLICE};font-size:14px;line-height:20px;font-weight:600;color:${COULEURS.encre};">${echapperHtml(l.valeur)}</td>
+        <td align="right" style="padding:6px 0 6px 12px;white-space:nowrap;vertical-align:top;font-family:${POLICE};font-size:14px;line-height:20px;font-weight:600;color:${COULEURS.encre};">${echapperHtml(l.valeur)}</td>
       </tr>`,
     )
     .join('');

@@ -243,6 +243,7 @@ model Entreprise {
   evenementsWebhook   EvenementWebhook[]
   notificationsLues   NotificationLue[]
   abonnementsPush     AbonnementPush[]
+  peremptionsSignalees PeremptionSignalee[]
   operationsHorsLigne OperationHorsLigne[]
 
   @@map("entreprise")
@@ -714,6 +715,7 @@ model Lot {
   emplacement      Emplacement       @relation(fields: [emplacementId], references: [id])
   mouvements       Mouvement[]
   inventaireLignes InventaireLigne[]
+  peremptionSignalee PeremptionSignalee?
 
   @@unique([produitId, emplacementId, numero])
   @@index([entrepriseId, datePeremption])
@@ -772,6 +774,22 @@ model NotificationLue {
  * Apple, Mozilla, Microsoft) ; p256dh et auth : clés de chiffrement du
  * contenu, propres à l'appareil.
  */
+// Dernière étape de péremption signalée par email et push pour un lot
+// (SURVEILLANCE, MOINS_7, PERIME) : chaque étape n'est signalée qu'une
+// fois. À part de la table lot, que seul le moteur de stock écrit.
+model PeremptionSignalee {
+  lotId        String   @id @map("lot_id")
+  entrepriseId String   @map("entreprise_id")
+  etape        String
+  signaleeAt   DateTime @default(now()) @map("signalee_at")
+
+  lot        Lot        @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  entreprise Entreprise @relation(fields: [entrepriseId], references: [id], onDelete: Cascade)
+
+  @@index([entrepriseId])
+  @@map("peremption_signalee")
+}
+
 model AbonnementPush {
   id            String   @id @default(uuid())
   entrepriseId  String   @map("entreprise_id")
