@@ -57,10 +57,17 @@ ci-dessous servirait aussi à une application native.
   (produit × emplacement), `emplacements`, `categories`, `marques`,
   `clients`, `fournisseurs`, `alertes`, `lots`, `ventes` et `mouvements`
   récents (90 jours, configurable).
-- **Écrans en lecture locale** : un hook unique (`useDonneesLocales`) lit la
-  base locale ; recherche, filtres et tri se font sur l'appareil. Les
-  écrans d'analyse lourde (rapports PDF, statistiques longues, valorisation)
-  restent en ligne.
+- **Écrans en lecture locale** (SYNC-06) : un adaptateur unique, dans
+  `lib/api.ts`, répond aux lectures (`GET /emplacements`, `/stock`,
+  `/produits`, `/clients`) depuis la base de l'appareil quand le serveur est
+  injoignable (`lib/lectureLocale.ts`). Les réponses ont la forme de celles
+  du serveur, avec les mêmes filtres : recherche, archives, emplacement. Les
+  écrans restent inchangés ; une recherche jamais faite en ligne fonctionne
+  hors ligne. En ligne, les écrans lisent le serveur, comme avant. Chaque
+  écran superpose les opérations en attente (Stock et Produits :
+  `features/stock/stockEnAttente.ts` ; Nouvelle vente et Clients : leur
+  logique existante). Les écrans d'analyse lourde (rapports PDF,
+  statistiques longues, valorisation) restent en ligne.
 - **Écritures** : la file d'opérations actuelle est conservée. Ses
   opérations ne sont pas écrites dans la base locale : elles sont
   **superposées à la lecture** (`lib/superpositionFile.ts`, SYNC-05). Le
