@@ -17,6 +17,7 @@ import { InventairesTab } from './InventairesTab';
 import { StockActuel } from './StockActuel';
 import { FAMILLES, JournalMouvements, type CleFamille, type Mouvement } from './JournalMouvements';
 import { TEINTES_LIEUX, type Emplacement, type LieuAffiche, type LigneStock } from './types';
+import { useStockAvecAttente } from './stockEnAttente';
 import './stock.css';
 
 const onglets = [
@@ -70,7 +71,9 @@ export function StockPage() {
     queryKey: ['stock', ''],
     queryFn: async () => (await api.get<LigneStock[]>('/stock')).data,
   });
-  const lignesStock = (stock.data ?? []).filter((l) => !emplacementFiltre || l.emplacementId === emplacementFiltre);
+  // Opérations saisies hors ligne, pas encore envoyées : déjà comptées.
+  const stockAffiche = useStockAvecAttente(stock.data);
+  const lignesStock = (stockAffiche ?? []).filter((l) => !emplacementFiltre || l.emplacementId === emplacementFiltre);
 
   const filtresMouvements = new URLSearchParams(emplacementFiltre ? { emplacement_id: emplacementFiltre } : {});
   const typesFamille = FAMILLES.find((f) => f.cle === famille)?.types ?? [];
@@ -132,7 +135,7 @@ export function StockPage() {
     { id: '', nom: 'Tous les emplacements', teinte: 'var(--color-ink-900)' },
     ...lieux,
   ].map((l) => {
-    const lignes = (stock.data ?? []).filter((ligne) => !l.id || ligne.emplacementId === l.id);
+    const lignes = (stockAffiche ?? []).filter((ligne) => !l.id || ligne.emplacementId === l.id);
     return { ...l, unites: lignes.reduce((s, ligne) => s + ligne.quantite, 0), produits: new Set(lignes.map((x) => x.produitId)).size };
   });
 

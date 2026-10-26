@@ -30,6 +30,7 @@ import { Compteur } from '@/components/patterns/Compteur';
 import { useDebounce } from '@/lib/useDebounce';
 import { useModules } from '@/lib/useModules';
 import './produits.css';
+import { useStockAvecAttente } from '@/features/stock/stockEnAttente';
 
 interface Produit {
   id: string;
@@ -48,7 +49,9 @@ interface Produit {
 
 interface LigneStock {
   produitId: string;
+  emplacementId: string;
   quantite: number;
+  produit: { nom: string };
   emplacement: { nom: string };
 }
 
@@ -243,7 +246,8 @@ export function ProduitsPage() {
     queryKey: ['stock', ''],
     queryFn: async () => (await api.get<LigneStock[]>('/stock?')).data,
   });
-  const lignesStock = stock.data;
+  // Opérations saisies hors ligne, pas encore envoyées : déjà comptées.
+  const lignesStock = useStockAvecAttente(stock.data);
   const parProduit = useMemo(() => {
     const carte = new Map<string, { quantite: number; emplacements: string[] }>();
     for (const ligne of lignesStock ?? []) {

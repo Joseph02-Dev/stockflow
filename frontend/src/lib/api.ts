@@ -10,7 +10,8 @@ import {
   setSession,
   type ReponseSession,
 } from './session';
-import { signalerEchecReseau } from './connectivite';
+import { estJoignable, signalerEchecReseau } from './connectivite';
+import { lireLocalement } from './lectureLocale';
 
 // En développement local, /api est redirigé vers le backend par le proxy
 // Vite (voir vite.config.ts) — ce proxy n'existe pas une fois le site
@@ -27,7 +28,22 @@ function estRoutePublique(url: string | undefined): boolean {
   return !!url?.startsWith('/auth/') && url !== '/auth/logout';
 }
 
+/** Réponse tirée de la base de l'appareil (lib/lectureLocale.ts), pour une lecture sans serveur. */
+async function reponseLocale(config: InternalAxiosRequestConfig) {
+  if ((config.method ?? 'get').toLowerCase() !== 'get') return undefined;
+  const donnees = await lireLocalement(config.url, config.params).catch(() => undefined);
+  return donnees === undefined ? undefined : { data: donnees, status: 200, statusText: 'OK', headers: {}, config };
+}
+
 api.interceptors.request.use(async (config) => {
+  // Serveur injoignable : inutile d'attendre l'échec, la base de l'appareil répond.
+  if (!estJoignable()) {
+    const locale = await reponseLocale(config);
+    if (locale) {
+      config.adapter = async () => locale;
+      return config;
+    }
+  }
   let token = getAccessToken();
   // Page rechargée : la session est connue mais l'access token, gardé en
   // mémoire seulement, est perdu. Le cookie en redonne un avant l'envoi.
@@ -140,6 +156,9 @@ api.interceptors.response.use(
     // réseau est tombé, même si navigator.onLine affirme le contraire.
     if (!error.response && !axios.isCancel(error)) {
       signalerEchecReseau();
+      // Lecture : la base de l'appareil prend le relais (réponse de même forme).
+      const locale = error.config ? await reponseLocale(error.config) : undefined;
+      if (locale) return locale;
     }
     // Access token expiré : on tente un renouvellement, puis on rejoue la
     // requête une seule fois. La session n'est purgée que si le
