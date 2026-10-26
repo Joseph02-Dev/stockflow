@@ -87,6 +87,10 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
 
   const navigation = request.mode === 'navigate';
+  // Synchronisation de la base locale (GET /sync) : déjà recopiée dans
+  // IndexedDB par l'application ; un curseur différent à chaque appel
+  // remplirait le cache pour rien.
+  if (!navigation && new URL(request.url).pathname.endsWith('/sync')) return;
   const nomCache = navigation || estFichierAppli(request) ? CACHE_APPLI : CACHE_DONNEES;
 
   // Fichiers de build (nom avec empreinte, jamais modifiés) : le cache

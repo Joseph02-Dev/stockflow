@@ -39,6 +39,7 @@ import { ProfilModal } from '@/features/profil/ProfilModal';
 import { IndicateurSynchro } from '@/features/synchronisation/IndicateurSynchro';
 import { useSynchronisation } from '@/lib/useSynchronisation';
 import { usePrechargementHorsLigne } from '@/lib/usePrechargementHorsLigne';
+import { synchroniserBaseLocale, useSynchronisationLocale } from '@/lib/useSynchronisationLocale';
 import { prechargerEcrans } from '@/lib/prechargementHorsLigne';
 import { BarreProgression } from '@/components/patterns/BarreProgression';
 import { useModules } from '@/lib/useModules';
@@ -363,8 +364,15 @@ export function AppLayout() {
   // Hors ligne : les écrans principaux sont préchargés au démarrage, au
   // retour du réseau et à chaque « Synchroniser ».
   usePrechargementHorsLigne(admin, modules.lots, modules.rangement, modules.charge);
+  // Base locale de l'appareil (ADR 0001) : tenue à jour en arrière-plan.
+  useSynchronisationLocale(session?.entreprise.id);
   const prechargerMaintenant = useCallback(
-    () => prechargerEcrans({ admin, lots: modules.lots, rangement: modules.rangement }, true),
+    async () => {
+      await Promise.all([
+        prechargerEcrans({ admin, lots: modules.lots, rangement: modules.rangement }, true),
+        synchroniserBaseLocale(),
+      ]);
+    },
     [admin, modules.lots, modules.rangement],
   );
   const { statut: statutSynchro, nombreEnAttente, file: fileSynchro, synchroniser } =
