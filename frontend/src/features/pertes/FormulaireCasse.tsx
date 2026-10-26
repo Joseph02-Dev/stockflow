@@ -416,7 +416,7 @@ export function FormulaireCasse({
       </div>
       {corps}
       {/* Validation fixe en bas, au-dessus de la barre de navigation mobile. */}
-      <div className="fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-30 flex gap-2 border-t border-rule bg-surface px-4 py-3 md:static md:border-0 md:bg-transparent md:p-0">
+      <div className="fixed inset-x-0 bottom-[calc(80px+env(safe-area-inset-bottom))] z-30 flex gap-2 border-t border-rule bg-surface px-4 py-3 md:static md:border-0 md:bg-transparent md:p-0">
         <Button type="button" variant="secondary" className="h-12 md:h-9" onClick={onFermer}>
           Annuler
         </Button>

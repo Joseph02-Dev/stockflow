@@ -91,3 +91,47 @@
     animation: menu-mobile-fondu 250ms ease-out both;
   }
 }
+
+/* Barre de navigation mobile : île flottante sombre dans les deux thèmes. */
+.ile-nav {
+  background: #15161a;
+  box-shadow:
+    0 14px 34px -12px rgba(16, 24, 40, 0.55),
+    0 2px 6px rgba(16, 24, 40, 0.18);
+}
+[data-theme='dark'] .ile-nav {
+  background: #23252b;
+  border: 1px solid #34373f;
+  box-shadow: 0 14px 34px -12px rgba(0, 0, 0, 0.8);
+}
+.ile-nav-onglet {
+  color: #a0a3ab;
+  transition:
+    background-color 220ms var(--ease-sortie),
+    color 220ms var(--ease-sortie),
+    padding 220ms var(--ease-sortie);
+}
+.ile-nav-onglet:not(.ile-nav-actif):hover {
+  color: #f1f1ef;
+}
+.ile-nav-onglet:focus-visible {
+  outline: 2px solid var(--color-action);
+  outline-offset: 2px;
+}
+.ile-nav-actif {
+  color: var(--color-sur-couleur);
+  animation: ile-nav-pastille 260ms var(--ease-sortie) both;
+}
+@keyframes ile-nav-pastille {
+  from {
+    transform: scale(0.92);
+    opacity: 0.6;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ile-nav-onglet,
+  .ile-nav-actif {
+    transition: none;
+    animation: none;
+  }
+}
