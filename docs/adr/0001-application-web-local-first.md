@@ -61,10 +61,16 @@ ci-dessous servirait aussi à une application native.
   base locale ; recherche, filtres et tri se font sur l'appareil. Les
   écrans d'analyse lourde (rapports PDF, statistiques longues, valorisation)
   restent en ligne.
-- **Écritures** : la file d'opérations actuelle est conservée. Chaque
-  opération est aussi appliquée tout de suite à la base locale (stock
-  décrémenté, vente visible), puis confirmée ou corrigée par la
-  synchronisation suivante.
+- **Écritures** : la file d'opérations actuelle est conservée. Ses
+  opérations ne sont pas écrites dans la base locale : elles sont
+  **superposées à la lecture** (`lib/superpositionFile.ts`, SYNC-05). Le
+  stock affiché tient compte des entrées, sorties, transferts, pertes et
+  ventes en attente, et les clients et ventes saisis hors ligne
+  apparaissent aussitôt. Une opération quitte la file quand le serveur
+  l'accepte, et la synchronisation suivante apporte sa valeur réelle ; un
+  refus la retire sans rien à défaire, et une opération n'est jamais
+  comptée deux fois. Les réceptions de commande, dont les quantités sont
+  connues du seul serveur, arrivent à la synchronisation.
 - **Déconnexion** : la base locale de l'entreprise est effacée (même règle
   qu'aujourd'hui pour le cache : un second compte ne voit jamais les
   données du premier).
@@ -147,7 +153,7 @@ ci-dessous servirait aussi à une application native.
 | 2 | SYNC-02 API | `GET /sync?depuis=` : instantané, incrément, pagination, identifiants existants ; tests d'intégration et d'isolation | 1 |
 | 3 | SYNC-03 Base locale | Dexie : schéma, ouverture par entreprise, effacement à la déconnexion | — |
 | 4 | SYNC-04 Moteur | Synchronisation au lancement, au retour du réseau et toutes les N minutes ; curseur ; indicateur « synchronisé il y a … » | 2, 3 |
-| 5 | SYNC-05 Écritures locales | File d'opérations appliquée aussitôt à la base locale, puis réconciliée | 4 |
+| 5 | SYNC-05 Écritures locales | File d'opérations superposée à la lecture de la base locale (vue locale) | 4 |
 | 6 | SYNC-06 Écrans terrain | Nouvelle vente, Stock, Produits, Clients en lecture locale | 4, 5 |
 | 7 | SYNC-07 Écrans suivants | Fournisseurs, Commandes, Alertes, Ventes (historique 90 j) | 6 |
 | 8 | SYNC-08 Nettoyage | Retrait du préchargement et du cache API du service worker | 7 |
