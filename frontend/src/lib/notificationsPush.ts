@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
+import axios from 'axios';
 import { api } from './api';
 import { estAppareilApple, estLanceeCommeAppli } from './installation';
 
@@ -95,6 +96,23 @@ export async function activerPush(): Promise<void> {
   const permission = await Notification.requestPermission();
   if (permission === 'granted') await abonner(cle);
   await rafraichirEtatPush();
+}
+
+/** Raison d'un échec d'activation, dite à la personne (la cause change ce qu'elle peut faire). */
+export function messageEchecPush(erreur: unknown): string {
+  if (axios.isAxiosError(erreur)) {
+    return erreur.response
+      ? `Le serveur a refusé l’abonnement (erreur ${erreur.response.status}). Réessayez plus tard.`
+      : 'Serveur injoignable. Vérifiez la connexion puis réessayez.';
+  }
+  const nom = erreur instanceof DOMException || erreur instanceof Error ? erreur.name : '';
+  if (nom === 'InvalidAccessError' || nom === 'InvalidCharacterError') {
+    return 'La clé de notification du serveur est invalide : l’administrateur doit vérifier VAPID_PUBLIC_KEY.';
+  }
+  if (nom === 'AbortError') {
+    return 'Le service de notification de ce navigateur ne répond pas. Utilisez Chrome à jour ; sur Brave, activez « Services Google pour la messagerie push ».';
+  }
+  return 'L’activation a échoué. Réessayez.';
 }
 
 /** Désabonne cet appareil : à la déconnexion (avant l'appel de déconnexion, la session sert encore), ou à la demande. */
