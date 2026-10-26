@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsString, Matches, MaxLength, Validate, ValidateNested, ValidatorConstraint, type ValidatorConstraintInterface } from 'class-validator';
+import { IsNumber, IsOptional, IsString, Matches, MaxLength, Validate, ValidateNested, ValidatorConstraint, type ValidatorConstraintInterface } from 'class-validator';
 import { endpointAutorise } from '../push.service.js';
 
 @ValidatorConstraint({ name: 'endpointPush' })
@@ -37,4 +37,9 @@ export class AbonnementPushDto extends DesabonnementPushDto {
   @ValidateNested()
   @Type(() => ClesAbonnement)
   keys!: ClesAbonnement;
+
+  /** Toujours envoyé par le navigateur (souvent null) ; non conservé. */
+  @IsOptional()
+  @IsNumber()
+  expirationTime?: number | null;
 }
