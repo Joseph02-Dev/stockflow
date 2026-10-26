@@ -1,3 +1,5 @@
+import { effacerBasesLocales } from './baseLocale';
+
 export interface Utilisateur {
   id: string;
   email: string;
@@ -167,6 +169,8 @@ export function clearSession(): void {
     void caches.delete(CACHE_DONNEES);
   }
   localStorage.removeItem(CLE_DERNIER_PRECHARGEMENT);
+  // Même règle pour la base locale de l'appareil (lib/baseLocale.ts).
+  void effacerBasesLocales();
 }
 
 /** Permet aux composants React de réagir aux changements de session. */

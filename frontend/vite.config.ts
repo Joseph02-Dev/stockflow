@@ -89,6 +89,8 @@ export default defineConfig(({ mode }) => {
               { name: 'apercu-pdf', test: /node_modules[\\/]pdfjs-dist[\\/]/, priority: 2 },
               // Surveillance des erreurs (Sentry) : fichier à part, le vendor reste sous 500 kB.
               { name: 'surveillance', test: /node_modules[\\/]@sentry(-internal)?[\\/]/, priority: 2 },
+              // Base locale de l'appareil (Dexie, ADR 0001) : fichier à part, le vendor reste sous 500 kB.
+              { name: 'base-locale', test: /node_modules[\\/]dexie[\\/]/, priority: 2 },
               { name: 'vendor', test: /node_modules/, priority: 1 },
             ],
           },
