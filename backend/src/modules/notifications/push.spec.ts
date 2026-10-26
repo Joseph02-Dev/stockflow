@@ -111,7 +111,8 @@ describe('Notifications push — intégration réelle, base PostgreSQL', () => {
     const { utilisateur, http } = await connecte('Push abonnement');
     expect((await http('get', '/notifications/push/cle')).body.clePublique).toBe(process.env.VAPID_PUBLIC_KEY);
 
-    await http('post', '/notifications/push/abonnement').send({ endpoint: ENDPOINT, keys: cles }).expect(204);
+    // Corps exact de PushSubscription.toJSON() : expirationTime y figure, souvent null.
+    await http('post', '/notifications/push/abonnement').send({ endpoint: ENDPOINT, expirationTime: null, keys: cles }).expect(204);
     expect(await prisma.abonnementPush.count({ where: { utilisateurId: utilisateur.id } })).toBe(1);
 
     await http('post', '/notifications/push/abonnement')
