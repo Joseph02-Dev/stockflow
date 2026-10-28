@@ -20,3 +20,15 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Mêmes en-têtes de sécurité que Vercel (frontend/vercel.json), pour les
+# aperçus Netlify ; un test vérifie qu'ils restent identiques. La CSP
+# complète est dans index.html (frontend/securite-contenu.ts).
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "frame-ancestors 'none'"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
