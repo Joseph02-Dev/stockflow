@@ -74,7 +74,10 @@ describe('POST /auth/login et /auth/logout (intégration réelle, base PostgreSQ
       .send({ email: 'inexistant@stockflow.dev', password: 'peu-importe-123' });
 
     expect(response.status).toBe(401);
-    expect(response.body.message).toBe('Email ou mot de passe incorrect.');
+    // Même message qu'un mauvais mot de passe sur un compte existant (SEC-04).
+    expect(response.body.message).toBe(
+      'Email ou mot de passe incorrect. 4 tentatives restantes avant blocage temporaire de 15 minutes.',
+    );
   });
 
   it('rejette avec 401 un mauvais mot de passe, sans révéler lequel des deux champs est en cause', async () => {
@@ -86,9 +89,39 @@ describe('POST /auth/login et /auth/logout (intégration réelle, base PostgreSQ
 
     expect(response.status).toBe(401);
     expect(response.body.message).toContain('Email ou mot de passe incorrect.');
-    // Compromis assumé et documenté dans le service : le compteur de
-    // tentatives n'apparaît que pour un compte réellement existant.
     expect(response.body.message).toContain('tentative');
+  });
+
+  it('email inconnu ou compte existant : mêmes réponses, dans le même ordre, jusqu’au blocage', async () => {
+    const { email } = await creerCompte();
+    const inconnu = `inconnu-${Date.now()}@stockflow.dev`;
+    const essai = async (adresse: string) => {
+      const r = await request(app.getHttpServer()).post('/auth/login').send({ email: adresse, password: 'mauvais-mot-de-passe' });
+      return `${r.status} ${r.body.message}`;
+    };
+    for (let i = 0; i < 6; i++) {
+      expect(await essai(inconnu)).toBe(await essai(email));
+    }
+    expect(await essai(inconnu)).toMatch(/^401 Compte temporairement bloqué .* Réessayez dans 15 minute\(s\)\.$/);
+  });
+
+  it('email inconnu : réponse aussi lente qu’un mauvais mot de passe (argon2 calculé)', async () => {
+    const { email } = await creerCompte();
+    const duree = async (adresse: string) => {
+      const debut = performance.now();
+      await request(app.getHttpServer()).post('/auth/login').send({ email: adresse, password: 'mauvais-mot-de-passe' });
+      return performance.now() - debut;
+    };
+    await duree(`chauffe-${Date.now()}@stockflow.dev`);
+    const mediane = async (adresse: () => string) => {
+      const mesures: number[] = [];
+      for (let i = 0; i < 3; i++) mesures.push(await duree(adresse()));
+      return mesures.sort((a, b) => a - b)[1];
+    };
+    const inconnu = await mediane(() => `inconnu-${Date.now()}-${Math.random()}@stockflow.dev`);
+    const existant = await mediane(() => email);
+    // Sans le calcul factice, un email inconnu répondait plus de 10 fois plus vite.
+    expect(inconnu).toBeGreaterThan(existant * 0.5);
   });
 
   it('bloque temporairement le compte après 5 échecs consécutifs', async () => {
