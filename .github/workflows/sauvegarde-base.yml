@@ -69,7 +69,13 @@ jobs:
           IMAGE: postgres:${{ steps.version.outputs.majeure }}-alpine
         run: |
           docker run -d --name essai -e POSTGRES_PASSWORD=essai -v "$PWD/sortie:/sortie" "$IMAGE"
-          until docker exec essai pg_isready -U postgres -q; do sleep 1; done
+          # L'image démarre d'abord un serveur temporaire sur le socket seul,
+          # puis l'arrête : attendre le port TCP, ouvert par le serveur final.
+          for i in $(seq 1 60); do
+            docker exec essai pg_isready -h 127.0.0.1 -U postgres -q && break
+            sleep 1
+          done
+          docker exec essai pg_isready -h 127.0.0.1 -U postgres
           docker exec essai createdb -U postgres essai
           docker exec essai pg_restore --no-owner --no-acl --exit-on-error -U postgres -d essai /sortie/base.dump
           docker exec -i essai psql -U postgres -d essai -tA -F"|" -v ON_ERROR_STOP=1 \
