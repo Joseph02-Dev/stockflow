@@ -2,6 +2,7 @@ import * as argon2 from 'argon2';
 import request from 'supertest';
 import type { INestApplication } from '@nestjs/common';
 import type { PrismaService } from '../../config/prisma.service.js';
+import { codeTotp, depuisBase32, genererSecretTotp, pasCourant } from './securite/totp.js';
 
 /**
  * Outils partagés des tests de la console (non embarqués dans le build :
@@ -10,18 +11,39 @@ import type { PrismaService } from '../../config/prisma.service.js';
  */
 export const MOT_DE_PASSE_TEST = 'motdepasse-solide-123';
 
-export async function creerOperateur(prisma: PrismaService) {
+/** Clé de double authentification de chaque opérateur de test, par email. */
+const secretsTotp = new Map<string, string>();
+
+/** Code à 6 chiffres valable maintenant pour cette clé (ce que montrerait l'application). */
+export function codeActuel(secret: string, decalagePas = 0): string {
+  return codeTotp(depuisBase32(secret), pasCourant(new Date()) + decalagePas);
+}
+
+/** Opérateur prêt à se connecter, double authentification déjà enrôlée (sauf enrole: false). */
+export async function creerOperateur(prisma: PrismaService, { enrole = true } = {}) {
   const email = `ops-${Date.now()}-${Math.random().toString(36).slice(2)}@stockflow.dev`;
+  const totpSecret = enrole ? genererSecretTotp() : null;
   const operateur = await prisma.operateur.create({
-    data: { email, nom: 'Opérateur Test', passwordHash: await argon2.hash(MOT_DE_PASSE_TEST) },
+    data: {
+      email,
+      nom: 'Opérateur Test',
+      passwordHash: await argon2.hash(MOT_DE_PASSE_TEST),
+      totpSecret,
+      totpActifAt: enrole ? new Date() : null,
+    },
   });
+  if (totpSecret) secretsTotp.set(email, totpSecret);
   return { ...operateur, motDePasse: MOT_DE_PASSE_TEST };
 }
 
+/** Connexion complète : mot de passe, puis code de double authentification. */
 export async function connecterOperateur(app: INestApplication, email: string): Promise<string> {
-  const reponse = await request(app.getHttpServer())
+  const etape = await request(app.getHttpServer())
     .post('/console/auth/login')
     .send({ email, motDePasse: MOT_DE_PASSE_TEST });
+  const reponse = await request(app.getHttpServer())
+    .post('/console/auth/code')
+    .send({ jetonEtape: etape.body.jetonEtape, code: codeActuel(secretsTotp.get(email)!) });
   return reponse.body.accessToken as string;
 }
 
