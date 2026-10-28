@@ -59,7 +59,9 @@ jobs:
           mkdir -p sortie
           psql_neon() { docker run --rm -i -e URL="$NEON_DATABASE_URL" "$IMAGE" sh -c 'psql "$URL" -tA -F"|" -v ON_ERROR_STOP=1'; }
           psql_neon < scripts/sauvegarde/comptages.sql > sortie/avant.txt
-          docker run --rm -e URL="$NEON_DATABASE_URL" -v "$PWD/sortie:/sortie" "$IMAGE" \
+          # Même utilisateur que le runner : le fichier doit pouvoir être
+          # effacé (shred) après chiffrement.
+          docker run --rm --user "$(id -u):$(id -g)" -e URL="$NEON_DATABASE_URL" -v "$PWD/sortie:/sortie" "$IMAGE" \
             pg_dump --format=custom --no-owner --no-acl --file=/sortie/base.dump "$NEON_DATABASE_URL"
           psql_neon < scripts/sauvegarde/comptages.sql > sortie/apres.txt
           ls -lh sortie/base.dump
