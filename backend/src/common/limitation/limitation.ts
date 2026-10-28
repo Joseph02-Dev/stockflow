@@ -33,6 +33,9 @@ export const LIMITES_STRICTES = {
   reinitialisation: { limit: 10, ttl: hours(1) },
   acceptationInvitation: { limit: 10, ttl: hours(1) },
   connexionConsole: { limit: 5, ttl: minutes(15) },
+  // Code de double authentification : 10 essais par quart d'heure et par IP
+  // (fautes de frappe), loin des 10⁶ combinaisons.
+  codeConsole: { limit: 10, ttl: minutes(15) },
   televersement: { limit: 30, ttl: minutes(10) },
   // Par IP, en plus du quota quotidien par entreprise (QuotaAssistant).
   assistant: { limit: 20, ttl: minutes(1) },

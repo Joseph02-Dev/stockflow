@@ -205,6 +205,18 @@ npm run --silent console:creer-operateur -- --email=vous@exemple.com --nom="Votr
 - Le mot de passe est haché avec argon2 ; il reste en revanche dans l'historique du shell : préférez un terminal éphémère ou effacez la ligne après coup.
 - Refuse de créer un opérateur dont l'email existe déjà (jamais d'écrasement).
 
+### Double authentification (obligatoire)
+
+La connexion à la console se fait en deux étapes : `POST /console/auth/login` (mot de passe) renvoie un jeton d'étape valable 5 minutes, puis `POST /console/auth/code` (`{ jetonEtape, code }`) ouvre la session de 2 h. Codes TOTP (RFC 6238 : SHA-1, 6 chiffres, 30 s), compatibles avec Google Authenticator, Microsoft Authenticator, 2FAS ou Aegis.
+
+- **Première connexion** : la console affiche un QR code (et la clé à saisir à la main) ; le premier code juste confirme l'enrôlement. Un opérateur créé avant cette mesure s'enrôle à sa prochaine connexion.
+- Un code ne sert qu'une fois (rejeu refusé) ; 10 essais de code par quart d'heure et par IP.
+- **Téléphone perdu ou changé** : effacer la double authentification, l'opérateur se réenrôle à la connexion suivante :
+
+```bash
+npm run --silent console:reinitialiser-2fa -- --email=vous@exemple.com
+```
+
 ## Base de données
 
 ORM : **Prisma 7** (adaptateur `@prisma/adapter-pg`). Schéma : `prisma/schema.prisma` — reflète les 11 entités validées en architecture (`archive` sur `emplacement`/`produit` ; `categorie` et `marque` ajoutées pour la fiche produit enrichie).

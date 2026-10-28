@@ -920,6 +920,12 @@ model Operateur {
   passwordHash        String    @map("password_hash")
   derniereConnexionAt DateTime? @map("derniere_connexion_at")
   createdAt           DateTime  @default(now()) @map("created_at")
+  // Double authentification (TOTP, RFC 6238), obligatoire : clé en base32,
+  // date de confirmation de l'enrôlement (null = à enrôler), dernier pas
+  // de temps accepté (un code ne sert qu'une fois).
+  totpSecret          String?   @map("totp_secret")
+  totpActifAt         DateTime? @map("totp_actif_at")
+  totpDernierPas      Int?      @map("totp_dernier_pas")
 
   journalEntrees JournalAudit[]
 

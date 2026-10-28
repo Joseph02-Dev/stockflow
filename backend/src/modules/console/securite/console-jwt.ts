@@ -7,6 +7,14 @@ export const CONSOLE_JWT = Symbol('CONSOLE_JWT');
 /** Valeur du claim `typ` de tout token opérateur. */
 export const TYPE_TOKEN_CONSOLE = 'console';
 
+/**
+ * Claim `typ` du jeton remis entre le mot de passe et le code de double
+ * authentification : il n'ouvre aucune route (ConsoleGuard exige « console »)
+ * et expire en 5 minutes.
+ */
+export const TYPE_TOKEN_ETAPE = 'console-etape';
+export const DUREE_JETON_ETAPE = '5m';
+
 export interface PayloadConsole {
   sub: string; // operateur_id
   typ: typeof TYPE_TOKEN_CONSOLE;
