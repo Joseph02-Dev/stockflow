@@ -1,7 +1,8 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
-import { randomUUID, randomBytes } from 'node:crypto';
+import { createHash, randomUUID, randomBytes } from 'node:crypto';
+import { InjectThrottlerStorage, type ThrottlerStorage } from '@nestjs/throttler';
 import ms from 'ms';
 import type { StringValue } from 'ms';
 import { PrismaService } from '../../config/prisma.service.js';
@@ -49,12 +50,23 @@ const SESSION_EXPIREE = 'Session expirée. Veuillez vous reconnecter.';
 const TENTATIVES_MAX = 5;
 const DUREE_BLOCAGE_MINUTES = 15;
 
+/**
+ * Empreinte argon2 d'un mot de passe jetable, vérifiée quand l'email est
+ * inconnu : la réponse prend le même temps qu'avec un compte existant, et
+ * la durée ne révèle plus si une adresse est inscrite.
+ */
+const EMPREINTE_FACTICE = argon2.hash(randomBytes(32).toString('hex'));
+
+/** Fenêtre de comptage des échecs sur un email inconnu (comme le compteur en base, effacé au succès). */
+const FENETRE_ECHECS_INCONNUS_MS = 24 * 3_600_000;
+
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     @Inject(EMAIL_SERVICE) private readonly emailService: EmailService,
+    @InjectThrottlerStorage() private readonly compteurs: ThrottlerStorage,
   ) {}
 
   /**
@@ -118,17 +130,11 @@ export class AuthService {
    */
   async login(dto: LoginDto): Promise<AuthResult> {
     const utilisateur = await this.prisma.utilisateur.findUnique({ where: { email: dto.email } });
-    if (!utilisateur) {
-      // Aucun compte : pas de compteur à incrémenter, le message reste
-      // générique comme toujours.
-      throw new UnauthorizedException(IDENTIFIANTS_INVALIDES);
-    }
+    if (!utilisateur) return this.echecEmailInconnu(dto);
 
     if (utilisateur.bloqueJusqua && utilisateur.bloqueJusqua > new Date()) {
       const minutesRestantes = Math.ceil((utilisateur.bloqueJusqua.getTime() - Date.now()) / 60000);
-      throw new UnauthorizedException(
-        `Compte temporairement bloqué suite à plusieurs échecs. Réessayez dans ${minutesRestantes} minute(s).`,
-      );
+      throw new UnauthorizedException(messageBlocage(minutesRestantes));
     }
 
     const motDePasseValide = await argon2.verify(utilisateur.passwordHash, dto.password);
@@ -144,10 +150,7 @@ export class AuthService {
         );
       }
       await this.prisma.utilisateur.update({ where: { id: utilisateur.id }, data: { tentativesEchouees: tentatives } });
-      const restantes = TENTATIVES_MAX - tentatives;
-      throw new UnauthorizedException(
-        `${IDENTIFIANTS_INVALIDES} ${restantes} tentative${restantes > 1 ? 's' : ''} restante${restantes > 1 ? 's' : ''} avant blocage temporaire de ${DUREE_BLOCAGE_MINUTES} minutes.`,
-      );
+      throw new UnauthorizedException(messageEchec(TENTATIVES_MAX - tentatives));
     }
 
     // Mot de passe juste mais accès retiré : on le dit (la personne a
@@ -176,6 +179,37 @@ export class AuthService {
     });
 
     return this.construireReponseAuth(utilisateur, entreprise);
+  }
+
+  /**
+   * Email inconnu : mêmes réponses, dans le même ordre et le même temps,
+   * qu'un compte existant (compte de tentatives restantes, puis blocage de
+   * 15 minutes au 5e échec). Le compteur vit dans le stockage de la
+   * limitation de débit (Redis partagé, sinon mémoire), sous l'empreinte
+   * de l'adresse : jamais l'adresse elle-même.
+   */
+  private async echecEmailInconnu(dto: LoginDto): Promise<never> {
+    await argon2.verify(await EMPREINTE_FACTICE, dto.password);
+    const cle = `connexion-inconnue:${createHash('sha256').update(dto.email.toLowerCase()).digest('hex')}`;
+    const compte = await this.compteurs.increment(
+      cle,
+      FENETRE_ECHECS_INCONNUS_MS,
+      TENTATIVES_MAX - 1,
+      DUREE_BLOCAGE_MINUTES * 60_000,
+      'connexion',
+    );
+    if (compte.isBlocked) {
+      // Le premier refus du blocage l'annonce (5e échec), les suivants donnent
+      // le temps restant, comme pour un compte existant. Compteur d'annonce
+      // de la durée du blocage : il repart à zéro avec lui.
+      const annonce = await this.compteurs.increment(`${cle}:annonce`, DUREE_BLOCAGE_MINUTES * 60_000, Number.MAX_SAFE_INTEGER, 0, 'connexion');
+      if (annonce.totalHits === 1) {
+        throw new UnauthorizedException(`Trop de tentatives échouées. Compte bloqué pendant ${DUREE_BLOCAGE_MINUTES} minutes.`);
+      }
+      // timeToBlockExpire : en secondes (stockage de la limitation).
+      throw new UnauthorizedException(messageBlocage(Math.max(1, Math.ceil(compte.timeToBlockExpire / 60))));
+    }
+    throw new UnauthorizedException(messageEchec(TENTATIVES_MAX - compte.totalHits));
   }
 
   /**
@@ -593,4 +627,12 @@ export class AuthService {
       entreprise: { id: entreprise.id, nom: entreprise.nom },
     };
   }
+}
+
+function messageEchec(restantes: number): string {
+  return `${IDENTIFIANTS_INVALIDES} ${restantes} tentative${restantes > 1 ? 's' : ''} restante${restantes > 1 ? 's' : ''} avant blocage temporaire de ${DUREE_BLOCAGE_MINUTES} minutes.`;
+}
+
+function messageBlocage(minutesRestantes: number): string {
+  return `Compte temporairement bloqué suite à plusieurs échecs. Réessayez dans ${minutesRestantes} minute(s).`;
 }
