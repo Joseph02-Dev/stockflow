@@ -9,7 +9,8 @@ import {
   delaiAvantNouvelleTentative,
   signer,
 } from './regles-webhook.js';
-import { refusUrlWebhook } from './securite-url.js';
+import { refusUrlWebhook, reseauPriveAutorise } from './securite-url.js';
+import { AdresseRefusee, posterWebhook } from './envoi-securise.js';
 
 interface LivraisonReservee {
   id: string;
@@ -96,11 +97,9 @@ export class LivreurWebhooks {
         donnees: evenement.charge,
       });
       try {
-        const reponse = await fetch(abonnement.url, {
-          method: 'POST',
-          redirect: 'manual',
-          signal: AbortSignal.timeout(DELAI_REPONSE_MS),
-          headers: {
+        codeHttp = await posterWebhook(
+          abonnement.url,
+          {
             'Content-Type': 'application/json',
             // En-têtes gardés au nom d'origine : les intégrations existantes les vérifient.
             'User-Agent': 'StockFlow-Webhooks/1.0',
@@ -108,13 +107,13 @@ export class LivreurWebhooks {
             'X-StockFlow-Livraison': livraison.id,
             'X-StockFlow-Signature': signer(abonnement.secret, Math.floor(Date.now() / 1000), corps),
           },
-          body: corps,
-        });
-        codeHttp = reponse.status;
-        await reponse.body?.cancel();
-        if (!reponse.ok) erreur = `Réponse HTTP ${reponse.status}.`;
+          corps,
+          DELAI_REPONSE_MS,
+          reseauPriveAutorise(),
+        );
+        if (codeHttp < 200 || codeHttp >= 300) erreur = `Réponse HTTP ${codeHttp}.`;
       } catch (e) {
-        erreur = (e as Error).name === 'TimeoutError' ? `Pas de réponse en ${DELAI_REPONSE_MS / 1000} s.` : `Envoi impossible : ${(e as Error).message}`;
+        erreur = messageEchecEnvoi(e);
       }
     }
 
@@ -193,4 +192,15 @@ export class LivreurWebhooks {
       });
     }
   }
+}
+
+/**
+ * Motif d'échec montré à l'entreprise : jamais le message brut du système
+ * (il peut décrire le réseau de l'hébergeur), seulement la cause et son code.
+ */
+export function messageEchecEnvoi(erreur: unknown): string {
+  if (erreur instanceof AdresseRefusee) return erreur.message;
+  const { name, code } = erreur as { name?: string; code?: string };
+  if (name === 'TimeoutError' || name === 'AbortError') return `Pas de réponse en ${DELAI_REPONSE_MS / 1000} s.`;
+  return code && /^E[A-Z_]+$/.test(code) ? `Connexion impossible au serveur destinataire (${code}).` : 'Connexion impossible au serveur destinataire.';
 }
