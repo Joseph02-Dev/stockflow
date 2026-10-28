@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, Info } from 'lucide-react';
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, Info } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { formatCompact, formatNombre, pluriel } from '@/lib/format';
 import { PageHeader } from '@/components/patterns/Page';
@@ -9,6 +9,8 @@ import { Compteur } from '@/components/patterns/Compteur';
 import { EmptyState, ErrorState, Squelette } from '@/components/patterns/States';
 import { Chandeliers, CourbeTendance } from './graphiques';
 import './statistiques.css';
+import { FlecheLien } from '@/components/ui/LienAction';
+import { lienActionClasses } from '@/components/ui/lienActionClasses';
 
 type Periode = '7j' | '30j' | '12m';
 
@@ -447,9 +449,9 @@ export function StatistiquesPage() {
                       <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                       <span>
                         <b>{partCredit} % vendus à crédit</b> sur la période.{' '}
-                        <Link to="/creances" className="inline-flex items-center gap-1 font-semibold text-action hover:underline">
+                        <Link to="/creances" className={lienActionClasses()}>
                           Voir les créances
-                          <ArrowRight className="size-3.5" aria-hidden="true" />
+                          <FlecheLien />
                         </Link>
                       </span>
                     </p>
@@ -494,9 +496,9 @@ export function StatistiquesPage() {
                           {s.etatStock.rupture} {pluriel('produit', s.etatStock.rupture)} en rupture
                         </b>{' '}
                         : {s.etatStock.rupture > 1 ? 'ils ne peuvent plus être vendus' : 'il ne peut plus être vendu'}.{' '}
-                        <Link to="/alertes" className="inline-flex items-center gap-1 font-semibold text-action hover:underline">
+                        <Link to="/alertes" className={lienActionClasses()}>
                           Voir les alertes
-                          <ArrowRight className="size-3.5" aria-hidden="true" />
+                          <FlecheLien />
                         </Link>
                       </span>
                     </p>

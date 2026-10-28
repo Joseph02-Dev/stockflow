@@ -10,6 +10,7 @@ import { Alert } from '@/components/ui/Alert';
 import { ChampMotDePasse } from './ChampMotDePasse';
 import { IndicateurForceMotDePasse } from './IndicateurForceMotDePasse';
 import { api, messageErreur } from '@/lib/api';
+import { lienEnLigneClasses } from '@/components/ui/lienActionClasses';
 
 const schema = z.object({
   password: z.string().min(8, 'Le mot de passe doit contenir au moins 8 caractères.'),
@@ -74,7 +75,7 @@ export function ReinitialiserMotDePassePage() {
       description="Choisissez un nouveau mot de passe pour votre compte."
       panneauGauche={panneauGauche}
       pied={
-        <Link to="/connexion" className="font-medium text-action hover:underline">
+        <Link to="/connexion" className={lienEnLigneClasses()}>
           Retour à la connexion
         </Link>
       }

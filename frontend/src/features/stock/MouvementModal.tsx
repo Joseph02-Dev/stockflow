@@ -21,6 +21,7 @@ import { lireNumerosSerie } from '@/lib/strategieSortie';
 import type { Conditionnement } from '@/features/produits/ConditionnementsProduit';
 import { RACCOURCIS_PEREMPTION, dansMois, datePeremption as formaterPeremption } from '@/features/peremptions/presentation';
 import type { LotProduit } from '@/features/peremptions/types';
+import { boutonClasses } from '@/components/ui/boutonClasses';
 
 interface Option {
   id: string;
@@ -374,7 +375,7 @@ export function MouvementModal({
                 } else setType(valeur);
               }}
               className={cn(
-                'flex flex-1 items-center justify-center gap-2 rounded-md border px-3 py-2 text-corps font-medium transition-colors',
+                'retour-appui flex flex-1 items-center justify-center gap-2 rounded-md border px-3 py-2 text-corps font-medium transition-colors',
                 type === valeur
                   ? 'border-action bg-action-wash text-action'
                   : 'border-rule text-steel-500 hover:bg-survol',
@@ -439,7 +440,7 @@ export function MouvementModal({
             Rangement prévu pour ce produit : <span className="font-medium">{rangementPropose.nom}</span>.{' '}
             <button
               type="button"
-              className="font-medium underline"
+              className={boutonClasses('secondary', 'ml-1', { taille: 'sm' })}
               onClick={() => setValue('emplacementId', rangementPropose.id, { shouldDirty: true })}
             >
               Ranger là
@@ -555,7 +556,7 @@ export function MouvementModal({
                     key={libelle}
                     type="button"
                     onClick={() => setValue('datePeremption', dansMois(mois), { shouldValidate: true, shouldDirty: true })}
-                    className="h-9 flex-1 rounded-md border border-rule-strong bg-surface text-corps font-medium text-ink-900 hover:bg-survol"
+                    className={boutonClasses('secondary', 'flex-1')}
                   >
                     {libelle}
                   </button>

@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { api, messageErreur } from '@/lib/api';
+import { lienEnLigneClasses } from '@/components/ui/lienActionClasses';
+import { boutonClasses } from '@/components/ui/boutonClasses';
 
 const schema = z.object({
   email: z.string().min(1, 'L’email est requis.').email('Adresse email invalide.'),
@@ -73,10 +75,8 @@ export function MotDePasseOubliePage() {
             <Button variant="secondary" className="flex-1" onClick={() => envoyer(getValues())} loading={isSubmitting}>
               Renvoyer le lien
             </Button>
-            <Link to="/connexion" className="flex-1">
-              <Button variant="primary" className="w-full">
-                Retour connexion
-              </Button>
+            <Link to="/connexion" className={boutonClasses('primary', 'flex-1')}>
+              Retour connexion
             </Link>
           </div>
         </div>
@@ -90,7 +90,7 @@ export function MotDePasseOubliePage() {
       description="Nous vous enverrons un lien pour en choisir un nouveau."
       panneauGauche={panneauGauche}
       pied={
-        <Link to="/connexion" className="font-medium text-action hover:underline">
+        <Link to="/connexion" className={lienEnLigneClasses()}>
           Retour à la connexion
         </Link>
       }

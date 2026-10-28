@@ -15,6 +15,8 @@ import { apiConsole } from './api';
 import { setSessionConsole, useSessionConsole } from './session';
 import type { SessionConsole } from './session';
 import './console.css';
+import { boutonClasses } from '@/components/ui/boutonClasses';
+import { lienEnLigneClasses } from '@/components/ui/lienActionClasses';
 
 const GARANTIES = [
   { Icone: RotateCcwClock, texte: 'Chaque connexion et chaque action sont journalisées' },
@@ -203,7 +205,7 @@ function EtapeCode({
       <button
         type="button"
         onClick={recommencer}
-        className="mb-3 inline-flex items-center gap-1 text-meta font-semibold text-steel-500 hover:text-ink-900"
+        className={boutonClasses('ghost', '-ml-3 mb-2', { taille: 'sm' })}
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
         Recommencer
@@ -237,7 +239,7 @@ function EtapeCode({
           )}
           <a
             href={enrolement.otpauth}
-            className="text-meta font-semibold text-action hover:underline"
+            className={lienEnLigneClasses('text-meta')}
           >
             Sur ce téléphone : ouvrir dans l’application
           </a>

@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowRight,
   Bell,
   CalendarClock,
   CalendarX,
@@ -19,6 +18,8 @@ import { formatNombre, pluriel, tempsRelatif } from '@/lib/format';
 import { Button } from '@/components/ui/Button';
 import { datePeremption } from '@/features/peremptions/presentation';
 import { ActivationPush } from './ActivationPush';
+import { boutonClasses } from '@/components/ui/boutonClasses';
+import { LienAction } from '@/components/ui/LienAction';
 
 type Niveau = 'CRITIQUE' | 'AVERTISSEMENT' | 'INFO';
 type TypeNotification = 'RUPTURE' | 'STOCK_FAIBLE' | 'LOT_PERIME' | 'LOT_BIENTOT_PERIME' | 'LOT_A_SURVEILLER' | 'BIENVENUE';
@@ -215,10 +216,7 @@ export function ClocheNotifications() {
         aria-expanded={ouvert}
         aria-label={nonLues > 0 ? `Notifications : ${nonLues} non lue${nonLues > 1 ? 's' : ''}` : 'Notifications'}
         title="Notifications"
-        className={cn(
-          'relative inline-flex size-9 items-center justify-center rounded-md text-steel-700 transition-colors hover:bg-survol hover:text-ink-900',
-          ouvert && 'bg-survol text-ink-900',
-        )}
+        className={boutonClasses('ghost', cn('relative', ouvert && 'bg-survol text-ink-900'), { icone: true })}
       >
         <Bell className="size-[18px]" aria-hidden="true" />
         {nonLues > 0 && (
@@ -243,7 +241,7 @@ export function ClocheNotifications() {
               type="button"
               onClick={() => marquer.mutate(notifications.filter((n) => !n.lue).map((n) => n.cle))}
               disabled={nonLues === 0}
-              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-meta font-semibold text-action transition-colors hover:bg-action-wash disabled:cursor-default disabled:bg-transparent disabled:text-steel-500"
+              className={boutonClasses('ghost', undefined, { taille: 'sm' })}
             >
               <CheckCheck className="size-4" aria-hidden="true" />
               Tout marquer comme lu
@@ -264,7 +262,7 @@ export function ClocheNotifications() {
                     setDeplie(null);
                   }}
                   className={cn(
-                    'inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-meta font-medium transition-colors',
+                    'retour-appui inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-meta font-medium transition-colors',
                     actif ? 'border-action bg-action text-sur-couleur' : 'border-rule bg-surface text-steel-700 hover:bg-survol',
                   )}
                 >
@@ -296,9 +294,9 @@ export function ClocheNotifications() {
           <ul className="flex min-h-0 flex-col gap-1 overflow-y-auto p-2">
             {requete.isLoading && <li className="px-4 py-10 text-center text-corps text-steel-500">Chargement…</li>}
             {requete.isError && (
-              <li className="px-4 py-10 text-center text-corps text-steel-500">
-                Impossible de charger les notifications.{' '}
-                <button type="button" className="font-semibold text-action hover:underline" onClick={() => void requete.refetch()}>
+              <li className="flex flex-col items-center gap-3 px-4 py-10 text-center text-corps text-steel-500">
+                Impossible de charger les notifications.
+                <button type="button" className={boutonClasses('secondary', undefined, { taille: 'sm' })} onClick={() => void requete.refetch()}>
                   Réessayer
                 </button>
               </li>
@@ -403,14 +401,9 @@ export function ClocheNotifications() {
           </ul>
 
           <div className="flex justify-center border-t border-rule p-2">
-            <Link
-              to="/alertes"
-              onClick={() => fermer()}
-              className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-corps font-semibold text-action transition-colors hover:bg-action-wash"
-            >
+            <LienAction to="/alertes" onClick={() => fermer()}>
               Voir toutes les alertes
-              <ArrowRight className="size-4" aria-hidden="true" />
-            </Link>
+            </LienAction>
           </div>
         </div>
       )}

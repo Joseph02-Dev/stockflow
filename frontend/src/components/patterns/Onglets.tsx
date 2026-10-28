@@ -52,6 +52,7 @@ export function Onglets<C extends string>({
           title={onglet.desactive ? onglet.raison : undefined}
           className={cn(
             SEGMENT,
+            'retour-appui',
             actif === onglet.cle ? 'font-semibold text-ink-900' : 'font-medium text-steel-500 hover:text-ink-900',
             'disabled:cursor-not-allowed disabled:text-steel-400 disabled:hover:text-steel-400',
           )}

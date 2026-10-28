@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { AuthLayout } from '@/layouts/AuthLayout';
-import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { api, messageErreur } from '@/lib/api';
 import { setSession } from '@/lib/session';
 import type { ReponseSession } from '@/lib/session';
 import { PointsChargement } from '@/components/ui/PointsChargement';
+import { boutonClasses } from '@/components/ui/boutonClasses';
 
 const panneauGauche = (
   <div className="flex flex-col gap-8">
@@ -77,10 +77,8 @@ export function VerifierEmailPage() {
                 <Alert variant="error">{erreur}</Alert>
               </div>
             )}
-            <Link to="/connexion" className="w-full">
-              <Button variant="primary" className="w-full">
-                Retour à la connexion
-              </Button>
+            <Link to="/connexion" className={boutonClasses('primary', 'w-full')}>
+              Retour à la connexion
             </Link>
           </>
         )}

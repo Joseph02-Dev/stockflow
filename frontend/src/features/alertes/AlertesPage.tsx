@@ -268,7 +268,7 @@ export function AlertesPage() {
             {filtre ? (
               <>
                 Filtre « {filtre === 'rupture' ? 'En rupture' : 'Sous le seuil'} » ·{' '}
-                <button type="button" onClick={() => setFiltre(null)} className="font-semibold text-action hover:underline">
+                <button type="button" onClick={() => setFiltre(null)} className={boutonClasses('ghost', undefined, { taille: 'sm' })}>
                   Tout afficher
                 </button>
               </>

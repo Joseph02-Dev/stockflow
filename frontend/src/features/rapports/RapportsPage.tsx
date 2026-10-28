@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import {
   AlertTriangle,
   ArrowLeftRight,
-  ArrowRight,
   Check,
   Download,
   ExternalLink,
@@ -31,6 +30,8 @@ import { CHAMPS_IDENTITE, useEntreprise } from '@/features/parametres/donnees';
 import { nomDeFichier, rendrePremierePage, telecharger } from './apercuPdf';
 import type { ApercuRapport, ParametresRapport, Periode, TypeRapport } from './types';
 import './rapports.css';
+import { FlecheLien } from '@/components/ui/LienAction';
+import { lienActionClasses } from '@/components/ui/lienActionClasses';
 
 interface DefinitionRapport {
   type: TypeRapport;
@@ -311,9 +312,9 @@ export function RapportsPage() {
             ))}
           </span>
           {estAdmin ? (
-            <Link to="/parametres" className="inline-flex items-center gap-1 text-[13px] font-semibold text-action hover:underline sm:ml-auto">
+            <Link to="/parametres" className={lienActionClasses('sm:ml-auto')}>
               Compléter dans Paramètres
-              <ArrowRight className="size-4" aria-hidden="true" />
+              <FlecheLien />
             </Link>
           ) : (
             <span className="text-[13px] text-steel-500 sm:ml-auto">Un administrateur peut les compléter.</span>

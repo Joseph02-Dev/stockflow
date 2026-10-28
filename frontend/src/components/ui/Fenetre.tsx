@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn';
 import { useEcranMobile } from '@/lib/useEcranMobile';
 import { useBalayageFermeture } from '@/lib/useBalayageFermeture';
 import { Button } from './Button';
+import { boutonClasses } from './boutonClasses';
 
 export interface FenetreProps {
   ouvert: boolean;
@@ -197,7 +198,7 @@ export function Fenetre({
               type="button"
               onClick={demanderFermeture}
               aria-label="Fermer"
-              className="-m-1 flex size-9 shrink-0 items-center justify-center rounded-md text-steel-500 transition-colors hover:bg-survol hover:text-ink-900 max-md:size-11"
+              className={boutonClasses('ghost', '-m-1 text-steel-500 max-md:size-11', { icone: true })}
             >
               <X className="size-5" aria-hidden="true" />
             </button>

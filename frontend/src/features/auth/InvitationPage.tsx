@@ -15,6 +15,8 @@ import { IndicateurForceMotDePasse } from './IndicateurForceMotDePasse';
 import { api, messageErreur } from '@/lib/api';
 import { setSession } from '@/lib/session';
 import type { ReponseSession } from '@/lib/session';
+import { boutonClasses } from '@/components/ui/boutonClasses';
+import { lienEnLigneClasses } from '@/components/ui/lienActionClasses';
 
 const schema = z
   .object({
@@ -140,7 +142,7 @@ export function InvitationPage() {
   const pied = (
     <>
       Vous avez déjà un compte ?{' '}
-      <Link to="/connexion" className="font-medium text-action hover:underline">
+      <Link to="/connexion" className={lienEnLigneClasses()}>
         Se connecter
       </Link>
     </>
@@ -292,7 +294,7 @@ function ChoixPhoto({ fichier, onChange }: { fichier: File | null; onChange: (fi
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className="rounded-md border border-rule bg-surface px-3 py-1.5 text-corps font-medium text-ink-900 transition-colors hover:bg-survol"
+              className={boutonClasses('secondary', undefined, { taille: 'sm' })}
             >
               {fichier ? 'Changer' : 'Choisir une photo'}
             </button>
@@ -301,7 +303,7 @@ function ChoixPhoto({ fichier, onChange }: { fichier: File | null; onChange: (fi
                 type="button"
                 onClick={() => choisir(null)}
                 aria-label="Retirer la photo"
-                className="rounded-md p-1.5 text-steel-500 transition-colors hover:bg-survol hover:text-rupture"
+                className={boutonClasses('ghost', 'hover:text-rupture', { taille: 'sm', icone: true })}
               >
                 <X className="size-4" aria-hidden="true" />
               </button>

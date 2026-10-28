@@ -19,6 +19,9 @@ import { ErrorState, LoadingState } from '@/components/patterns/States';
 import { Input } from '@/components/ui/Input';
 import { lireNumerosSerie } from '@/lib/strategieSortie';
 import { RACCOURCIS_PEREMPTION, dansMois } from '@/features/peremptions/presentation';
+import { boutonClasses } from '@/components/ui/boutonClasses';
+import { FlecheLien } from '@/components/ui/LienAction';
+import { lienActionClasses } from '@/components/ui/lienActionClasses';
 
 interface Ligne {
   id: string;
@@ -195,9 +198,9 @@ export function CommandeDetailPage() {
         description={
           <>
             Réception à {data.emplacement.nom}.{' '}
-            <Link to={`/fournisseurs/${data.fournisseur.id}`} className="text-action hover:underline">
+            <Link to={`/fournisseurs/${data.fournisseur.id}`} className={lienActionClasses()}>
               Fiche fournisseur
-            </Link>
+            <FlecheLien /></Link>
           </>
         }
         action={
@@ -366,7 +369,7 @@ export function CommandeDetailPage() {
                         key={libelle}
                         type="button"
                         onClick={() => saisirLot(ligne.produitId, 'datePeremption', dansMois(mois))}
-                        className="h-9 flex-1 rounded-md border border-rule-strong bg-surface text-corps font-medium text-ink-900 hover:bg-survol"
+                        className={boutonClasses('secondary', 'flex-1')}
                       >
                         {libelle}
                       </button>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { boutonClasses } from '@/components/ui/boutonClasses';
 
 export interface ActionMenu {
   libelle: string;
@@ -39,7 +40,7 @@ export function MenuActions({ libelle, actions }: { libelle: string; actions: Ac
         aria-haspopup="menu"
         aria-expanded={ouvert}
         onClick={() => setOuvert((o) => !o)}
-        className="flex size-8 items-center justify-center rounded-md text-steel-500 hover:bg-survol hover:text-ink-900"
+        className={boutonClasses('ghost', 'text-steel-500', { taille: 'sm', icone: true })}
       >
         <MoreHorizontal className="size-4" aria-hidden="true" />
       </button>

@@ -10,6 +10,8 @@ import { Modal } from '@/components/ui/Modal';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { statutStock } from '@/components/patterns/statutStock';
 import './referentiels.css';
+import { FlecheLien } from '@/components/ui/LienAction';
+import { lienActionClasses } from '@/components/ui/lienActionClasses';
 
 interface ElementReference {
   id: string;
@@ -195,9 +197,9 @@ export function ReferenceListSection({ endpoint, champ, libelleSingulier, exempl
                 {lienSans && (
                   <>
                     {' · '}
-                    <Link to={lienSans} className="font-semibold text-action hover:underline">
-                      Les classer dans Produits →
-                    </Link>
+                    <Link to={lienSans} className={lienActionClasses()}>
+                      Les classer dans Produits
+                    <FlecheLien /></Link>
                   </>
                 )}
               </>
@@ -441,9 +443,9 @@ export function ReferenceListSection({ endpoint, champ, libelleSingulier, exempl
                         </span>
                       )}
                       {lienProduits && (
-                        <Link to={`/produits?${champ}=${e.id}`} className="text-[13px] font-semibold text-action hover:underline">
-                          Voir les produits →
-                        </Link>
+                        <Link to={`/produits?${champ}=${e.id}`} className={lienActionClasses()}>
+                          Voir les produits
+                        <FlecheLien /></Link>
                       )}
                     </>
                   )}
@@ -467,9 +469,9 @@ export function ReferenceListSection({ endpoint, champ, libelleSingulier, exempl
               <p className="text-corps text-steel-500">Une {libelleSingulier} se choisit dans la fiche du produit.</p>
               {lienSans && (
                 <div className="mt-auto border-t border-dashed border-rule pt-2.5">
-                  <Link to={lienSans} className="text-[13px] font-semibold text-action hover:underline">
-                    Voir {sans > 1 ? 'ces produits' : 'ce produit'} →
-                  </Link>
+                  <Link to={lienSans} className={lienActionClasses()}>
+                    Voir {sans > 1 ? 'ces produits' : 'ce produit'}
+                  <FlecheLien /></Link>
                 </div>
               )}
             </li>

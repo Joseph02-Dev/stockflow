@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { ArrowLeftRight, ArrowRight, Building2, CircleDashed, Clock, TrendingUp } from 'lucide-react';
+import { ArrowLeftRight, Building2, CircleDashed, Clock, TrendingUp } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { messageErreur } from '@/lib/api';
 import { formatNombre, pluriel, tempsRelatif } from '@/lib/format';
@@ -15,6 +15,8 @@ import type { EntreeJournal } from './actionsJournal';
 import { PhraseJournal } from './PhraseJournal';
 import type { Page } from './types';
 import './console.css';
+import { FlecheLien } from '@/components/ui/LienAction';
+import { lienActionClasses } from '@/components/ui/lienActionClasses';
 
 interface Apercu {
   kpi: {
@@ -246,9 +248,9 @@ export function ConsoleApercuPage() {
           <PanneauEntete
             titre="Dernières actions"
             action={
-              <Link to="/console/journal" className="inline-flex items-center gap-1 text-meta font-semibold text-action hover:underline">
+              <Link to="/console/journal" className={lienActionClasses('text-meta')}>
                 Tout le journal
-                <ArrowRight className="size-3.5" aria-hidden="true" />
+                <FlecheLien />
               </Link>
             }
           />

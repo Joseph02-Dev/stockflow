@@ -445,7 +445,7 @@ export function BoutonMotif({
       aria-pressed={actif}
       onClick={() => onChoisir(motif)}
       className={cn(
-        'flex items-center justify-center gap-2 rounded-md border px-3 text-corps font-medium transition-colors',
+        'retour-appui flex items-center justify-center gap-2 rounded-md border px-3 text-corps font-medium transition-colors',
         page ? 'h-12' : 'h-10',
         actif ? 'border-action bg-action-wash text-action' : 'border-rule-strong text-ink-900 hover:bg-survol',
       )}
