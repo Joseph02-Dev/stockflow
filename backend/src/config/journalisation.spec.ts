@@ -5,7 +5,8 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AppModule } from '../app.module.js';
 import { PrismaService } from './prisma.service.js';
-import { optionsJournalisation, urlJournalisee } from './journalisation.js';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import { niveauJournal, optionsJournalisation, urlJournalisee } from './journalisation.js';
 import { MOT_DE_PASSE_TEST, connecterClient, creerEntrepriseAvecAdmin, nettoyer } from '../modules/console/console-test.utils.js';
 
 describe('urlJournalisee', () => {
@@ -82,6 +83,19 @@ describe('Journaux structurés — intégration réelle', () => {
     const echec = journaux().find((j) => j.req?.url === '/auth/login' && j.res?.statusCode === 401);
     expect(echec).toMatchObject({ level: 'warn' });
     expect(echec).not.toHaveProperty('entrepriseId');
+  });
+
+  it('401 d’une session expirée en info, 401 d’une connexion refusée et 403 en warn', async () => {
+    expect((await http().get('/commandes').set('Authorization', 'Bearer jeton.expire.invalide')).status).toBe(401);
+    expect(journaux().find((j) => j.req?.url === '/commandes' && j.res?.statusCode === 401)).toMatchObject({ level: 'info' });
+    expect((await http().post('/console/auth/login').send({ email: admin.email, motDePasse: 'faux' })).status).toBe(401);
+    expect(journaux().find((j) => j.req?.url === '/console/auth/login')).toMatchObject({ level: 'warn' });
+    const requete = (url: string) => ({ url }) as IncomingMessage;
+    const reponse = (statusCode: number) => ({ statusCode }) as ServerResponse;
+    expect(niveauJournal(requete('/emplacements'), reponse(403))).toBe('warn');
+    expect(niveauJournal(requete('/auth/refresh'), reponse(401))).toBe('warn');
+    expect(niveauJournal(requete('/stock?q=1'), reponse(401))).toBe('info');
+    expect(niveauJournal(requete('/stock'), reponse(500))).toBe('error');
   });
 
   it('identifiant de requête : repris du proxy s’il est valide, remplacé sinon', async () => {
