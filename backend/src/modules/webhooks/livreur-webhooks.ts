@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, Interval } from '@nestjs/schedule';
 import { PrismaService } from '../../config/prisma.service.js';
 import { fonctionnalitesSuspendues } from '../../config/fonctionnalites.js';
-import { emettreEvenement } from './emission.js';
+import { derniereEmission, emettreEvenement } from './emission.js';
 import {
   ECHECS_AVANT_DESACTIVATION,
   MAX_TENTATIVES,
@@ -21,9 +21,12 @@ interface LivraisonReservee {
 
 const DELAI_REPONSE_MS = 5_000;
 const PAR_PASSAGE = 50;
+/** Après une émission, la base est interrogée à chaque passage pendant ce délai. */
+const FENETRE_APRES_EMISSION_MS = 5 * 60_000;
 
 /**
- * Livreur des webhooks : toutes les 15 s, réserve les livraisons dues
+ * Livreur des webhooks : toutes les 15 s (seulement après une émission ou
+ * à l'échéance d'une nouvelle tentative), réserve les livraisons dues
  * (FOR UPDATE SKIP LOCKED : plusieurs instances ne prennent jamais la même)
  * puis les envoie hors transaction. Échec : nouvelle tentative de plus en
  * plus espacée, abandon après 6 ; trop d'échecs consécutifs désactivent
@@ -33,6 +36,8 @@ const PAR_PASSAGE = 50;
 export class LivreurWebhooks {
   private readonly journal = new Logger(LivreurWebhooks.name);
   private enCours = false;
+  /** Prochaine livraison due connue (ms) ; 0 : inconnue, passer dès le démarrage. */
+  private prochaineEcheance = 0;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -41,15 +46,38 @@ export class LivreurWebhooks {
     // En test, les passages sont déclenchés explicitement (livrer()) : un
     // passage automatique au milieu d'un test le rendrait instable.
     if (process.env.NODE_ENV === 'test') return;
-    if (this.enCours || fonctionnalitesSuspendues().includes('webhooks')) return;
+    await this.passageSiUtile(Date.now());
+  }
+
+  /**
+   * Sans émission récente ni livraison due, aucune requête : la base (Neon)
+   * peut se mettre en veille même quand l'API reste éveillée. Renvoie vrai
+   * si la base a été interrogée.
+   */
+  async passageSiUtile(maintenant: number): Promise<boolean> {
+    if (this.enCours || fonctionnalitesSuspendues().includes('webhooks')) return false;
+    const emissionRecente = maintenant - derniereEmission() < FENETRE_APRES_EMISSION_MS;
+    if (!emissionRecente && maintenant < this.prochaineEcheance) return false;
     this.enCours = true;
     try {
       await this.livrer();
+      this.prochaineEcheance = await this.prochaineEcheanceConnue();
     } catch (erreur) {
       this.journal.error(`Livraison des webhooks en échec : ${(erreur as Error).message}`);
     } finally {
       this.enCours = false;
     }
+    return true;
+  }
+
+  /** Échéance de la prochaine livraison en attente, l'infini s'il n'y en a aucune. */
+  private async prochaineEcheanceConnue(): Promise<number> {
+    const prochaine = await this.prisma.livraisonWebhook.findFirst({
+      where: { statut: 'EN_ATTENTE' },
+      orderBy: { prochaineTentativeAt: 'asc' },
+      select: { prochaineTentativeAt: true },
+    });
+    return prochaine?.prochaineTentativeAt.getTime() ?? Number.POSITIVE_INFINITY;
   }
 
   /** Un passage : renvoie le nombre de livraisons tentées. */

@@ -51,5 +51,10 @@ describe('AppController', () => {
         vi.useRealTimers();
       }
     });
+
+    it('sonde « vivant » : 200 sans aucune requête en base', () => {
+      expect(appController.vivant()).toEqual({ statut: 'ok' });
+      expect(prisma.$queryRaw).not.toHaveBeenCalled();
+    });
   });
 });

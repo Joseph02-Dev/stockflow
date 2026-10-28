@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../config/prisma.service.js';
 import type { CreerAbonnementDto, ModifierAbonnementDto } from './dto/abonnement.dto.js';
+import { signalerEmission } from './emission.js';
 import { EVENEMENT_TEST } from './regles-webhook.js';
 import { refusUrlWebhook } from './securite-url.js';
 
@@ -72,6 +73,7 @@ export class WebhooksService {
   /** Événement « test.ping » pour ce seul abonnement, envoyé au prochain passage du livreur. */
   async tester(entrepriseId: string, id: string) {
     await this.abonnementOuEchouer(entrepriseId, id);
+    signalerEmission();
     const evenement = await this.prisma.evenementWebhook.create({
       data: {
         entrepriseId,
