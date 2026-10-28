@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Selecteur } from '@/components/ui/Selecteur';
 import { Alert } from '@/components/ui/Alert';
 import { Card, PageHeader, PanneauEntete } from '@/components/patterns/Page';
+import { boutonClasses } from '@/components/ui/boutonClasses';
 
 interface ElementReference {
   id: string;
@@ -155,7 +156,7 @@ export function CommandeFormPage() {
                     onClick={() => setNouveauFournisseur(null)}
                     aria-label="Choisir un fournisseur existant"
                     title="Choisir un fournisseur existant"
-                    className="inline-flex size-7 items-center justify-center rounded text-steel-500 hover:bg-survol hover:text-ink-900"
+                    className={boutonClasses('ghost', 'text-steel-500', { taille: 'sm', icone: true })}
                   >
                     <X className="size-4" aria-hidden="true" />
                   </button>

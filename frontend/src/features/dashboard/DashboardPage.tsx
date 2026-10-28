@@ -34,6 +34,8 @@ import { libelleStatut, statutStock, varianteStatut } from '@/components/pattern
 import { libelleMouvement, presentationMouvement, quantiteSignee, type TypeMouvement } from '@/components/patterns/typeMouvement';
 import { VentesSemaine } from './VentesSemaine';
 import './dashboard.css';
+import { FlecheLien } from '@/components/ui/LienAction';
+import { lienActionClasses } from '@/components/ui/lienActionClasses';
 
 interface Overview {
   kpi: {
@@ -469,9 +471,9 @@ export function DashboardPage() {
             }
             action={
               nbAction > 0 && (
-                <Link to="/alertes" className="shrink-0 text-corps font-medium text-action hover:underline">
+                <Link to="/alertes" className={lienActionClasses()}>
                   Voir par fournisseur
-                </Link>
+                <FlecheLien /></Link>
               )
             }
           />
@@ -541,10 +543,10 @@ export function DashboardPage() {
               <Link
                 to="/stock"
                 state={{ onglet: 'mouvements' }}
-                className="shrink-0 text-corps font-medium text-action hover:underline"
+                className={lienActionClasses()}
               >
                 Historique
-              </Link>
+              <FlecheLien /></Link>
             }
           />
           {mouvements.isError ? (

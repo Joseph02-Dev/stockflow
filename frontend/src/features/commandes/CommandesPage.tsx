@@ -1,7 +1,7 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { CalendarDays, ChevronRight, CircleCheckBig, FileText, Plus, RefreshCw, Send, Truck, type LucideIcon } from 'lucide-react';
+import { CalendarDays, ChevronRight, CircleCheckBig, FileText, Plus, RefreshCw, Send, Truck, type LucideIcon, ArrowDown } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { formatCompact, formatNombre, pluriel } from '@/lib/format';
 import { cn } from '@/lib/cn';
@@ -16,6 +16,8 @@ import { Vignette } from '@/components/patterns/Vignette';
 import { STATUTS_COMMANDE } from './statutsCommande';
 import type { StatutCommande } from './statutsCommande';
 import './commandes.css';
+import { FlecheLien } from '@/components/ui/LienAction';
+import { lienActionClasses } from '@/components/ui/lienActionClasses';
 
 interface Commande {
   id: string;
@@ -378,9 +380,9 @@ export function CommandesPage() {
                 );
               })}
               {historique.length > 0 && (
-                <a href="#historique" className="self-center px-1.5 py-1 text-corps font-semibold text-action">
-                  Tout l’historique ↓
-                </a>
+                <a href="#historique" className={lienActionClasses('self-center')}>
+                  Tout l’historique
+                <FlecheLien icone={<ArrowDown className="size-4" />} /></a>
               )}
             </section>
           </div>

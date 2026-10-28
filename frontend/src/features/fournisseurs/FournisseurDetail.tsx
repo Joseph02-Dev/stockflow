@@ -39,6 +39,7 @@ import { libelleStatut, statutStock, varianteStatut } from '@/components/pattern
 import { ponctualite, teinteFournisseur, useActiviteFournisseurs } from './activite';
 import { STATUTS_COMMANDE } from '@/features/commandes/statutsCommande';
 import './fournisseurs.css';
+import { lienEnLigneClasses } from '@/components/ui/lienActionClasses';
 
 interface Fournisseur {
   id: string;
@@ -441,7 +442,7 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
                   Icone: Mail,
                   libelle: 'Email de contact',
                   valeur: fournisseur.data.emailContact && (
-                    <a href={`mailto:${fournisseur.data.emailContact}`} className="text-action hover:underline">
+                    <a href={`mailto:${fournisseur.data.emailContact}`} className={lienEnLigneClasses()}>
                       {fournisseur.data.emailContact}
                     </a>
                   ),
@@ -452,7 +453,7 @@ export function FournisseurDetail({ fournisseurId }: { fournisseurId: string }) 
                   valeur: fournisseur.data.telephone && (
                     <a
                       href={`tel:${fournisseur.data.telephone.replace(/\s/g, '')}`}
-                      className="text-action hover:underline"
+                      className={lienEnLigneClasses()}
                     >
                       {fournisseur.data.telephone}
                     </a>

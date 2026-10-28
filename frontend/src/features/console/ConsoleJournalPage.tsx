@@ -73,7 +73,7 @@ export function ConsoleJournalPage() {
                 setPage(1);
               }}
               className={cn(
-                'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-corps font-semibold whitespace-nowrap transition-colors',
+                'retour-appui inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-corps font-semibold whitespace-nowrap transition-colors',
                 action === f
                   ? 'border-action bg-action-wash text-action'
                   : 'border-rule bg-surface text-steel-700 hover:border-rule-strong',

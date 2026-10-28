@@ -52,6 +52,7 @@ import { desactiverPush, resynchroniserPush } from '@/lib/notificationsPush';
 import { OngletsSection, type OngletSection } from '@/components/patterns/OngletsSection';
 import { useIndicateurGlissant } from '@/components/patterns/useIndicateurGlissant';
 import './menuMobile.css';
+import { boutonClasses } from '@/components/ui/boutonClasses';
 
 // Navigation en quatre sections : piloter, gérer le stock, s'approvisionner,
 // organiser. Les liens réservés à l'Admin (Paramètres et ses onglets) et
@@ -628,8 +629,8 @@ export function AppLayout() {
               to="/ventes/nouvelle"
               aria-label={replie ? 'Nouvelle vente' : undefined}
               className={cn(
-                'flex h-9 items-center justify-center gap-2 rounded-lg bg-action text-corps font-semibold text-sur-couleur transition-colors hover:bg-action-dark focus-visible:outline-white/70',
-                replie ? 'w-9' : 'w-full',
+                boutonClasses('primary', 'focus-visible:outline-white/70'),
+                replie ? 'w-9 px-0' : 'w-full',
               )}
               {...propsBulle('Nouvelle vente', replie, setBulle)}
             >
@@ -840,7 +841,7 @@ export function AppLayout() {
                 onClick={() => setAssistantOuvert(true)}
                 aria-label="Ouvrir l’assistant"
                 title="Assistant"
-                className="inline-flex size-9 items-center justify-center rounded-md text-steel-700 transition-colors hover:bg-survol hover:text-ink-900"
+                className={boutonClasses('ghost', undefined, { icone: true })}
               >
                 <Bot className="size-[18px]" aria-hidden="true" />
               </button>
@@ -849,7 +850,7 @@ export function AppLayout() {
               href={`mailto:${ADRESSE_AIDE}`}
               aria-label={`Aide : écrire à ${ADRESSE_AIDE}`}
               title="Aide"
-              className="hidden size-9 items-center justify-center rounded-md text-steel-700 transition-colors hover:bg-survol hover:text-ink-900 md:inline-flex"
+              className={boutonClasses('ghost', 'max-md:hidden', { icone: true })}
             >
               <CircleHelp className="size-[18px]" aria-hidden="true" />
             </a>
@@ -870,7 +871,7 @@ export function AppLayout() {
               onClick={() => setPlusOuvert(true)}
               aria-label="Menu"
               aria-expanded={plusOuvert}
-              className="inline-flex size-10 items-center justify-center rounded-md border border-rule bg-surface/60 text-ink-900 transition-colors hover:bg-survol md:hidden"
+              className={boutonClasses('secondary', 'size-10 md:hidden', { icone: true })}
             >
               <Menu className="size-5" aria-hidden="true" />
             </button>
@@ -953,7 +954,7 @@ export function AppLayout() {
                 type="button"
                 onClick={() => setPlusOuvert(false)}
                 aria-label="Fermer le menu"
-                className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-paper text-steel-500 hover:bg-survol"
+                className={boutonClasses('ghost', 'size-10 text-steel-500', { icone: true })}
               >
                 <X className="size-5" aria-hidden="true" />
               </button>
@@ -963,7 +964,7 @@ export function AppLayout() {
               <Link
                 to="/ventes/nouvelle"
                 onClick={() => setPlusOuvert(false)}
-                className="flex h-12 items-center justify-center gap-2 rounded-[14px] bg-action text-[15px] font-semibold text-sur-couleur shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] transition-colors hover:bg-action-dark"
+                className={boutonClasses('primary', 'h-12 w-full text-[15px]')}
               >
                 <Plus className="size-5" aria-hidden="true" />
                 Nouvelle vente
@@ -1042,7 +1043,7 @@ export function AppLayout() {
                 disabled={statutSynchro !== 'en-ligne'}
                 aria-label="Synchroniser maintenant"
                 title="Synchroniser maintenant"
-                className="ml-auto inline-flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-rule-strong bg-surface text-action hover:bg-survol disabled:text-steel-400"
+                className={boutonClasses('secondary', 'ml-auto text-action', { icone: true })}
               >
                 <RefreshCw
                   className={cn('size-4', statutSynchro === 'synchronisation' && 'animate-spin motion-reduce:animate-none')}
@@ -1052,7 +1053,7 @@ export function AppLayout() {
               <button
                 type="button"
                 onClick={seDeconnecter}
-                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] border border-rule-strong bg-surface px-3 text-[13px] font-semibold text-rupture hover:bg-survol"
+                className={boutonClasses('secondary', 'text-rupture')}
               >
                 <LogOut className="size-4" aria-hidden="true" />
                 Déconnexion

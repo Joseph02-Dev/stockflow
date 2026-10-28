@@ -7,6 +7,8 @@ import { cn } from '@/lib/cn';
 import { formatNombre, pluriel } from '@/lib/format';
 import { Compteur } from '@/components/patterns/Compteur';
 import { Squelette } from '@/components/patterns/States';
+import { FlecheLien } from '@/components/ui/LienAction';
+import { lienActionClasses } from '@/components/ui/lienActionClasses';
 
 /**
  * Carte « Ventes d'aujourd'hui » : chiffre du jour, écart avec la veille et
@@ -146,9 +148,9 @@ export function VentesSemaine() {
             {data.panierMoyen.valeur !== null && <Gnf />}
           </dd>
         </div>
-        <Link to="/ventes" className="ml-auto self-center text-corps font-semibold text-action hover:underline">
-          Voir les ventes →
-        </Link>
+        <Link to="/ventes" className={lienActionClasses('ml-auto self-center')}>
+          Voir les ventes
+        <FlecheLien /></Link>
       </dl>
     </section>
   );

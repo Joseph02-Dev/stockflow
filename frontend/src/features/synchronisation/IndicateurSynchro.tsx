@@ -7,6 +7,7 @@ import { supprimerMouvementEnAttente, type EtatFile, type TypeMouvementHorsLigne
 import type { StatutSynchronisation } from '@/lib/useSynchronisation';
 import { dernierPrechargement, souscrirePrechargement } from '@/lib/prechargementHorsLigne';
 import { useEtatBaseLocale } from '@/lib/useSynchronisationLocale';
+import { boutonClasses } from '@/components/ui/boutonClasses';
 
 const LARGEUR_PANNEAU = 380;
 
@@ -189,14 +190,14 @@ export function IndicateurSynchro({ statut, file, libelleReseau, synchroniser, v
                           type="button"
                           onClick={() => void synchroniser()}
                           disabled={horsLigne || enCours}
-                          className="h-[30px] rounded-[8px] border border-rule-strong bg-surface px-2.5 text-meta font-semibold text-ink-900 hover:bg-survol disabled:opacity-50"
+                          className={boutonClasses('secondary', undefined, { taille: 'sm' })}
                         >
                           Réessayer
                         </button>
                         <button
                           type="button"
                           onClick={() => supprimerMouvementEnAttente(m.idLocal)}
-                          className="h-[30px] rounded-[8px] border border-rule-strong bg-surface px-2.5 text-meta font-semibold text-rupture hover:bg-survol"
+                          className={boutonClasses('secondary', 'text-rupture', { taille: 'sm' })}
                         >
                           Supprimer
                         </button>
@@ -215,7 +216,7 @@ export function IndicateurSynchro({ statut, file, libelleReseau, synchroniser, v
           type="button"
           onClick={() => void synchroniser()}
           disabled={horsLigne || enCours}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-[11px] bg-action text-[14px] font-semibold text-sur-couleur transition-colors hover:bg-action-dark disabled:bg-rule-strong disabled:text-steel-400"
+          className={boutonClasses('primary', 'w-full')}
         >
           <RefreshCw className={cn('size-[17px]', enCours && 'animate-spin motion-reduce:animate-none')} aria-hidden="true" />
           {enCours ? 'Synchronisation…' : 'Synchroniser maintenant'}

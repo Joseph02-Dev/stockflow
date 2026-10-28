@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BellOff, BellRing } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { activerPush, desactiverPush, messageEchecPush, useEtatPush } from '@/lib/notificationsPush';
+import { boutonClasses } from '@/components/ui/boutonClasses';
 
 /**
  * Haut du panneau de la cloche : activer, sur cet appareil, les alertes en
@@ -38,7 +39,7 @@ export function ActivationPush() {
           type="button"
           onClick={() => void agir(desactiverPush)}
           disabled={enCours}
-          className="rounded px-1.5 py-0.5 font-semibold text-steel-700 transition-colors hover:bg-white/60 disabled:opacity-60"
+          className={boutonClasses('secondary', undefined, { taille: 'sm' })}
         >
           Désactiver
         </button>

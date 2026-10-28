@@ -29,6 +29,7 @@ import { ApercuEspace } from './ApercuEspace';
 import { api, messageErreur } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { cn } from '@/lib/cn';
+import { lienEnLigneClasses } from '@/components/ui/lienActionClasses';
 
 const schemaCompte = z.object({
   nomEntreprise: z.string().min(2, 'Le nom de l’entreprise doit contenir au moins 2 caractères.'),
@@ -366,7 +367,7 @@ export function InscriptionPage() {
       pied={
         <>
           Vous avez déjà un compte ?{' '}
-          <Link to="/connexion" className="font-medium text-action hover:underline">
+          <Link to="/connexion" className={lienEnLigneClasses()}>
             Se connecter
           </Link>
         </>

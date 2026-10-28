@@ -5,6 +5,7 @@ import { Logo } from '@/components/patterns/Logo';
 import { cn } from '@/lib/cn';
 import { estLanceeCommeAppli } from '@/lib/installation';
 import './auth.css';
+import { boutonClasses } from '@/components/ui/boutonClasses';
 
 /**
  * Écrans d'authentification en plein écran : panneau d'encre à gauche (dès
@@ -57,7 +58,7 @@ export function AuthLayout({
           {!appli && (
             <Link
               to="/"
-              className="inline-flex items-center gap-1.5 rounded-sm text-corps font-medium text-steel-500 transition-colors hover:text-ink-900"
+              className={boutonClasses('ghost', '-mr-3 text-steel-500', { taille: 'sm' })}
             >
               <ArrowLeft className="size-4" aria-hidden="true" />
               Retour à l’accueil

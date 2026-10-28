@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Archive, ArrowLeftRight, ArrowRight, MapPin, Pencil, Plus, Warehouse } from 'lucide-react';
+import { Archive, ArrowLeftRight, MapPin, Pencil, Plus, Warehouse } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { formatNombre, pluriel } from '@/lib/format';
 import { Button } from '@/components/ui/Button';
@@ -18,6 +18,9 @@ import { PageHeader } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
 import { TEINTES_LIEUX } from '@/features/stock/types';
 import './emplacements.css';
+import { boutonClasses } from '@/components/ui/boutonClasses';
+import { FlecheLien } from '@/components/ui/LienAction';
+import { lienActionClasses } from '@/components/ui/lienActionClasses';
 
 interface Emplacement {
   id: string;
@@ -314,8 +317,8 @@ export function EmplacementsSection() {
                       onClick={() => setMesure(m)}
                       className={
                         mesure === m
-                          ? 'h-7 rounded-md bg-surface px-2.5 text-[12.5px] font-semibold text-ink-900 shadow-sm'
-                          : 'h-7 rounded-md px-2.5 text-[12.5px] font-semibold text-steel-500'
+                          ? 'retour-appui h-7 rounded-md bg-surface px-2.5 text-[12.5px] font-semibold text-ink-900 shadow-sm'
+                          : 'retour-appui h-7 rounded-md px-2.5 text-[12.5px] font-semibold text-steel-500'
                       }
                     >
                       {m === 'unites' ? 'Unités' : 'Valeur'}
@@ -444,7 +447,7 @@ export function EmplacementsSection() {
                       <button
                         type="button"
                         onClick={() => ouvrirCreation(e.id)}
-                        className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-steel-500 hover:text-ink-900"
+                        className={boutonClasses('ghost', '-ml-3', { taille: 'sm' })}
                       >
                         <Plus className="size-4" aria-hidden="true" />
                         Ajouter un sous-emplacement
@@ -456,14 +459,14 @@ export function EmplacementsSection() {
                       <Link
                         to="/stock"
                         state={{ emplacementId: e.id, nouveauMouvement: true }}
-                        className="inline-flex items-center gap-1 text-[13px] font-semibold text-action hover:underline"
+                        className={boutonClasses('secondary', undefined, { taille: 'sm' })}
                       >
                         <ArrowLeftRight className="size-4" aria-hidden="true" />
                         Mouvement
                       </Link>
-                      <Link to="/stock" state={{ emplacementId: e.id }} className="inline-flex items-center gap-1 text-[13px] font-semibold text-action hover:underline">
+                      <Link to="/stock" state={{ emplacementId: e.id }} className={lienActionClasses()}>
                         Voir le stock
-                        <ArrowRight className="size-4" aria-hidden="true" />
+                        <FlecheLien />
                       </Link>
                     </span>
                   </div>

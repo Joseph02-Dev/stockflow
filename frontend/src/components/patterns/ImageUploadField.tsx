@@ -3,6 +3,7 @@ import { ImagePlus, Loader2, X } from 'lucide-react';
 import { messageErreur } from '@/lib/api';
 import { ErreurImage, televerserImage, type DossierImage } from '@/lib/televerserImage';
 import { cn } from '@/lib/cn';
+import { boutonClasses } from '@/components/ui/boutonClasses';
 
 interface ImageUploadFieldProps {
   label: string;
@@ -65,7 +66,7 @@ export function ImageUploadField({ label, valeur, dossier, onChange, forme = 'ca
               type="button"
               onClick={() => inputRef.current?.click()}
               disabled={enCours}
-              className="rounded-md border border-rule bg-surface px-3 py-1.5 text-corps font-medium text-ink-900 transition-colors hover:bg-survol disabled:opacity-50"
+              className={boutonClasses('secondary', undefined, { taille: 'sm' })}
             >
               {valeur ? 'Changer' : 'Choisir une image'}
             </button>
@@ -74,7 +75,7 @@ export function ImageUploadField({ label, valeur, dossier, onChange, forme = 'ca
                 type="button"
                 onClick={() => onChange(undefined)}
                 aria-label="Retirer l’image"
-                className="rounded-md p-1.5 text-steel-500 transition-colors hover:bg-survol hover:text-rupture"
+                className={boutonClasses('ghost', 'hover:text-rupture', { taille: 'sm', icone: true })}
               >
                 <X className="size-4" aria-hidden="true" />
               </button>

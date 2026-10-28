@@ -14,6 +14,7 @@ import { api, messageErreur } from '@/lib/api';
 import { setSession } from '@/lib/session';
 import { useEnLigne } from '@/lib/useEnLigne';
 import type { ReponseSession } from '@/lib/session';
+import { lienEnLigneClasses } from '@/components/ui/lienActionClasses';
 
 const schema = z.object({
   email: z.string().min(1, 'L’email est requis.').email('Adresse email invalide.'),
@@ -147,7 +148,7 @@ export function ConnexionPage() {
             <label htmlFor="password" className="text-corps font-medium text-ink-900">
               Mot de passe
             </label>
-            <Link to="/mot-de-passe-oublie" className="text-meta font-medium text-action hover:underline">
+            <Link to="/mot-de-passe-oublie" className={lienEnLigneClasses('text-meta')}>
               Mot de passe oublié ?
             </Link>
           </div>
@@ -182,7 +183,7 @@ export function ConnexionPage() {
       <p className="auth-separateur">Nouveau sur NimbaFlow ?</p>
       <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-rule-strong px-4 py-3.5 text-corps text-steel-700">
         <span>Créez votre entreprise en quelques minutes.</span>
-        <Link to="/inscription" className="font-semibold whitespace-nowrap text-action hover:underline">
+        <Link to="/inscription" className={lienEnLigneClasses('whitespace-nowrap')}>
           Essai gratuit →
         </Link>
       </div>

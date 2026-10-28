@@ -19,6 +19,7 @@ import { FormulaireRetourClient } from './FormulaireRetourClient';
 import { PastillesPaiement } from './PastillesPaiement';
 import { MODES } from './modes';
 import type { EtatRetourClient, ModeReglement, VenteDetail } from './types';
+import { boutonClasses } from '@/components/ui/boutonClasses';
 
 const ETATS_RETOUR: Record<EtatRetourClient, string> = {
   REMISE_EN_STOCK: 'remise en stock',
@@ -101,7 +102,7 @@ export function VenteDetailPage() {
           <>
             {vente.aRegulariser && !annulee && <Badge variant="faible">À régulariser</Badge>}
             {annulee ? <Badge variant="rupture">Annulée</Badge> : vente.resteDu > 0 ? <Badge variant="faible">À crédit</Badge> : <Badge variant="ok">Réglée</Badge>}
-            <Link to="/ventes/nouvelle" className="inline-flex h-9 items-center gap-2 rounded-md bg-action px-3.5 text-corps font-medium text-sur-couleur hover:bg-action-dark">
+            <Link to="/ventes/nouvelle" className={boutonClasses('primary')}>
               <Plus className="size-4" aria-hidden="true" />
               Nouvelle vente
             </Link>

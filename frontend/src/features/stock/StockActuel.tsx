@@ -10,6 +10,7 @@ import { Vignette } from '@/components/patterns/Vignette';
 import { libelleStatut, statutStock, varianteStatut, type StatutStock } from '@/components/patterns/statutStock';
 import { formatNombre, pluriel } from '@/lib/format';
 import type { LieuAffiche, LigneStock } from './types';
+import { boutonClasses } from '@/components/ui/boutonClasses';
 
 /**
  * Onglet « Stock actuel ». Tous emplacements confondus, une ligne par
@@ -198,7 +199,7 @@ export function StockActuel({
           {tous && visibles.length > 0 && ' · cliquez un produit pour le détail par emplacement'}
         </span>
         {statutFiltre && (
-          <button type="button" onClick={() => setStatutFiltre(null)} className="font-semibold text-action hover:underline">
+          <button type="button" onClick={() => setStatutFiltre(null)} className={boutonClasses('ghost', undefined, { taille: 'sm' })}>
             Retirer le filtre
           </button>
         )}

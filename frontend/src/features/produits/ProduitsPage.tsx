@@ -31,6 +31,7 @@ import { useDebounce } from '@/lib/useDebounce';
 import { useModules } from '@/lib/useModules';
 import './produits.css';
 import { useStockAvecAttente } from '@/features/stock/stockEnAttente';
+import { boutonClasses } from '@/components/ui/boutonClasses';
 
 interface Produit {
   id: string;
@@ -468,7 +469,7 @@ export function ProduitsPage() {
               {produitsAffiches.length} produit{produitsAffiches.length > 1 ? 's' : ''}
             </span>
             {filtresActifs && (
-              <button type="button" onClick={effacerFiltres} className="font-semibold text-action hover:underline">
+              <button type="button" onClick={effacerFiltres} className={boutonClasses('ghost', undefined, { taille: 'sm' })}>
                 Effacer les filtres
               </button>
             )}

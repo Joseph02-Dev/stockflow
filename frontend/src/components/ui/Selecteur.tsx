@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn';
 import { useEcranMobile } from '@/lib/useEcranMobile';
 import { useBalayageFermeture } from '@/lib/useBalayageFermeture';
 import { usePanneauFlottant } from '@/lib/usePanneauFlottant';
+import { boutonClasses } from './boutonClasses';
 
 export interface OptionSelecteur {
   valeur: string;
@@ -355,7 +356,7 @@ export function Selecteur(props: SelecteurProps) {
             creation.onCreer(termeAffiche);
             fermer();
           }}
-          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-rule-strong bg-surface px-3 text-corps font-medium text-ink-900 hover:bg-survol"
+          className={boutonClasses('secondary')}
         >
           <Plus className="size-4" aria-hidden="true" />
           {termeAffiche && creation.libelleDepuisRecherche
@@ -455,17 +456,14 @@ export function Selecteur(props: SelecteurProps) {
                   creation.onCreer(termeAffiche);
                   fermer();
                 }}
-                className={cn(
-                  'inline-flex items-center gap-1 font-medium text-action hover:underline',
-                  mobile && 'min-h-11',
-                )}
+                className={boutonClasses('ghost', cn('-ml-3 text-action', mobile && 'min-h-11'), { taille: 'sm' })}
               >
                 <Plus className="size-3.5" aria-hidden="true" />
                 {creation.libelle}
               </button>
             )}
             {props.multiple && mobile && (
-              <button type="button" onClick={() => fermer()} className="ml-auto min-h-11 font-medium text-action">
+              <button type="button" onClick={() => fermer()} className={boutonClasses('ghost', 'ml-auto text-action max-md:min-h-11', { taille: 'sm' })}>
                 Terminé
               </button>
             )}

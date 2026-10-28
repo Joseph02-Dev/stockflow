@@ -153,7 +153,7 @@ export function ConsoleEntreprisePage() {
     <div className="flex flex-col gap-5">
       <Link
         to="/console/entreprises"
-        className="inline-flex w-fit items-center gap-1.5 text-corps font-semibold text-steel-500 hover:text-ink-900"
+        className={boutonClasses('ghost', '-ml-3 w-fit text-steel-500', { taille: 'sm' })}
       >
         <ArrowLeft className="size-4" strokeWidth={1.75} aria-hidden="true" />
         Entreprises
