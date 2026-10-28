@@ -1,0 +1,96 @@
+# Sauvegarde quotidienne de la base de production (Neon), chiffrée, puis
+# restauration d'essai dans une base vierge : une sauvegarde n'est retenue
+# que si elle se restaure réellement, avec les mêmes données.
+#
+# Secrets du dépôt à créer (Settings → Secrets and variables → Actions) :
+# - NEON_DATABASE_URL : URL de connexion du rôle propriétaire de la base
+#   (le même que DATABASE_URL sur Render ; un rôle sans BYPASSRLS ne
+#   pourrait pas tout exporter, les tables étant protégées par RLS),
+#   avec sslmode=require comme la donne la console Neon ;
+# - SAUVEGARDE_PHRASE : phrase secrète de chiffrement (longue, aléatoire),
+#   à conserver aussi hors de GitHub : sans elle, aucune restauration.
+# Procédure de restauration : docs/runbook-retour-arriere.md, section 5.
+name: Sauvegarde de la base
+
+on:
+  schedule:
+    - cron: '17 2 * * *' # chaque nuit, 2 h 17 (UTC = heure de Conakry)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sauvegarde-base
+  cancel-in-progress: false
+
+jobs:
+  sauvegarde:
+    name: Sauvegarde et restauration d'essai
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+      SAUVEGARDE_PHRASE: ${{ secrets.SAUVEGARDE_PHRASE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vérifier la configuration
+        run: |
+          if [ -z "$NEON_DATABASE_URL" ] || [ -z "$SAUVEGARDE_PHRASE" ]; then
+            echo "::error::Secrets NEON_DATABASE_URL et SAUVEGARDE_PHRASE requis (voir l'en-tête de ce fichier)."
+            exit 1
+          fi
+
+      # pg_dump doit être de la même version majeure que le serveur (ou plus
+      # récente) : on la lit sur le serveur et on utilise l'image officielle.
+      - name: Version de PostgreSQL du serveur
+        id: version
+        run: |
+          majeure=$(docker run --rm -e URL="$NEON_DATABASE_URL" postgres:17-alpine \
+            sh -c 'psql "$URL" -tAc "SHOW server_version_num"' | cut -c1-2)
+          echo "majeure=$majeure" >> "$GITHUB_OUTPUT"
+          echo "PostgreSQL $majeure"
+
+      - name: Export de la base
+        env:
+          IMAGE: postgres:${{ steps.version.outputs.majeure }}-alpine
+        run: |
+          mkdir -p sortie
+          psql_neon() { docker run --rm -i -e URL="$NEON_DATABASE_URL" "$IMAGE" sh -c 'psql "$URL" -tA -F"|" -v ON_ERROR_STOP=1'; }
+          psql_neon < scripts/sauvegarde/comptages.sql > sortie/avant.txt
+          docker run --rm -e URL="$NEON_DATABASE_URL" -v "$PWD/sortie:/sortie" "$IMAGE" \
+            pg_dump --format=custom --no-owner --no-acl --file=/sortie/base.dump "$NEON_DATABASE_URL"
+          psql_neon < scripts/sauvegarde/comptages.sql > sortie/apres.txt
+          ls -lh sortie/base.dump
+
+      - name: Restauration d'essai dans une base vierge
+        env:
+          IMAGE: postgres:${{ steps.version.outputs.majeure }}-alpine
+        run: |
+          docker run -d --name essai -e POSTGRES_PASSWORD=essai -v "$PWD/sortie:/sortie" "$IMAGE"
+          until docker exec essai pg_isready -U postgres -q; do sleep 1; done
+          docker exec essai createdb -U postgres essai
+          docker exec essai pg_restore --no-owner --no-acl --exit-on-error -U postgres -d essai /sortie/base.dump
+          docker exec -i essai psql -U postgres -d essai -tA -F"|" -v ON_ERROR_STOP=1 \
+            < scripts/sauvegarde/comptages.sql > sortie/restauree.txt
+          migrations=$(find backend/prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l)
+          scripts/sauvegarde/verifier-restauration.sh sortie/avant.txt sortie/apres.txt sortie/restauree.txt "$migrations"
+
+      # Chiffrement symétrique (AES-256) avant de quitter la machine : le
+      # fichier contient les données de toutes les entreprises.
+      - name: Chiffrement
+        run: |
+          nom="stockflow-$(date -u +%Y%m%d-%H%M).dump.gpg"
+          gpg --batch --yes --symmetric --cipher-algo AES256 --pinentry-mode loopback \
+            --passphrase-fd 0 --output "sortie/$nom" sortie/base.dump <<< "$SAUVEGARDE_PHRASE"
+          shred -u sortie/base.dump
+          echo "NOM=$nom" >> "$GITHUB_ENV"
+
+      - name: Conservation 30 jours
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.NOM }}
+          path: sortie/${{ env.NOM }}
+          retention-days: 30
+          if-no-files-found: error
