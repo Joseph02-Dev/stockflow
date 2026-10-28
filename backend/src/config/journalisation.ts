@@ -65,8 +65,8 @@ export function optionsJournalisation(env: NodeJS.ProcessEnv = process.env, dest
       return contexte ? { entrepriseId: contexte.entrepriseId, utilisateurId: contexte.utilisateurId } : {};
     },
     customLogLevel: niveauJournal,
-    // Le healthcheck Railway interroge /health en boucle : pas de bruit.
-    autoLogging: { ignore: (req: IncomingMessage) => req.url === '/health' },
+    // Healthcheck de l'hébergeur et sonde de disponibilité, en boucle : pas de bruit.
+    autoLogging: { ignore: (req: IncomingMessage) => req.url === '/health' || req.url === '/health/vivant' },
     serializers: {
       req: (req: IncomingMessage & { id?: string }) => ({ id: req.id, method: req.method, url: urlJournalisee(req.url) }),
       res: (res: ServerResponse) => ({ statusCode: res.statusCode }),

@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../../app.module.js';
 import { PrismaService } from '../../config/prisma.service.js';
 import { connecterClient, creerEntrepriseAvecAdmin, nettoyer } from '../console/console-test.utils.js';
+import { signalerEmission } from './emission.js';
 import { LivreurWebhooks } from './livreur-webhooks.js';
 
 interface Recu {
@@ -119,6 +120,26 @@ describe('Webhooks — intégration réelle, base PostgreSQL et serveur HTTP loc
     expect(livraison).toMatchObject({ statut: 'EN_ATTENTE', tentatives: 1, codeHttp: 500 });
     expect(new Date(livraison.prochaineTentativeAt).getTime()).toBeGreaterThan(Date.now());
     expect(await livreur.livrer()).toBe(0);
+  });
+
+  it("livreur au repos : la base n'est interrogée qu'après une émission ou à l'échéance d'une tentative", async () => {
+    const { http } = await contexte();
+    const abonnement = (await http.post('/webhooks', { url: urlServeur, evenements: ['mouvement.cree'] })).body;
+    signalerEmission(0);
+    expect(await livreur.passageSiUtile(Date.now())).toBe(true); // démarrage : échéance inconnue
+    expect(await livreur.passageSiUtile(Date.now())).toBe(false); // rien en attente, aucune émission
+
+    statutReponse = 500;
+    await http.post(`/webhooks/${abonnement.id}/test`);
+    expect(await livreur.passageSiUtile(Date.now())).toBe(true); // émission récente : envoi, échec
+    expect(recus).toHaveLength(1);
+
+    signalerEmission(0);
+    const { prochaineTentativeAt } = await prisma.livraisonWebhook.findFirstOrThrow({
+      where: { abonnementId: abonnement.id },
+    });
+    expect(await livreur.passageSiUtile(prochaineTentativeAt.getTime() - 1_000)).toBe(false);
+    expect(await livreur.passageSiUtile(prochaineTentativeAt.getTime())).toBe(true);
   });
 
   it('péremption quotidienne, URL refusée en production, routes réservées au module', async () => {

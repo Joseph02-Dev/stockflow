@@ -21,4 +21,15 @@ export class AppController {
   sante(): Promise<EtatSante> {
     return this.appService.sante();
   }
+
+  /**
+   * Sonde de disponibilité externe (toutes les 5 min) : l'API répond, sans
+   * toucher la base, pour que Neon puisse se mettre en veille entre deux
+   * vraies requêtes. La base se vérifie sur /health.
+   */
+  @Public()
+  @Get('health/vivant')
+  vivant(): { statut: 'ok' } {
+    return { statut: 'ok' };
+  }
 }
