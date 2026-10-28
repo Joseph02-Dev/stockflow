@@ -39,6 +39,18 @@ export function urlJournalisee(url: string | undefined): string {
  * Par requête : identifiant, méthode, URL, statut, durée, entreprise et
  * utilisateur. Jamais d'en-têtes (Authorization, cookies), de corps ni d'IP.
  */
+/**
+ * Niveau d'une ligne de requête. Un 401 hors connexion est le cycle normal
+ * d'une session : jeton d'accès expiré (15 min), renouvelé aussitôt par le
+ * frontend. Il reste en info pour ne pas noyer les vrais avertissements ;
+ * un 401 sur une route de connexion (mot de passe ou code faux) reste warn.
+ */
+export function niveauJournal(req: IncomingMessage, res: ServerResponse, erreur?: Error): 'error' | 'warn' | 'info' {
+  if (erreur || res.statusCode >= 500) return 'error';
+  if (res.statusCode === 401 && !/^\/(console\/)?auth\//.test(req.url ?? '')) return 'info';
+  return res.statusCode >= 400 ? 'warn' : 'info';
+}
+
 export function optionsJournalisation(env: NodeJS.ProcessEnv = process.env, destination?: DestinationStream): Params {
   const options = {
     level: env.LOG_LEVEL ?? (env.NODE_ENV === 'test' ? 'silent' : 'info'),
@@ -52,8 +64,7 @@ export function optionsJournalisation(env: NodeJS.ProcessEnv = process.env, dest
       const contexte = (req as IncomingMessage & { tenantContext?: RequestContext }).tenantContext;
       return contexte ? { entrepriseId: contexte.entrepriseId, utilisateurId: contexte.utilisateurId } : {};
     },
-    customLogLevel: (_req: IncomingMessage, res: ServerResponse, erreur?: Error) =>
-      erreur || res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info',
+    customLogLevel: niveauJournal,
     // Le healthcheck Railway interroge /health en boucle : pas de bruit.
     autoLogging: { ignore: (req: IncomingMessage) => req.url === '/health' },
     serializers: {
