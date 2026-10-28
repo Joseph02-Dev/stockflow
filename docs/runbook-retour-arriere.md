@@ -104,31 +104,41 @@ migration doit laisser fonctionner le code de la version précédente.
   ligne `-- retour-arriere: <raison>` **et** faire une sauvegarde manuelle de
   la base juste avant le déploiement.
 
-**Sauvegarde manuelle (offres gratuites, sans sauvegardes automatiques)** :
-avant toute migration annotée `-- retour-arriere:`, faire un export logique
-depuis un poste disposant de PostgreSQL (`pg_dump`), avec l'URL publique de
-connexion du service PostgreSQL (onglet **Variables** de ce service dans
-Railway ; ne jamais la copier dans le dépôt) :
+**Filets de sécurité de la base (Neon)** :
 
-```bash
-pg_dump --format=custom --no-owner --file="stockflow-$(date +%Y%m%d-%H%M).dump" "<URL publique PostgreSQL>"
-```
+| Filet | Couvre | Où |
+| --- | --- | --- |
+| Restauration instantanée Neon | les **6 dernières heures** (offre Free ; 7 jours en Launch, 30 en Scale) | Console Neon → branche `main` → **Restore** |
+| Instantané manuel Neon | 1 instantané (offre Free), hors de la fenêtre de 6 h | Console Neon → **Snapshots** |
+| Sauvegarde quotidienne chiffrée | chaque nuit, gardée **30 jours**, restauration d'essai réussie | GitHub → Actions → **Sauvegarde de la base** |
 
-Le fichier contient les données de toutes les entreprises : le garder hors
-du dépôt, chiffré ou sur un support privé. Restauration :
-`pg_restore --clean --no-owner --dbname="<URL>" <fichier>.dump`.
+La sauvegarde quotidienne (`.github/workflows/sauvegarde-base.yml`) exporte
+la base, la restaure dans une base vierge et compare le nombre de lignes des
+tables d'activité (`scripts/sauvegarde/`) : un fichier n'est conservé que
+s'il se restaure avec les mêmes données. Il est chiffré (AES-256) avec la
+phrase secrète `SAUVEGARDE_PHRASE` avant de quitter la machine. Un échec
+déclenche un email de GitHub.
 
-**Restauration de la base (dernier recours)**, seulement si des données ont
-été corrompues :
+**Restaurer depuis une sauvegarde quotidienne** :
 
-1. Railway → service PostgreSQL → onglet **Backups** → sauvegarde datée
-   d'avant l'incident → **Restore**.
-2. Railway prépare un nouveau volume. Relire le changement, puis **Deploy**.
+1. GitHub → **Actions** → **Sauvegarde de la base** → exécution datée
+   d'avant l'incident → **Artifacts** → télécharger `stockflow-AAAAMMJJ-HHMM.dump.gpg`.
+2. Déchiffrer (la phrase secrète est demandée) :
+   `gpg --output stockflow.dump --decrypt stockflow-AAAAMMJJ-HHMM.dump.gpg`.
+3. Neon → **Branches** → créer une branche vierge (`restauration`), puis
+   restaurer dedans, jamais directement sur `main` :
+   `pg_restore --no-owner --no-acl --exit-on-error --dbname="<URL de la branche restauration>" stockflow.dump`.
+4. Vérifier les données sur cette branche, puis faire pointer `DATABASE_URL`
+   (Render) vers elle, ou la promouvoir en branche principale dans Neon.
 
-Attention : toutes les écritures faites après la sauvegarde sont perdues
-(ventes, mouvements), et la restauration **supprime les sauvegardes plus
-récentes**. Avant de restaurer, faire une sauvegarde manuelle de l'état
-actuel, puis prévenir les entreprises concernées.
+Toutes les écritures faites après la sauvegarde sont perdues (ventes,
+mouvements) : prévenir les entreprises concernées. Le fichier contient les
+données de toutes les entreprises : ne jamais le garder déchiffré, ni le
+copier dans le dépôt.
+
+**Avant une migration annotée `-- retour-arriere:`** : lancer la sauvegarde
+à la main (GitHub → Actions → Sauvegarde de la base → **Run workflow**) et
+attendre qu'elle réussisse avant de déployer.
 
 ## 6. Vérifier après le retour arrière
 
@@ -152,14 +162,15 @@ remettrait en ligne.
 
 ## 8. À préparer avant le premier incident
 
-- [ ] **Avant l'ouverture aux utilisateurs** (offre payante Railway) :
-      sauvegardes automatiques du service PostgreSQL activées (planning
-      quotidien conseillé) ; un essai de restauration fait une fois.
-- [ ] D'ici là (offres gratuites) : la fenêtre de retour arrière est de
-      **24 h** sur Railway et limitée au **déploiement précédent** sur Vercel ;
-      sans sauvegarde automatique, faire un `pg_dump` manuel avant toute
-      migration risquée (section 5).
-- [ ] Noter l'offre Railway et l'offre Vercel en cours : elles fixent la
-      fenêtre de retour arrière (sections 3 et 4).
+- [ ] Secrets `NEON_DATABASE_URL` (URL du rôle propriétaire, `sslmode=require`)
+      et `SAUVEGARDE_PHRASE` créés dans GitHub ; la phrase secrète rangée
+      aussi hors de GitHub (gestionnaire de mots de passe).
+- [ ] Première exécution manuelle de **Sauvegarde de la base** réussie,
+      puis un essai de restauration complet (section 5) fait une fois.
+- [ ] Notifications GitHub Actions activées (email en cas d'échec). GitHub
+      suspend les tâches planifiées d'un dépôt public sans activité pendant
+      60 jours : vérifier l'onglet Actions après une longue pause.
+- [ ] Noter l'offre Neon, Render et Vercel en cours : elles fixent la
+      fenêtre de retour arrière (sections 3 à 5).
 - [ ] Protection de la branche `main` : checks « Backend » et « Frontend »
       obligatoires avant fusion.
