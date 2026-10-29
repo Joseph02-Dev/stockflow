@@ -10,11 +10,11 @@ import {
   ExternalLink,
   FileSpreadsheet,
   FileText,
-  MessageCircle,
   PackageX,
   Receipt,
   Warehouse,
 } from 'lucide-react';
+import { IconeWhatsApp } from '@/components/icones/IconeWhatsApp';
 import { api, messageErreur } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { pluriel } from '@/lib/format';
@@ -561,7 +561,7 @@ export function RapportsPage() {
                     rel="noopener noreferrer"
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-whatsapp px-4 text-corps font-semibold text-white hover:bg-whatsapp-dark"
                   >
-                    <MessageCircle className="size-4" aria-hidden="true" />
+                    <IconeWhatsApp className="size-4" />
                     Envoyer un rappel du solde
                     <span className="sr-only"> (ouvre WhatsApp dans un nouvel onglet)</span>
                   </a>

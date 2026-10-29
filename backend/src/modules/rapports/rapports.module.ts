@@ -9,5 +9,7 @@ import { RapportsController } from './rapports.controller.js';
 @Module({
   controllers: [RapportsController],
   providers: [PdfService, RapportStockService, RapportMouvementsService, RapportClientService, RapportPertesService],
+  // Partagé avec les factures de vente : un seul fil de rendu PDF.
+  exports: [PdfService],
 })
 export class RapportsModule {}

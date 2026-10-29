@@ -1,0 +1,30 @@
+/*
+ * Impression de la facture : imprimerFacture() en place une copie directement
+ * sous <body> ; tout le reste de la page est retiré du rendu. Fond blanc et
+ * couleurs conservées (bandeau, en-tête du tableau, total).
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  html,
+  body.impression-facture {
+    background: #fff !important;
+  }
+  body.impression-facture > :not(#copie-impression) {
+    display: none !important;
+  }
+  #copie-impression article {
+    max-width: none;
+    border-radius: 0;
+    box-shadow: none;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+@media screen {
+  #copie-impression {
+    display: none;
+  }
+}

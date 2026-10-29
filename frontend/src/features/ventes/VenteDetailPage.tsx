@@ -1,11 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { Ban, Plus, Undo2 } from 'lucide-react';
+import { Ban, Download, Plus, Printer, Undo2 } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { dateCourte, dateHeure, gnf } from '@/lib/montant';
 import { formatNombre, pluriel } from '@/lib/format';
-import { texteRecu } from '@/lib/recu';
 import { texteRecuWhatsApp } from '@/lib/whatsapp';
 import { BoutonWhatsApp } from '@/components/patterns/BoutonWhatsApp';
 import { cn } from '@/lib/cn';
@@ -17,6 +16,9 @@ import { Card, PageHeader, PanneauEntete } from '@/components/patterns/Page';
 import { ErrorState, LoadingState } from '@/components/patterns/States';
 import { FormulaireRetourClient } from './FormulaireRetourClient';
 import { PastillesPaiement } from './PastillesPaiement';
+import { Facture } from './Facture';
+import { imprimerFacture } from './imprimerFacture';
+import { telechargerExport } from '@/lib/exporterCsv';
 import { MODES } from './modes';
 import type { EtatRetourClient, ModeReglement, VenteDetail } from './types';
 import { boutonClasses } from '@/components/ui/boutonClasses';
@@ -43,11 +45,27 @@ export function VenteDetailPage() {
   const [retourOuvert, setRetourOuvert] = useState(false);
   const [succesRetour, setSuccesRetour] = useState<string | null>(null);
   const [erreurRegularisation, setErreurRegularisation] = useState<string | null>(null);
+  const [telechargement, setTelechargement] = useState(false);
+  const [erreurFacture, setErreurFacture] = useState<string | null>(null);
+  const facture = useRef<HTMLElement>(null);
 
   const { data: vente, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['ventes', id],
     queryFn: async () => (await api.get<VenteDetail>(`/ventes/${id}`)).data,
   });
+
+  async function telechargerFacture() {
+    if (!vente) return;
+    setTelechargement(true);
+    setErreurFacture(null);
+    try {
+      await telechargerExport(`/ventes/${vente.id}/facture`, `facture-${vente.numero}.pdf`);
+    } catch (e) {
+      setErreurFacture(messageErreur(e));
+    } finally {
+      setTelechargement(false);
+    }
+  }
 
   function rafraichir(nouvelle: VenteDetail) {
     queryClient.setQueryData(['ventes', id], nouvelle);
@@ -157,23 +175,44 @@ export function VenteDetailPage() {
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
         <Card>
           <PanneauEntete
-            titre="Reçu"
+            titre="Facture"
             meta={vente.client ? `Client : ${vente.client.nom}` : 'Client de passage'}
-            action={
-              !annulee && (
-                <BoutonWhatsApp telephone={vente.client?.telephone ?? null} texte={texteRecuWhatsApp(vente)} libelle="Envoyer le reçu" compact />
-              )
-            }
           />
-          <div className="flex justify-center bg-paper p-4 sm:p-6">
-            <pre
-              className={cn(
-                'w-full max-w-[22rem] overflow-x-auto rounded-sm bg-surface px-4 py-5 font-mono text-[12.5px] leading-[1.55] text-ink-900 shadow-card',
-                annulee && 'opacity-60',
-              )}
+          <div className="flex flex-wrap gap-2 border-b border-rule px-5 py-3">
+            <button
+              type="button"
+              onClick={telechargerFacture}
+              disabled={telechargement}
+              className={boutonClasses('secondary', 'flex-1 sm:flex-none', { taille: 'sm' })}
             >
-              {texteRecu(vente)}
-            </pre>
+              <Download className="size-4" aria-hidden="true" />
+              {telechargement ? 'Préparation…' : 'Télécharger PDF'}
+            </button>
+            <button
+              type="button"
+              onClick={() => facture.current && imprimerFacture(facture.current)}
+              className={boutonClasses('secondary', 'flex-1 sm:flex-none', { taille: 'sm' })}
+            >
+              <Printer className="size-4" aria-hidden="true" />
+              Imprimer
+            </button>
+            {!annulee && (
+              <BoutonWhatsApp
+                telephone={vente.client?.telephone ?? null}
+                texte={texteRecuWhatsApp(vente)}
+                libelle="Envoyer par WhatsApp"
+                compact
+                className="w-full sm:w-auto"
+              />
+            )}
+          </div>
+          {erreurFacture && (
+            <div className="px-5 pt-3">
+              <Alert variant="error">{erreurFacture}</Alert>
+            </div>
+          )}
+          <div className="bg-paper p-3 sm:p-6">
+            <Facture vente={vente} ref={facture} />
           </div>
         </Card>
 

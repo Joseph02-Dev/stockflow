@@ -50,7 +50,15 @@ export interface VenteDetail {
   client: Client | null;
   emplacement: { id: string; nom: string };
   utilisateur: { id: string; nom: string };
-  entreprise: { nom: string };
+  entreprise: {
+    nom: string;
+    adresse: string | null;
+    telephone: string | null;
+    email: string | null;
+    rccm: string | null;
+    nif: string | null;
+    logoUrl: string | null;
+  };
   lignes: LigneVente[];
   reglements: Reglement[];
   retours: RetourClientResume[];

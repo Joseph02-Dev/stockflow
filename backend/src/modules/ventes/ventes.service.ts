@@ -271,7 +271,10 @@ export class VentesService {
           include: { utilisateur: { select: { nom: true } } },
           orderBy: { createdAt: 'asc' },
         },
-        entreprise: { select: { nom: true } },
+        // Coordonnées et logo : en-tête de la facture.
+        entreprise: {
+          select: { nom: true, adresse: true, telephone: true, email: true, rccm: true, nif: true, logoUrl: true },
+        },
         retours: {
           select: {
             id: true,

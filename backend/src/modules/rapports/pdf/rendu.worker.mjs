@@ -39,6 +39,33 @@ pdfmake.addTableLayouts({
     hLineWidth: () => 0.75,
     vLineWidth: () => 0.75,
   },
+  // Facture : lignes à filets fins (en-tête foncé, posé par les cellules),
+  // totaux sans filet, cartes côte à côte espacées de 8 pt.
+  'facture-lignes': {
+    hLineWidth: (i, node) => (i <= 1 || i === node.table.body.length ? 0 : 0.5),
+    hLineColor: () => couleurs.filet,
+    vLineWidth: () => 0,
+    paddingLeft: () => 6,
+    paddingRight: () => 6,
+    paddingTop: () => 5,
+    paddingBottom: () => 5,
+  },
+  'facture-totaux': {
+    hLineWidth: () => 0,
+    vLineWidth: () => 0,
+    paddingLeft: () => 8,
+    paddingRight: () => 8,
+    paddingTop: () => 4,
+    paddingBottom: () => 4,
+  },
+  'facture-cartes': {
+    hLineWidth: () => 0,
+    vLineWidth: () => 0,
+    paddingLeft: () => 0,
+    paddingRight: () => 8,
+    paddingTop: () => 0,
+    paddingBottom: () => 0,
+  },
   'gabarit-cadre': {
     hLineWidth: () => 1.5,
     vLineWidth: () => 1.5,
