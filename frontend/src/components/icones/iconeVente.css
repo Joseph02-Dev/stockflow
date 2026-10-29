@@ -1,0 +1,76 @@
+/*
+ * Chariot de vente animé : il avance, ses roues tournent, un colis tombe
+ * dedans (boucle de 4 s, accélérée au survol). Immobile si l'appareil
+ * demande moins d'animations.
+ */
+.icone-vente {
+  overflow: visible;
+}
+.icone-vente .roue {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: icone-vente-roue 4s linear infinite;
+}
+.icone-vente .caisse {
+  animation: icone-vente-rouler 4s ease-in-out infinite;
+}
+.icone-vente .colis {
+  animation: icone-vente-tomber 4s cubic-bezier(0.5, 0, 0.75, 0) infinite;
+}
+.bouton-vente:hover .icone-vente *,
+.bouton-vente:focus-visible .icone-vente * {
+  animation-duration: 1.6s;
+}
+@keyframes icone-vente-rouler {
+  0%, 100% { transform: translateX(0); }
+  40% { transform: translateX(2.5px); }
+  55% { transform: translateX(-1px); }
+  70% { transform: translateX(0); }
+}
+@keyframes icone-vente-roue {
+  0% { transform: rotate(0); }
+  70%, 100% { transform: rotate(360deg); }
+}
+@keyframes icone-vente-tomber {
+  0%, 45% { transform: translateY(-14px); opacity: 0; }
+  55% { opacity: 1; }
+  68% { transform: translateY(0); }
+  74% { transform: translateY(-2px); }
+  80%, 92% { transform: translateY(0); opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .icone-vente * {
+    animation: none !important;
+  }
+  .icone-vente .colis {
+    opacity: 0;
+  }
+}
+
+/* Bouton orange qui porte l'icône (voir BoutonNouvelleVente). Couche components :
+   les utilitaires Tailwind (rounded-full, taille…) l'emportent. */
+@layer components {
+  .bouton-vente {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    border-radius: 12px;
+    background: var(--color-action);
+    color: var(--color-sur-couleur);
+    box-shadow: 0 6px 16px -6px color-mix(in oklab, var(--color-action) 70%, transparent);
+    transition:
+      background-color 160ms,
+      transform 160ms var(--ease-sortie);
+  }
+  .bouton-vente:hover {
+    background: var(--color-action-dark);
+  }
+  .bouton-vente:active {
+    transform: scale(0.95);
+  }
+  .bouton-vente:focus-visible {
+    outline: 2px solid var(--color-action);
+    outline-offset: 2px;
+  }
+}

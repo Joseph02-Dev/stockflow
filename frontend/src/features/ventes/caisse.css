@@ -1,0 +1,102 @@
+/* Écran de vente « caisse » : catalogue en tuiles, ticket à droite. */
+.caisse-tuiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+@media (max-width: 420px) {
+  .caisse-tuiles {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.caisse-tuile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  min-height: 150px;
+  padding: 12px;
+  text-align: left;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  transition:
+    transform 160ms var(--ease-sortie),
+    border-color 160ms,
+    box-shadow 160ms;
+}
+.caisse-tuile:enabled:hover {
+  border-color: var(--color-action);
+  box-shadow: var(--shadow-card);
+  transform: translateY(-2px);
+}
+.caisse-tuile:enabled:active {
+  transform: scale(0.97);
+}
+.caisse-tuile:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.caisse-tuile:focus-visible {
+  outline: 2px solid var(--color-action);
+  outline-offset: 2px;
+}
+.caisse-tuile-choisie {
+  border-color: color-mix(in oklab, var(--color-action) 55%, var(--color-rule));
+  background: color-mix(in oklab, var(--color-action-wash) 60%, var(--color-surface));
+}
+.caisse-compteur {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-action);
+  color: var(--color-sur-couleur);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+.caisse-rebond {
+  animation: caisse-rebond 380ms var(--ease-sortie);
+}
+@keyframes caisse-rebond {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+.caisse-ligne-ajoutee {
+  animation: caisse-ligne 700ms ease-out;
+}
+@keyframes caisse-ligne {
+  from { background: var(--color-action-wash); }
+  to { background: transparent; }
+}
+.caisse-puce {
+  flex: none;
+  padding: 6px 12px;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-steel-700);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.caisse-puce[aria-pressed='true'] {
+  border-color: var(--color-ink-900);
+  background: var(--color-ink-900);
+  color: var(--color-paper);
+}
+@media (prefers-reduced-motion: reduce) {
+  .caisse-tuile,
+  .caisse-rebond,
+  .caisse-ligne-ajoutee {
+    animation: none;
+    transition: none;
+  }
+}

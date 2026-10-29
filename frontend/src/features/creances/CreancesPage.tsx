@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { Pagination } from '@/components/patterns/Pagination';
 import { usePagination } from '@/components/patterns/usePagination';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
-import { CheckCircle2, Phone, Plus } from 'lucide-react';
+import { CheckCircle2, Phone } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { useSession } from '@/lib/useSession';
 import { texteRelance } from '@/lib/whatsapp';
@@ -12,11 +11,11 @@ import { dateCourte, gnf } from '@/lib/montant';
 import { formatNombre, pluriel, tempsRelatif } from '@/lib/format';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/Button';
-import { boutonClasses } from '@/components/ui/boutonClasses';
 import { Alert } from '@/components/ui/Alert';
 import { Modal } from '@/components/ui/Modal';
 import { Card, PanneauEntete } from '@/components/patterns/Page';
 import { EmptyState, ErrorState, LoadingState, Squelette } from '@/components/patterns/States';
+import { BoutonNouvelleVente } from '@/components/patterns/BoutonNouvelleVente';
 import { PastillesPaiement } from '@/features/ventes/PastillesPaiement';
 import type { ModeReglement } from '@/features/ventes/types';
 import { JaugeCredit } from '@/features/clients/JaugeCredit';
@@ -202,10 +201,7 @@ export function CreancesPage() {
                 Tout afficher
               </Button>
             ) : (
-              <Link to="/ventes/nouvelle" className={boutonClasses('secondary', 'shrink-0', { taille: 'sm' })}>
-                <Plus className="size-4" aria-hidden="true" />
-                Nouvelle vente
-              </Link>
+              <BoutonNouvelleVente taille="sm" />
             )
           }
         />
