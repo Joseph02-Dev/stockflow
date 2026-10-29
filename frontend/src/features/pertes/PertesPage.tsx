@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { pageSuivante, urlPage } from '@/lib/pagination';
+import { Pagination } from '@/components/patterns/Pagination';
+import { usePagination } from '@/components/patterns/usePagination';
 import { formatNombre, pluriel } from '@/lib/format';
 import { gnf } from '@/lib/montant';
 import { cn } from '@/lib/cn';
@@ -200,6 +202,11 @@ export function PertesPage() {
     getNextPageParam: (derniere) => pageSuivante(derniere),
   });
   const pertes = liste.data?.pages.flat() ?? [];
+  const { visibles, ancre, pagination } = usePagination(pertes, {
+    aPlus: liste.hasNextPage,
+    chargerPlus: liste.fetchNextPage,
+    reinitialiser: [motif, emplacementId],
+  });
 
   const annuler = useMutation({
     mutationFn: async () => (await api.post<Perte>(`/pertes/${aAnnuler!.id}/annuler`, { motif: motifAnnulation })).data,
@@ -218,9 +225,18 @@ export function PertesPage() {
     else setDeclaration(true);
   };
 
-  // Déclarations groupées par jour ; le total d'un jour n'est affiché que s'il est complet.
-  const jours: { cle: string; date: Date; pertes: Perte[] }[] = [];
+  // Total d'un jour sur tout ce qui est chargé, affiché seulement s'il est complet.
+  const totauxJour = new Map<string, { nombre: number; montant: number }>();
   for (const p of pertes) {
+    const cle = new Date(p.createdAt).toDateString();
+    const t = totauxJour.get(cle) ?? { nombre: 0, montant: 0 };
+    totauxJour.set(cle, { nombre: t.nombre + 1, montant: t.montant + (p.annuleAt ? 0 : (p.valeurTotale ?? 0)) });
+  }
+  const dernierJourCharge = pertes.length > 0 ? new Date(pertes[pertes.length - 1].createdAt).toDateString() : null;
+
+  // Déclarations de la page groupées par jour.
+  const jours: { cle: string; date: Date; pertes: Perte[] }[] = [];
+  for (const p of visibles) {
     const date = new Date(p.createdAt);
     const dernier = jours.at(-1);
     if (dernier?.cle === date.toDateString()) dernier.pertes.push(p);
@@ -317,20 +333,18 @@ export function PertesPage() {
               )}
             </Card>
           ) : (
-            <>
-              {jours.map((jour, index) => {
-                const valides = jour.pertes.filter((p) => !p.annuleAt);
-                const complet = index < jours.length - 1 || !liste.hasNextPage;
+            <div ref={ancre} className="flex scroll-mt-20 flex-col gap-3">
+              {jours.map((jour) => {
+                const totalJour = totauxJour.get(jour.cle) ?? { nombre: 0, montant: 0 };
+                const complet = jour.cle !== dernierJourCharge || !liste.hasNextPage;
                 return (
                   <section key={jour.cle} aria-label={libelleJour(jour.date)}>
                     <h3 className="mb-2 flex items-baseline justify-between gap-3 px-0.5">
                       <span className="text-corps font-semibold text-ink-900">{libelleJour(jour.date)}</span>
                       {complet && (
                         <span className="text-meta text-steel-400">
-                          {jour.pertes.length} {pluriel('déclaration', jour.pertes.length)} ·{' '}
-                          <span className="font-semibold text-rupture">
-                            {gnf(valides.reduce((total, p) => total + (p.valeurTotale ?? 0), 0))}
-                          </span>
+                          {totalJour.nombre} {pluriel('déclaration', totalJour.nombre)} ·{' '}
+                          <span className="font-semibold text-rupture">{gnf(totalJour.montant)}</span>
                         </span>
                       )}
                     </h3>
@@ -422,14 +436,8 @@ export function PertesPage() {
                   </section>
                 );
               })}
-              {liste.hasNextPage && (
-                <div className="flex justify-center">
-                  <Button variant="secondary" loading={liste.isFetchingNextPage} onClick={() => liste.fetchNextPage()}>
-                    Afficher plus
-                  </Button>
-                </div>
-              )}
-            </>
+              <Pagination etat={pagination} className="px-0.5" />
+            </div>
           )}
         </div>
 

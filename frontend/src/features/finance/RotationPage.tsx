@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Pagination } from '@/components/patterns/Pagination';
+import { usePagination } from '@/components/patterns/usePagination';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api, messageErreur } from '@/lib/api';
@@ -45,6 +47,7 @@ export function RotationPage() {
     queryKey: ['rotation', jours],
     queryFn: async () => (await api.get<Rapport>(`/statistiques/rotation?jours=${jours}`)).data,
   });
+  const { visibles, ancre, pagination } = usePagination(rapport.data?.produits ?? [], { reinitialiser: jours });
   const montant = (v: number | null) => (v === null ? '—' : gnf(v));
 
   return (
@@ -94,25 +97,29 @@ export function RotationPage() {
             {rapport.data!.produits.length === 0 ? (
               <EmptyState titre="Aucun produit" />
             ) : (
-              <ul className="divide-y divide-rule">
-                {rapport.data!.produits.map((p) => (
-                  <li key={p.produit.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 sm:px-5">
-                    <Link to={`/produits/${p.produit.id}`} className="min-w-0 flex-1 basis-56">
-                      <span className="block truncate text-corps font-medium text-ink-900 hover:underline">{p.produit.nom}</span>
-                      <span className="block truncate text-meta text-steel-500">
-                        {formatNombre(p.stock)} en stock · {formatNombre(p.sorties)} vendus
-                        {p.derniereSortie ? ` · dernière vente le ${dateCourte(p.derniereSortie)}` : ' · jamais vendu'}
-                      </span>
-                    </Link>
-                    {p.dormant ? (
-                      <Badge variant="faible">Dormant</Badge>
-                    ) : p.couvertureJours !== null ? (
-                      <Badge variant={p.couvertureJours > 180 ? 'faible' : 'neutral'}>{formatNombre(p.couvertureJours)} j de stock</Badge>
-                    ) : null}
-                    <span className="w-28 text-right text-corps font-semibold text-ink-900">{montant(p.valeur)}</span>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <div ref={ancre} className="scroll-mt-20" />
+                <ul className="divide-y divide-rule">
+                  {visibles.map((p) => (
+                    <li key={p.produit.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 sm:px-5">
+                      <Link to={`/produits/${p.produit.id}`} className="min-w-0 flex-1 basis-56">
+                        <span className="block truncate text-corps font-medium text-ink-900 hover:underline">{p.produit.nom}</span>
+                        <span className="block truncate text-meta text-steel-500">
+                          {formatNombre(p.stock)} en stock · {formatNombre(p.sorties)} vendus
+                          {p.derniereSortie ? ` · dernière vente le ${dateCourte(p.derniereSortie)}` : ' · jamais vendu'}
+                        </span>
+                      </Link>
+                      {p.dormant ? (
+                        <Badge variant="faible">Dormant</Badge>
+                      ) : p.couvertureJours !== null ? (
+                        <Badge variant={p.couvertureJours > 180 ? 'faible' : 'neutral'}>{formatNombre(p.couvertureJours)} j de stock</Badge>
+                      ) : null}
+                      <span className="w-28 text-right text-corps font-semibold text-ink-900">{montant(p.valeur)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Pagination etat={pagination} className="border-t border-rule" />
+              </>
             )}
           </Card>
         </>

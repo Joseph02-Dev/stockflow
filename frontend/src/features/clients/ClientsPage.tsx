@@ -1,4 +1,6 @@
 import { useState, useSyncExternalStore, type CSSProperties } from 'react';
+import { Pagination } from '@/components/patterns/Pagination';
+import { usePagination } from '@/components/patterns/usePagination';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm, useWatch } from 'react-hook-form';
@@ -196,6 +198,9 @@ export function ClientsPage() {
     if (filtre === 'DEPASSE') return depassePlafond(c, debiteurParClient.get(c.id));
     return c.categorie === filtre;
   });
+  const { visibles: clientsPage, ancre, pagination } = usePagination(visibles, {
+    reinitialiser: [filtre, rechercheRetardee, afficherArchives],
+  });
   const basculer = (valeur: Exclude<Filtre, null>) => setFiltre((actuel) => (actuel === valeur ? null : valeur));
 
   return (
@@ -342,64 +347,67 @@ export function ClientsPage() {
           )}
         </Card>
       ) : (
-        <ul className="clients-grille" aria-label={`${visibles.length} ${pluriel('client', visibles.length)}`}>
-          {visibles.map((client, i) => {
-            const debiteur = debiteurParClient.get(client.id);
-            const solde = debiteur?.solde ?? 0;
-            return (
-              <li key={client.id} className="clients-carte" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
-                <div className="flex items-center gap-3">
-                  <Vignette nom={client.nom} taille={44} teinte={TEINTE_CATEGORIE[client.categorie]} className="rounded-full! font-display text-[14px]!" />
-                  <div className="min-w-0 flex-1">
-                    <h2 className="truncate text-[15px] font-semibold text-ink-900">{client.nom}</h2>
-                    {client.nomCommerce && <p className="truncate text-meta text-steel-500">{client.nomCommerce}</p>}
+        <div ref={ancre} className="flex scroll-mt-20 flex-col gap-3">
+          <ul className="clients-grille" aria-label={`${visibles.length} ${pluriel('client', visibles.length)}`}>
+            {clientsPage.map((client, i) => {
+              const debiteur = debiteurParClient.get(client.id);
+              const solde = debiteur?.solde ?? 0;
+              return (
+                <li key={client.id} className="clients-carte" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
+                  <div className="flex items-center gap-3">
+                    <Vignette nom={client.nom} taille={44} teinte={TEINTE_CATEGORIE[client.categorie]} className="rounded-full! font-display text-[14px]!" />
+                    <div className="min-w-0 flex-1">
+                      <h2 className="truncate text-[15px] font-semibold text-ink-900">{client.nom}</h2>
+                      {client.nomCommerce && <p className="truncate text-meta text-steel-500">{client.nomCommerce}</p>}
+                    </div>
+                    {enAttente.has(client.id) ? (
+                      <Badge variant="faible">En attente d’envoi</Badge>
+                    ) : client.archive ? (
+                      <Badge variant="neutral">Archivé</Badge>
+                    ) : (
+                      <span className="clients-categorie" style={{ '--c': TEINTE_CATEGORIE[client.categorie] } as CSSProperties}>
+                        {LIBELLES_CATEGORIE[client.categorie]}
+                      </span>
+                    )}
                   </div>
-                  {enAttente.has(client.id) ? (
-                    <Badge variant="faible">En attente d’envoi</Badge>
-                  ) : client.archive ? (
-                    <Badge variant="neutral">Archivé</Badge>
+
+                  {client.telephone ? (
+                    <p className="inline-flex items-center gap-1.5 text-corps text-steel-700">
+                      <Phone className="size-3.5 text-steel-400" aria-hidden="true" />
+                      {client.telephone}
+                    </p>
                   ) : (
-                    <span className="clients-categorie" style={{ '--c': TEINTE_CATEGORIE[client.categorie] } as CSSProperties}>
-                      {LIBELLES_CATEGORIE[client.categorie]}
-                    </span>
+                    <p className="text-corps text-steel-400">Pas de téléphone</p>
                   )}
-                </div>
 
-                {client.telephone ? (
-                  <p className="inline-flex items-center gap-1.5 text-corps text-steel-700">
-                    <Phone className="size-3.5 text-steel-400" aria-hidden="true" />
-                    {client.telephone}
-                  </p>
-                ) : (
-                  <p className="text-corps text-steel-400">Pas de téléphone</p>
-                )}
+                  {client.plafondCredit !== null ? (
+                    <JaugeCredit solde={solde} plafond={client.plafondCredit} />
+                  ) : solde > 0 ? (
+                    <p className="text-meta text-steel-500">
+                      Doit <b className="font-semibold text-ink-900">{gnf(solde)}</b> · sans plafond de crédit
+                    </p>
+                  ) : (
+                    <p className="text-meta text-steel-400">Pas de plafond de crédit</p>
+                  )}
 
-                {client.plafondCredit !== null ? (
-                  <JaugeCredit solde={solde} plafond={client.plafondCredit} />
-                ) : solde > 0 ? (
-                  <p className="text-meta text-steel-500">
-                    Doit <b className="font-semibold text-ink-900">{gnf(solde)}</b> · sans plafond de crédit
-                  </p>
-                ) : (
-                  <p className="text-meta text-steel-400">Pas de plafond de crédit</p>
-                )}
-
-                <div className="clients-pied">
-                  <BoutonWhatsApp compact libelle="WhatsApp" telephone={client.telephone} texte={`Bonjour ${client.nom},`} />
-                  <span className="flex-1" />
-                  <Button variant="ghost" taille="sm" icone aria-label={`Modifier ${client.nom}`} title="Modifier" onClick={() => ouvrir(client)}>
-                    <Pencil className="size-4" aria-hidden="true" />
-                  </Button>
-                  {!client.archive && (
-                    <Button variant="ghost" taille="sm" icone aria-label={`Archiver ${client.nom}`} title="Archiver" onClick={() => setAArchiver(client)}>
-                      <Archive className="size-4" aria-hidden="true" />
+                  <div className="clients-pied">
+                    <BoutonWhatsApp compact libelle="WhatsApp" telephone={client.telephone} texte={`Bonjour ${client.nom},`} />
+                    <span className="flex-1" />
+                    <Button variant="ghost" taille="sm" icone aria-label={`Modifier ${client.nom}`} title="Modifier" onClick={() => ouvrir(client)}>
+                      <Pencil className="size-4" aria-hidden="true" />
                     </Button>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                    {!client.archive && (
+                      <Button variant="ghost" taille="sm" icone aria-label={`Archiver ${client.nom}`} title="Archiver" onClick={() => setAArchiver(client)}>
+                        <Archive className="size-4" aria-hidden="true" />
+                      </Button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <Pagination etat={pagination} className="px-0.5" />
+        </div>
       )}
 
       <Drawer

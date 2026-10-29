@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Pagination } from '@/components/patterns/Pagination';
+import { usePagination } from '@/components/patterns/usePagination';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -298,6 +300,9 @@ export function ProduitsPage() {
       (statutFiltre === null ||
         (!p.archive && statutStock(infosStock(p.id).quantite, p.seuilAlerte) === statutFiltre)),
   );
+  const { visibles: produitsPage, ancre, pagination } = usePagination(produitsAffiches, {
+    reinitialiser: [rechercheRetardee, afficherArchives, categorieFiltre, statutFiltre],
+  });
   const filtresActifs = recherche !== '' || categorieFiltre !== TOUTES || statutFiltre !== null;
 
   function effacerFiltres() {
@@ -480,66 +485,70 @@ export function ProduitsPage() {
       {erreur && <Alert variant="error">{erreur}</Alert>}
 
       <Card>
+        <div ref={ancre} className="scroll-mt-20" />
         {isLoading ? (
           <LoadingState />
         ) : isError ? (
           <ErrorState message={messageErreur(error)} onRetry={() => refetch()} />
         ) : produitsAffiches.length > 0 && vue === 'grille' ? (
-          <ul className="produits-grille">
-            {produitsAffiches.map((produit) => {
-              const infos = infosStock(produit.id);
-              const teinte = teinteDe(produit.categorie?.id ?? SANS_CATEGORIE);
-              return (
-                <li key={produit.id} className="produits-carte">
-                  <Link to={`/produits/${produit.id}`} className="flex flex-col gap-3 rounded-md">
-                    <span className="produits-visuel" style={{ '--teinte': teinte } as CSSProperties}>
-                      {produit.photoUrl ? (
-                        <img src={produit.photoUrl} alt="" className="size-full object-cover" />
-                      ) : (
-                        <span aria-hidden="true">{initiales(produit.nom)}</span>
-                      )}
-                      <span className="absolute top-2 left-2">
-                        <EtatProduit produit={produit} quantite={infos.quantite} />
+          <>
+            <ul className="produits-grille">
+              {produitsPage.map((produit) => {
+                const infos = infosStock(produit.id);
+                const teinte = teinteDe(produit.categorie?.id ?? SANS_CATEGORIE);
+                return (
+                  <li key={produit.id} className="produits-carte">
+                    <Link to={`/produits/${produit.id}`} className="flex flex-col gap-3 rounded-md">
+                      <span className="produits-visuel" style={{ '--teinte': teinte } as CSSProperties}>
+                        {produit.photoUrl ? (
+                          <img src={produit.photoUrl} alt="" className="size-full object-cover" />
+                        ) : (
+                          <span aria-hidden="true">{initiales(produit.nom)}</span>
+                        )}
+                        <span className="absolute top-2 left-2">
+                          <EtatProduit produit={produit} quantite={infos.quantite} />
+                        </span>
                       </span>
-                    </span>
-                    <span className="min-w-0">
-                      <span className="line-clamp-2 font-semibold text-ink-900">{produit.nom}</span>
-                      <span className="mt-1 flex items-center justify-between gap-2 text-meta text-steel-500">
-                        <span className="truncate">{produit.categorie?.nom ?? 'Sans catégorie'}</span>
-                        <Emplacements noms={infos.emplacements} />
+                      <span className="min-w-0">
+                        <span className="line-clamp-2 font-semibold text-ink-900">{produit.nom}</span>
+                        <span className="mt-1 flex items-center justify-between gap-2 text-meta text-steel-500">
+                          <span className="truncate">{produit.categorie?.nom ?? 'Sans catégorie'}</span>
+                          <Emplacements noms={infos.emplacements} />
+                        </span>
                       </span>
-                    </span>
-                    <NiveauStock quantite={infos.quantite} seuil={produit.seuilAlerte} unite={produit.uniteMesure} />
-                  </Link>
-                  <div className="flex items-center justify-between border-t border-rule pt-2.5">
-                    <Prix valeur={produit.prixVente} />
-                    <div className="flex gap-0.5">
-                      <Button
-                        variant="ghost"
-                        taille="sm"
-                        icone
-                        aria-label={`Modifier ${produit.nom}`}
-                        onClick={() => navigate(`/produits/${produit.id}`)}
-                      >
-                        <Pencil className="size-4" aria-hidden="true" />
-                      </Button>
-                      {!produit.archive && (
+                      <NiveauStock quantite={infos.quantite} seuil={produit.seuilAlerte} unite={produit.uniteMesure} />
+                    </Link>
+                    <div className="flex items-center justify-between border-t border-rule pt-2.5">
+                      <Prix valeur={produit.prixVente} />
+                      <div className="flex gap-0.5">
                         <Button
                           variant="ghost"
                           taille="sm"
                           icone
-                          aria-label={`Archiver ${produit.nom}`}
-                          onClick={() => setAArchiver(produit)}
+                          aria-label={`Modifier ${produit.nom}`}
+                          onClick={() => navigate(`/produits/${produit.id}`)}
                         >
-                          <Archive className="size-4" aria-hidden="true" />
+                          <Pencil className="size-4" aria-hidden="true" />
                         </Button>
-                      )}
+                        {!produit.archive && (
+                          <Button
+                            variant="ghost"
+                            taille="sm"
+                            icone
+                            aria-label={`Archiver ${produit.nom}`}
+                            onClick={() => setAArchiver(produit)}
+                          >
+                            <Archive className="size-4" aria-hidden="true" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                  </li>
+                );
+              })}
+            </ul>
+            <Pagination etat={pagination} className="border-t border-rule" />
+          </>
         ) : produitsAffiches.length > 0 ? (
           <>
             <div className="relative hidden overflow-x-auto lg:block">
@@ -558,7 +567,7 @@ export function ProduitsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-rule">
-                  {produitsAffiches.map((produit) => {
+                  {produitsPage.map((produit) => {
                     const infos = infosStock(produit.id);
                     return (
                       <tr key={produit.id} className="produits-ligne">
@@ -639,7 +648,7 @@ export function ProduitsPage() {
 
             {/* Fiches empilées sous lg : un tableau à 7 colonnes ne se lit pas sur un écran étroit. */}
             <ul className="divide-y divide-rule lg:hidden">
-              {produitsAffiches.map((produit) => {
+              {produitsPage.map((produit) => {
                 const infos = infosStock(produit.id);
                 return (
                   <li key={produit.id} className="flex flex-col gap-3 px-4 py-3.5">
@@ -686,6 +695,7 @@ export function ProduitsPage() {
                 );
               })}
             </ul>
+            <Pagination etat={pagination} className="border-t border-rule" />
           </>
         ) : filtresActifs ? (
           <EmptyState

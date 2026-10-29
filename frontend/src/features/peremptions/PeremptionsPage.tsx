@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { CalendarX2, Tag } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { pageSuivante, urlPage } from '@/lib/pagination';
+import { Pagination } from '@/components/patterns/Pagination';
+import { usePagination } from '@/components/patterns/usePagination';
 import { formatNombre, pluriel } from '@/lib/format';
 import { gnf } from '@/lib/montant';
 import { cn } from '@/lib/cn';
@@ -54,6 +56,11 @@ export function PeremptionsPage() {
     getNextPageParam: (derniere) => pageSuivante(derniere),
   });
   const liste = lots.data?.pages.flat() ?? [];
+  const { visibles, ancre, pagination } = usePagination(liste, {
+    aPlus: lots.hasNextPage,
+    chargerPlus: lots.fetchNextPage,
+    reinitialiser: filtre,
+  });
 
   const sortir = useMutation({
     mutationFn: async (lot: LotPeremption) => api.post(`/peremptions/lots/${lot.id}/sortir`),
@@ -157,8 +164,9 @@ export function PeremptionsPage() {
               titre={filtre ? TRANCHES[filtre].libelle : 'Tous les lots datés'}
               meta={filtre ? 'Touchez la tuile de nouveau pour tout afficher' : 'Le plus urgent d’abord'}
             />
+            <div ref={ancre} className="scroll-mt-20" />
             <ul className="divide-y divide-rule">
-              {liste.map((lot) => (
+              {visibles.map((lot) => (
                 <li key={lot.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:px-5">
                   <div className="flex min-w-0 flex-1 items-center gap-3">
                     <Vignette nom={lot.produit.nom} photoUrl={lot.produit.photoUrl} />
@@ -213,13 +221,7 @@ export function PeremptionsPage() {
                 </li>
               ))}
             </ul>
-            {lots.hasNextPage && (
-              <div className="flex justify-center border-t border-rule p-3">
-                <Button variant="secondary" loading={lots.isFetchingNextPage} onClick={() => lots.fetchNextPage()}>
-                  Afficher plus de lots
-                </Button>
-              </div>
-            )}
+            <Pagination etat={pagination} className="border-t border-rule" />
           </>
         )}
       </Card>

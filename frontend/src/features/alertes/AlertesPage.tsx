@@ -1,4 +1,6 @@
 import { useMemo, useState, type CSSProperties } from 'react';
+import { Pagination } from '@/components/patterns/Pagination';
+import { usePagination } from '@/components/patterns/usePagination';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowDown, CheckCircle2, Clock, PackageX, Phone, ShoppingCart, Truck, type LucideIcon } from 'lucide-react';
@@ -215,6 +217,8 @@ export function AlertesPage() {
         .filter((g) => g.lignes.length > 0)
         .map((g) => ({ ...g, ruptures: g.lignes.filter((l) => l.quantite <= 0).length }))
     : groupes;
+  // 10 fournisseurs par page, chacun avec toutes ses lignes (commande groupée).
+  const { visibles: groupesPage, ancre, pagination } = usePagination(groupesVisibles, { reinitialiser: [statut, filtre] });
 
   return (
     <div className="flex flex-col gap-5">
@@ -306,7 +310,7 @@ export function AlertesPage() {
             )}
           </Card>
         ) : statut === 'ACTIVE' ? (
-          <div className="flex flex-col gap-4">
+          <div ref={ancre} className="flex scroll-mt-20 flex-col gap-4">
             {groupesVisibles.length === 0 && (
               <Card>
                 <EmptyState
@@ -320,7 +324,7 @@ export function AlertesPage() {
                 />
               </Card>
             )}
-            {groupesVisibles.map((groupe) => (
+            {groupesPage.map((groupe) => (
               <PanneauFournisseur
                 key={groupe.cle}
                 groupe={groupe}
@@ -328,6 +332,7 @@ export function AlertesPage() {
                 onCommander={() => commander(groupe)}
               />
             ))}
+            <Pagination etat={pagination} className="px-0.5" />
           </div>
         ) : (
           <HistoriqueResolues alertes={data} maintenant={maintenant} />
@@ -473,10 +478,12 @@ const dateHeure = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'sho
 const heure = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
 function HistoriqueResolues({ alertes, maintenant }: { alertes: Alerte[]; maintenant: number }) {
+  const { visibles, ancre, pagination } = usePagination(alertes);
   return (
     <Card>
+      <div ref={ancre} className="scroll-mt-20" />
       <ul className="divide-y divide-rule">
-        {alertes.map((alerte) => {
+        {visibles.map((alerte) => {
           const resolue = alerte.resolvedAt ?? alerte.createdAt;
           const duree = joursEntre(alerte.createdAt, new Date(resolue).getTime());
           return (
@@ -500,6 +507,7 @@ function HistoriqueResolues({ alertes, maintenant }: { alertes: Alerte[]; mainte
           );
         })}
       </ul>
+      <Pagination etat={pagination} className="border-t border-rule" />
     </Card>
   );
 }

@@ -1,4 +1,6 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
+import { Pagination } from '@/components/patterns/Pagination';
+import { usePagination } from '@/components/patterns/usePagination';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarDays, ChevronRight, CircleCheckBig, FileText, Plus, RefreshCw, Send, Truck, type LucideIcon, ArrowDown } from 'lucide-react';
@@ -154,6 +156,7 @@ export function CommandesPage() {
   const historiqueVisible = historique.filter(
     (c) => (filtre === 'TOUTES' || c.statut === filtre) && (!terme || c.fournisseur.nom.toLocaleLowerCase('fr').includes(terme)),
   );
+  const { visibles: historiquePage, ancre, pagination } = usePagination(historiqueVisible, { reinitialiser: [filtre, terme] });
   // Téléphone : une colonne à la fois, celle des commandes en route par défaut.
   const colonneActive: Colonne = colonne ?? (enRoute.length > 0 ? 'route' : brouillons.length > 0 ? 'envoyer' : 'recues');
 
@@ -469,36 +472,40 @@ export function CommandesPage() {
                 {historiqueVisible.length === 0 ? (
                   <p className="px-5 py-8 text-center text-corps text-steel-500">Aucune commande pour ce filtre.</p>
                 ) : (
-                  <ul className="divide-y divide-rule">
-                    {historiqueVisible.map((c) => {
-                      const statut = STATUTS_COMMANDE[c.statut];
-                      const l = livraison(c, delaiDe(c));
-                      const ecart = libelleEcart(l?.ecart ?? null);
-                      const date = c.recueAt
-                        ? `Reçue le ${dateCourte.format(new Date(c.recueAt))}`
-                        : `Créée le ${dateCourte.format(new Date(c.createdAt))}`;
-                      return (
-                        <li key={c.id}>
-                          <Link to={`/commandes/${c.id}`} className="commandes-historique group">
-                            <Fournisseur commande={c} sousTitre={`${c._count.lignes} ${pluriel('référence', c._count.lignes)} · ${date}`} />
-                            <span className="text-corps text-steel-700 max-lg:hidden">
-                              {l === null ? '—' : l.duree === 0 ? 'Livrée le jour même' : `En ${l.duree} ${pluriel('jour', l.duree)}`}
-                            </span>
-                            <span className="text-corps font-semibold max-lg:hidden" style={{ color: ecart.teinte }}>
-                              {ecart.texte}
-                            </span>
-                            <span>
-                              <Badge variant={statut.variant}>{statut.libelle}</Badge>
-                            </span>
-                            <ChevronRight
-                              className="size-4 text-steel-400 transition-transform duration-200 ease-sortie group-hover:translate-x-0.5"
-                              aria-hidden="true"
-                            />
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <>
+                    <div ref={ancre} className="scroll-mt-20" />
+                    <ul className="divide-y divide-rule">
+                      {historiquePage.map((c) => {
+                        const statut = STATUTS_COMMANDE[c.statut];
+                        const l = livraison(c, delaiDe(c));
+                        const ecart = libelleEcart(l?.ecart ?? null);
+                        const date = c.recueAt
+                          ? `Reçue le ${dateCourte.format(new Date(c.recueAt))}`
+                          : `Créée le ${dateCourte.format(new Date(c.createdAt))}`;
+                        return (
+                          <li key={c.id}>
+                            <Link to={`/commandes/${c.id}`} className="commandes-historique group">
+                              <Fournisseur commande={c} sousTitre={`${c._count.lignes} ${pluriel('référence', c._count.lignes)} · ${date}`} />
+                              <span className="text-corps text-steel-700 max-lg:hidden">
+                                {l === null ? '—' : l.duree === 0 ? 'Livrée le jour même' : `En ${l.duree} ${pluriel('jour', l.duree)}`}
+                              </span>
+                              <span className="text-corps font-semibold max-lg:hidden" style={{ color: ecart.teinte }}>
+                                {ecart.texte}
+                              </span>
+                              <span>
+                                <Badge variant={statut.variant}>{statut.libelle}</Badge>
+                              </span>
+                              <ChevronRight
+                                className="size-4 text-steel-400 transition-transform duration-200 ease-sortie group-hover:translate-x-0.5"
+                                aria-hidden="true"
+                              />
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    <Pagination etat={pagination} className="border-t border-rule" />
+                  </>
                 )}
               </Card>
             </section>

@@ -1,4 +1,6 @@
 import { useState, type CSSProperties } from 'react';
+import { Pagination } from '@/components/patterns/Pagination';
+import { usePagination } from '@/components/patterns/usePagination';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, TriangleAlert, Undo2, X } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
@@ -158,6 +160,7 @@ export function RetoursFournisseurPage() {
         r.fournisseur.nom.toLocaleLowerCase('fr').includes(terme) ||
         r.mouvements.some((m) => m.produit.nom.toLocaleLowerCase('fr').includes(terme))),
   );
+  const { visibles: closPage, ancre, pagination } = usePagination(closVisibles, { reinitialiser: [filtre, terme] });
 
   return (
     <div className="flex flex-col gap-5">
@@ -348,35 +351,39 @@ export function RetoursFournisseurPage() {
               {closVisibles.length === 0 ? (
                 <p className="px-5 py-8 text-center text-corps text-steel-500">Aucun retour pour ce filtre.</p>
               ) : (
-                <ul className="divide-y divide-rule">
-                  {closVisibles.map((r) => {
-                    const refuse = r.statutAvoir === 'REFUSE';
-                    const fin = dateCloture(r);
-                    const duree = joursEntre(new Date(r.createdAt), fin);
-                    return (
-                      <li key={r.id} className="retours-clos">
-                        <div className="flex min-w-0 items-center gap-2.5">
-                          <Vignette nom={r.fournisseur.nom} taille={38} teinte={teinteSerie(r.fournisseur.id)} />
-                          <div className="min-w-0">
-                            <p className="truncate text-corps font-semibold text-ink-900">{r.fournisseur.nom}</p>
-                            <p className="truncate text-meta text-steel-400">{resumeProduits(r)}</p>
+                <>
+                  <div ref={ancre} className="scroll-mt-20" />
+                  <ul className="divide-y divide-rule">
+                    {closPage.map((r) => {
+                      const refuse = r.statutAvoir === 'REFUSE';
+                      const fin = dateCloture(r);
+                      const duree = joursEntre(new Date(r.createdAt), fin);
+                      return (
+                        <li key={r.id} className="retours-clos">
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <Vignette nom={r.fournisseur.nom} taille={38} teinte={teinteSerie(r.fournisseur.id)} />
+                            <div className="min-w-0">
+                              <p className="truncate text-corps font-semibold text-ink-900">{r.fournisseur.nom}</p>
+                              <p className="truncate text-meta text-steel-400">{resumeProduits(r)}</p>
+                            </div>
                           </div>
-                        </div>
-                        <span className="text-corps text-steel-700 max-lg:hidden">
-                          {refuse
-                            ? `Refusé le ${dateCourte.format(fin)} · passé en pertes`
-                            : `Avoir reçu le ${dateCourte.format(fin)} · ${duree <= 0 ? 'le jour même' : `en ${duree} ${pluriel('jour', duree)}`}`}
-                        </span>
-                        <span className={cn('text-right text-corps font-semibold max-lg:hidden', refuse ? 'text-rupture' : 'text-ink-900')}>
-                          {valeurIncomplete(r) && r.valeurTotale === 0 ? '—' : `${montant(r.valeurTotale, valeurIncomplete(r))} GNF`}
-                        </span>
-                        <span className="text-right">
-                          <Badge variant={refuse ? 'rupture' : 'ok'}>{refuse ? 'Refusé' : 'Avoir reçu'}</Badge>
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
+                          <span className="text-corps text-steel-700 max-lg:hidden">
+                            {refuse
+                              ? `Refusé le ${dateCourte.format(fin)} · passé en pertes`
+                              : `Avoir reçu le ${dateCourte.format(fin)} · ${duree <= 0 ? 'le jour même' : `en ${duree} ${pluriel('jour', duree)}`}`}
+                          </span>
+                          <span className={cn('text-right text-corps font-semibold max-lg:hidden', refuse ? 'text-rupture' : 'text-ink-900')}>
+                            {valeurIncomplete(r) && r.valeurTotale === 0 ? '—' : `${montant(r.valeurTotale, valeurIncomplete(r))} GNF`}
+                          </span>
+                          <span className="text-right">
+                            <Badge variant={refuse ? 'rupture' : 'ok'}>{refuse ? 'Refusé' : 'Avoir reçu'}</Badge>
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <Pagination etat={pagination} className="border-t border-rule" />
+                </>
               )}
             </Card>
           )}
