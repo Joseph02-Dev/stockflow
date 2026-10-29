@@ -5,15 +5,19 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { RequestContext } from '../../common/context/tenant-context.service.js';
 import { VentesService } from './ventes.service.js';
 import { CreancesService } from './creances.service.js';
 import { RetoursClientService } from './retours-client.service.js';
+import { FactureService } from './facture/facture.service.js';
 import { CreerVenteDto } from './dto/creer-vente.dto.js';
 import { ReglementDto } from './dto/reglement.dto.js';
 import { AnnulerVenteDto } from './dto/annuler-vente.dto.js';
@@ -25,6 +29,7 @@ export class VentesController {
   constructor(
     private readonly ventesService: VentesService,
     private readonly retoursClient: RetoursClientService,
+    private readonly factures: FactureService,
   ) {}
 
   @Post()
@@ -51,6 +56,20 @@ export class VentesController {
   @Get(':id')
   obtenir(@CurrentTenant() entrepriseId: string, @Param('id') id: string) {
     return this.ventesService.obtenir(entrepriseId, id);
+  }
+
+  /** Facture PDF : téléchargée, jamais hébergée (elle porte les données du client). */
+  @Get(':id/facture')
+  async facture(
+    @CurrentTenant() entrepriseId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ) {
+    const { nomFichier, pdf } = await this.factures.generer(entrepriseId, id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${nomFichier}.pdf"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(pdf);
   }
 
   @Post(':id/annuler')

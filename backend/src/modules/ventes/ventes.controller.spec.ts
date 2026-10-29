@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
+import { lirePdf } from '../rapports/rapports-test.utils.js';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { AppModule } from '../../app.module.js';
 import { PrismaService } from '../../config/prisma.service.js';
@@ -9,6 +10,13 @@ import {
   creerEntrepriseAvecAdmin,
   nettoyer,
 } from '../console/console-test.utils.js';
+
+/** Réponse binaire (PDF) récupérée en Buffer. */
+const binaire = (res: request.Response, rappel: (err: Error | null, body: Buffer) => void) => {
+  const morceaux: Buffer[] = [];
+  res.on('data', (m: Buffer) => morceaux.push(m));
+  res.on('end', () => rappel(null, Buffer.concat(morceaux)));
+};
 
 describe('Ventes', () => {
   let app: INestApplication;
@@ -151,6 +159,32 @@ describe('Ventes', () => {
       libelle: 'Ciment 50 kg',
       prixUnitaire: 95_000,
     });
+  });
+
+  it('facture PDF : document de la vente, téléchargé, introuvable pour une autre entreprise', async () => {
+    const b = await boutique('Quincaillerie Facture');
+    const client = await b.client('DETAIL');
+    const vente = (
+      await b.http.post('/ventes', {
+        emplacementId: b.depot.id,
+        clientId: client.id,
+        modePaiement: 'ESPECES',
+        lignes: [{ produitId: b.fer.id, quantite: 2 }],
+      })
+    ).body;
+
+    const reponse = await b.http.get(`/ventes/${vente.id}/facture`).buffer(true).parse(binaire);
+    expect(reponse.status).toBe(200);
+    expect(reponse.headers['content-type']).toBe('application/pdf');
+    expect(reponse.headers['content-disposition']).toBe(`attachment; filename="facture-${vente.numero}.pdf"`);
+    const { pages } = await lirePdf(reponse.body as Buffer);
+    const texte = pages.join(' ');
+    for (const attendu of ['FACTURE', vente.numero, 'Quincaillerie Facture', 'Client DETAIL', 'Fer 12 mm', 'RÉGLÉE']) {
+      expect(texte).toContain(attendu);
+    }
+
+    const autre = await boutique('Autre Boutique');
+    expect((await autre.http.get(`/ventes/${vente.id}/facture`)).status).toBe(404);
   });
 
   it('stock insuffisant sur une seule ligne : 409 nommant le produit, rien n’est enregistré', async () => {

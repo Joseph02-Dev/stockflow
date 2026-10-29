@@ -1,6 +1,6 @@
-import { MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { lienWhatsApp } from '@/lib/whatsapp';
+import { IconeWhatsApp } from '@/components/icones/IconeWhatsApp';
 
 /**
  * Lien WhatsApp (fond #25D366, texte blanc). Rendu seulement si un
@@ -32,7 +32,7 @@ export function BoutonWhatsApp({
         className,
       )}
     >
-      <MessageCircle className="size-4" aria-hidden="true" />
+      <IconeWhatsApp className="size-4" />
       {libelle}
       <span className="sr-only"> (ouvre WhatsApp dans un nouvel onglet)</span>
     </a>
