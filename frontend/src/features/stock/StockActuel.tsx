@@ -1,4 +1,6 @@
 import { useMemo, useState, type CSSProperties } from 'react';
+import { Pagination } from '@/components/patterns/Pagination';
+import { usePagination } from '@/components/patterns/usePagination';
 import { ChevronDown, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -100,6 +102,7 @@ export function StockActuel({
       (!cible || sansAccents(`${p.produit.nom} ${p.produit.reference ?? ''}`).includes(cible)) &&
       (!statutFiltre || p.lignes.some((l) => statutStock(l.quantite, l.produit.seuilAlerte) === statutFiltre)),
   );
+  const { visibles: produitsPage, ancre, pagination } = usePagination(visibles, { reinitialiser: [terme, statutFiltre] });
 
   const basculer = (id: string, ouvert: boolean) =>
     setOuverts((actuels) => {
@@ -209,7 +212,7 @@ export function StockActuel({
         {visibles.length === 0 ? (
           <EmptyState titre="Aucun produit ne correspond" description="Modifiez la recherche ou retirez le filtre." />
         ) : (
-          <div className="divide-y divide-rule">
+          <div ref={ancre} className="scroll-mt-20 divide-y divide-rule">
             <div className="stock-ligne stock-entete" aria-hidden="true">
               <span>Produit</span>
               <span>{tous ? 'Répartition' : 'Emplacement'}</span>
@@ -217,7 +220,7 @@ export function StockActuel({
               <span>État</span>
               <span />
             </div>
-            {visibles.map((p, rang) => {
+            {produitsPage.map((p, rang) => {
               const tete = (
                 <>
                   <span className="flex min-w-0 items-center gap-3">
@@ -311,6 +314,7 @@ export function StockActuel({
                 </details>
               );
             })}
+            <Pagination etat={pagination} />
           </div>
         )}
       </Card>

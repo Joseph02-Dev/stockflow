@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Pagination } from '@/components/patterns/Pagination';
+import { usePagination } from '@/components/patterns/usePagination';
 import { useQuery } from '@tanstack/react-query';
 import { api, messageErreur } from '@/lib/api';
 import { formatNombre } from '@/lib/format';
@@ -43,6 +45,7 @@ export function ValorisationPage() {
     enabled: produit !== null,
     queryFn: async () => (await api.get<Couche[]>(`/valorisation/produits/${produit!.id}/couches`)).data,
   });
+  const { visibles, ancre, pagination } = usePagination(resume.data?.produits ?? []);
 
   return (
     <div className="flex flex-col gap-5">
@@ -69,28 +72,32 @@ export function ValorisationPage() {
             {resume.data!.produits.length === 0 ? (
               <EmptyState titre="Aucun stock valorisé" description="Les prochaines entrées de stock apparaîtront ici avec leur coût." />
             ) : (
-              <ul className="divide-y divide-rule">
-                {resume.data!.produits.map((l) => (
-                  <li key={l.produit.id}>
-                    <button
-                      type="button"
-                      onClick={() => setProduit(l.produit)}
-                      className="flex w-full items-center gap-4 px-4 py-3 text-left hover:bg-entete-tableau sm:px-5"
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-corps font-medium text-ink-900">{l.produit.nom}</span>
-                        <span className="block truncate text-meta text-steel-500">
-                          {formatNombre(l.quantite)} {l.produit.uniteMesure ?? 'unité'}
-                          {l.quantite > 1 ? 's' : ''}
-                          {l.coutMoyen !== null && ` · coût moyen ${gnf(l.coutMoyen)}`}
-                          {l.produit.categorie && ` · ${l.produit.categorie.nom}`}
+              <>
+                <div ref={ancre} className="scroll-mt-20" />
+                <ul className="divide-y divide-rule">
+                  {visibles.map((l) => (
+                    <li key={l.produit.id}>
+                      <button
+                        type="button"
+                        onClick={() => setProduit(l.produit)}
+                        className="flex w-full items-center gap-4 px-4 py-3 text-left hover:bg-entete-tableau sm:px-5"
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-corps font-medium text-ink-900">{l.produit.nom}</span>
+                          <span className="block truncate text-meta text-steel-500">
+                            {formatNombre(l.quantite)} {l.produit.uniteMesure ?? 'unité'}
+                            {l.quantite > 1 ? 's' : ''}
+                            {l.coutMoyen !== null && ` · coût moyen ${gnf(l.coutMoyen)}`}
+                            {l.produit.categorie && ` · ${l.produit.categorie.nom}`}
+                          </span>
                         </span>
-                      </span>
-                      <span className="shrink-0 text-corps font-semibold text-ink-900">{gnf(l.valeur)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                        <span className="shrink-0 text-corps font-semibold text-ink-900">{gnf(l.valeur)}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <Pagination etat={pagination} className="border-t border-rule" />
+              </>
             )}
           </Card>
         </>

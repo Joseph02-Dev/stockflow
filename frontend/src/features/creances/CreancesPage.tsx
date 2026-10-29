@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Pagination } from '@/components/patterns/Pagination';
+import { usePagination } from '@/components/patterns/usePagination';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, Phone, Plus } from 'lucide-react';
@@ -86,6 +88,10 @@ export function CreancesPage() {
     setAEncaisser(debiteur);
   }
 
+  // Avant tout retour anticipé : un hook est appelé à chaque rendu.
+  const debiteursFiltres = (data?.debiteurs ?? []).filter((d) => !filtre || tranche(d.retardJours) === filtre);
+  const { visibles, ancre, pagination } = usePagination(debiteursFiltres, { reinitialiser: filtre });
+
   if (isLoading) {
     return (
       <div className="flex flex-col gap-5" role="status">
@@ -108,7 +114,6 @@ export function CreancesPage() {
   const { resume, debiteurs } = data;
   const montantSaisi = Number.parseInt(montant, 10) || 0;
   const nombreVentes = debiteurs.reduce((a, d) => a + d.nombreVentes, 0);
-  const visibles = filtre ? debiteurs.filter((d) => tranche(d.retardJours) === filtre) : debiteurs;
 
   return (
     <div className="clients-page flex flex-col gap-5">
@@ -204,85 +209,89 @@ export function CreancesPage() {
             )
           }
         />
-        {visibles.length === 0 ? (
+        {debiteursFiltres.length === 0 ? (
           filtre ? (
             <EmptyState titre="Aucun débiteur dans cette tranche" description="Le retard le plus long de chaque client le place dans une seule tranche." />
           ) : (
             <EmptyState titre="Personne ne vous doit d’argent" description="Les ventes à crédit non soldées apparaîtront ici, les plus en retard en premier." />
           )
         ) : (
-          <ul className="creances-liste divide-y divide-rule">
-            {visibles.map((d) => {
-              const cle = tranche(d.retardJours);
-              const couleur = COULEUR_TRANCHE[cle];
-              const echeanceDepassee = d.echeanceAt !== null && new Date(d.echeanceAt).getTime() < maintenant;
-              return (
-                <li key={d.client.id} className="creances-debiteur">
-                  <span
-                    className={cn('flex size-10 shrink-0 items-center justify-center rounded-full text-meta font-semibold', couleur.fond, couleur.texte)}
-                    aria-hidden="true"
-                  >
-                    {initiales(d.client.nom)}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-[14.5px] font-semibold text-ink-900">
-                      {d.client.nom}
-                      {d.client.nomCommerce && <span className="font-normal text-steel-400"> · {d.client.nomCommerce}</span>}
-                    </p>
-                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-meta text-steel-500">
-                      {d.client.telephone && (
-                        <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                          <Phone className="size-3 text-steel-400" aria-hidden="true" />
-                          {d.client.telephone}
-                        </span>
-                      )}
-                      <span className="whitespace-nowrap">
-                        {d.nombreVentes} {pluriel('vente', d.nombreVentes)}
-                      </span>
-                      <span className="whitespace-nowrap">
-                        {d.dernierReglementAt ? `Dernier règlement ${tempsRelatif(d.dernierReglementAt, maintenant)}` : 'Aucun règlement'}
-                      </span>
-                      {d.echeanceAt && (
-                        <span className={cn('whitespace-nowrap', echeanceDepassee && 'font-semibold text-rupture')}>
-                          Échéance {dateCourte(d.echeanceAt)}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                  {d.client.plafondCredit !== null ? (
-                    <JaugeCredit solde={d.solde} plafond={d.client.plafondCredit} />
-                  ) : (
-                    <p className="clients-credit text-meta text-steel-400">Pas de plafond de crédit</p>
-                  )}
-                  <div className="creances-solde">
-                    <p className="font-display text-[16px] font-semibold whitespace-nowrap text-ink-900 tabular-nums">{gnf(d.solde)}</p>
+          <>
+            <div ref={ancre} className="scroll-mt-20" />
+            <ul className="creances-liste divide-y divide-rule">
+              {visibles.map((d) => {
+                const cle = tranche(d.retardJours);
+                const couleur = COULEUR_TRANCHE[cle];
+                const echeanceDepassee = d.echeanceAt !== null && new Date(d.echeanceAt).getTime() < maintenant;
+                return (
+                  <li key={d.client.id} className="creances-debiteur">
                     <span
-                      className={cn('mt-1 inline-flex h-[22px] items-center rounded-full px-2 text-[11.5px] font-semibold whitespace-nowrap sm:mt-0.5', couleur.pastille)}
+                      className={cn('flex size-10 shrink-0 items-center justify-center rounded-full text-meta font-semibold', couleur.fond, couleur.texte)}
+                      aria-hidden="true"
                     >
-                      {d.retardJours > 0 ? `${d.retardJours} j de retard` : 'À jour'}
+                      {initiales(d.client.nom)}
                     </span>
-                  </div>
-                  <div className="creances-actions flex shrink-0 gap-1.5">
-                    <BoutonWhatsApp
-                      compact
-                      libelle="Relancer"
-                      telephone={d.client.telephone}
-                      texte={texteRelance({
-                        entreprise: session?.entreprise.nom ?? '',
-                        client: d.client.nom,
-                        solde: d.solde,
-                        ancienneteJours: d.ancienneteJours,
-                        echeanceAt: d.echeanceAt,
-                      })}
-                    />
-                    <Button variant="secondary" taille="sm" onClick={() => ouvrirEncaissement(d)}>
-                      Encaisser
-                    </Button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                    <div className="min-w-0">
+                      <p className="truncate text-[14.5px] font-semibold text-ink-900">
+                        {d.client.nom}
+                        {d.client.nomCommerce && <span className="font-normal text-steel-400"> · {d.client.nomCommerce}</span>}
+                      </p>
+                      <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-meta text-steel-500">
+                        {d.client.telephone && (
+                          <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                            <Phone className="size-3 text-steel-400" aria-hidden="true" />
+                            {d.client.telephone}
+                          </span>
+                        )}
+                        <span className="whitespace-nowrap">
+                          {d.nombreVentes} {pluriel('vente', d.nombreVentes)}
+                        </span>
+                        <span className="whitespace-nowrap">
+                          {d.dernierReglementAt ? `Dernier règlement ${tempsRelatif(d.dernierReglementAt, maintenant)}` : 'Aucun règlement'}
+                        </span>
+                        {d.echeanceAt && (
+                          <span className={cn('whitespace-nowrap', echeanceDepassee && 'font-semibold text-rupture')}>
+                            Échéance {dateCourte(d.echeanceAt)}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    {d.client.plafondCredit !== null ? (
+                      <JaugeCredit solde={d.solde} plafond={d.client.plafondCredit} />
+                    ) : (
+                      <p className="clients-credit text-meta text-steel-400">Pas de plafond de crédit</p>
+                    )}
+                    <div className="creances-solde">
+                      <p className="font-display text-[16px] font-semibold whitespace-nowrap text-ink-900 tabular-nums">{gnf(d.solde)}</p>
+                      <span
+                        className={cn('mt-1 inline-flex h-[22px] items-center rounded-full px-2 text-[11.5px] font-semibold whitespace-nowrap sm:mt-0.5', couleur.pastille)}
+                      >
+                        {d.retardJours > 0 ? `${d.retardJours} j de retard` : 'À jour'}
+                      </span>
+                    </div>
+                    <div className="creances-actions flex shrink-0 gap-1.5">
+                      <BoutonWhatsApp
+                        compact
+                        libelle="Relancer"
+                        telephone={d.client.telephone}
+                        texte={texteRelance({
+                          entreprise: session?.entreprise.nom ?? '',
+                          client: d.client.nom,
+                          solde: d.solde,
+                          ancienneteJours: d.ancienneteJours,
+                          echeanceAt: d.echeanceAt,
+                        })}
+                      />
+                      <Button variant="secondary" taille="sm" onClick={() => ouvrirEncaissement(d)}>
+                        Encaisser
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            <Pagination etat={pagination} className="border-t border-rule" />
+          </>
         )}
       </Card>
 

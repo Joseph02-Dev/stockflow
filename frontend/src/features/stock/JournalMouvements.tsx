@@ -1,4 +1,6 @@
 import type { CSSProperties } from 'react';
+import { Pagination } from '@/components/patterns/Pagination';
+import { usePagination } from '@/components/patterns/usePagination';
 import { Link } from 'react-router-dom';
 import type { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
@@ -75,9 +77,23 @@ export function JournalMouvements({
   onNouveauMouvement: () => void;
 }) {
   const liste = requete.data?.pages.flat() ?? [];
+  const { visibles, ancre, pagination } = usePagination(liste, {
+    aPlus: requete.hasNextPage,
+    chargerPlus: requete.fetchNextPage,
+    // Changement de famille ou de lieu : le premier mouvement change aussi.
+    reinitialiser: [famille, liste[0]?.id],
+  });
+
+  // Nombre de mouvements d'un jour sur tout ce qui est chargé.
+  const parJour = new Map<string, number>();
+  for (const m of liste) {
+    const cle = new Date(m.createdAt).toDateString();
+    parJour.set(cle, (parJour.get(cle) ?? 0) + 1);
+  }
+  const dernierJourCharge = liste.length > 0 ? new Date(liste[liste.length - 1].createdAt).toDateString() : null;
 
   const jours: { cle: string; date: Date; mouvements: Mouvement[] }[] = [];
-  for (const mouvement of liste) {
+  for (const mouvement of visibles) {
     const date = new Date(mouvement.createdAt);
     const cle = date.toDateString();
     const dernier = jours.at(-1);
@@ -133,17 +149,18 @@ export function JournalMouvements({
           )}
         </Card>
       ) : (
-        <div className="flex flex-col gap-3">
-          {jours.map((jour, index) => {
-            // Le dernier jour chargé peut continuer sur la page suivante : pas de total incomplet.
-            const complet = index < jours.length - 1 || !requete.hasNextPage;
+        <div ref={ancre} className="flex scroll-mt-20 flex-col gap-3">
+          {jours.map((jour) => {
+            // Le dernier jour chargé peut continuer au bloc suivant : pas de total incomplet.
+            const complet = jour.cle !== dernierJourCharge || !requete.hasNextPage;
+            const nombre = parJour.get(jour.cle) ?? 0;
             return (
               <section key={jour.cle} aria-label={libelleJour(jour.date)}>
                 <h3 className="stock-jour-titre">
                   <span className="text-corps font-semibold text-ink-900">{libelleJour(jour.date)}</span>
                   {complet && (
                     <span className="text-meta text-steel-400">
-                      {jour.mouvements.length} {pluriel('mouvement', jour.mouvements.length)}
+                      {nombre} {pluriel('mouvement', nombre)}
                     </span>
                   )}
                 </h3>
@@ -203,13 +220,7 @@ export function JournalMouvements({
               </section>
             );
           })}
-          {requete.hasNextPage && (
-            <div className="flex justify-center">
-              <Button variant="secondary" loading={requete.isFetchingNextPage} onClick={() => requete.fetchNextPage()}>
-                Charger plus de mouvements
-              </Button>
-            </div>
-          )}
+          <Pagination etat={pagination} className="px-0.5" />
         </div>
       )}
     </div>

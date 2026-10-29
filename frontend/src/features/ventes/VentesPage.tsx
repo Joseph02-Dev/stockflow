@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { ChevronRight, Plus, TrendingDown, TrendingUp } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { pageSuivante, urlPage } from '@/lib/pagination';
+import { Pagination } from '@/components/patterns/Pagination';
+import { usePagination } from '@/components/patterns/usePagination';
 import { Button } from '@/components/ui/Button';
 import { gnf } from '@/lib/montant';
 import { formatNombre, pluriel } from '@/lib/format';
@@ -265,8 +267,8 @@ export function VentesPage() {
   if (jours !== null) filtres.set('du', debutPeriode(jours));
   if (emplacementId) filtres.set('emplacementId', emplacementId);
 
-  // Historique par pages de 50 (« Afficher plus ») : jamais toutes les ventes d'un coup.
-  const { data, isLoading, isError, error, refetch, hasNextPage, fetchNextPage, isFetchingNextPage } = useInfiniteQuery(
+  // Historique chargé par blocs de 50, affiché par pages de 10 : jamais toutes les ventes d'un coup.
+  const { data, isLoading, isError, error, refetch, hasNextPage, fetchNextPage } = useInfiniteQuery(
     {
       queryKey: ['ventes', 'liste', periode, emplacementId],
       queryFn: async ({ pageParam }) => (await api.get<VenteResume[]>(urlPage('/ventes', filtres, pageParam))).data,
@@ -275,10 +277,26 @@ export function VentesPage() {
     },
   );
   const ventes = data?.pages.flat() ?? [];
+  const { visibles, ancre, pagination } = usePagination(ventes, {
+    aPlus: hasNextPage,
+    chargerPlus: fetchNextPage,
+    reinitialiser: [periode, emplacementId],
+  });
 
-  // Ventes groupées par jour ; le total d'un jour n'est affiché que s'il est complet.
-  const groupes: { cle: string; date: Date; ventes: VenteResume[] }[] = [];
+  // Total d'un jour, sur tout ce qui est chargé : affiché seulement s'il est
+  // complet (jour qui n'est pas le dernier chargé, ou plus rien au serveur).
+  const totauxJour = new Map<string, { nombre: number; montant: number }>();
   for (const v of ventes) {
+    if (v.statut === 'ANNULEE') continue;
+    const cle = cleJour(new Date(v.createdAt));
+    const t = totauxJour.get(cle) ?? { nombre: 0, montant: 0 };
+    totauxJour.set(cle, { nombre: t.nombre + 1, montant: t.montant + v.total });
+  }
+  const dernierJourCharge = ventes.length > 0 ? cleJour(new Date(ventes[ventes.length - 1].createdAt)) : null;
+
+  // Ventes de la page groupées par jour.
+  const groupes: { cle: string; date: Date; ventes: VenteResume[] }[] = [];
+  for (const v of visibles) {
     const date = new Date(v.createdAt);
     const dernier = groupes.at(-1);
     if (dernier?.cle === cleJour(date)) dernier.ventes.push(v);
@@ -366,20 +384,18 @@ export function VentesPage() {
           )}
         </Card>
       ) : (
-        <div className="flex flex-col gap-4">
-          {groupes.map((groupe, index) => {
-            const valides = groupe.ventes.filter((v) => v.statut !== 'ANNULEE');
-            const complet = index < groupes.length - 1 || !hasNextPage;
+        <div ref={ancre} className="flex scroll-mt-20 flex-col gap-4">
+          {groupes.map((groupe) => {
+            const totalJour = totauxJour.get(groupe.cle) ?? { nombre: 0, montant: 0 };
+            const complet = groupe.cle !== dernierJourCharge || !hasNextPage;
             return (
               <section key={groupe.cle} aria-label={libelleJour(groupe.date, maintenant)}>
                 <h2 className="mb-2 flex items-baseline justify-between gap-3 px-0.5">
                   <span className="text-corps font-semibold text-ink-900">{libelleJour(groupe.date, maintenant)}</span>
                   {complet && (
                     <span className="text-meta text-steel-400">
-                      {valides.length} {pluriel('vente', valides.length)} ·{' '}
-                      <span className="font-semibold text-ink-900">
-                        {gnf(valides.reduce((total, v) => total + v.total, 0))}
-                      </span>
+                      {totalJour.nombre} {pluriel('vente', totalJour.nombre)} ·{' '}
+                      <span className="font-semibold text-ink-900">{gnf(totalJour.montant)}</span>
                     </span>
                   )}
                 </h2>
@@ -448,13 +464,7 @@ export function VentesPage() {
               </section>
             );
           })}
-          {hasNextPage && (
-            <div className="flex justify-center">
-              <Button variant="secondary" loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
-                Afficher plus de ventes
-              </Button>
-            </div>
-          )}
+          <Pagination etat={pagination} className="px-0.5" />
         </div>
       )}
     </div>

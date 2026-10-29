@@ -1,4 +1,6 @@
 import { useState, type CSSProperties } from 'react';
+import { Pagination } from '@/components/patterns/Pagination';
+import { usePagination } from '@/components/patterns/usePagination';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -226,6 +228,7 @@ export function FournisseursPage() {
   const visibles = (data ?? []).filter(
     (f) => garde(f, filtre) && (!cible || sansAccents(`${f.nom} ${f.telephone ?? ''} ${f.emailContact ?? ''}`).includes(cible)),
   );
+  const { visibles: fournisseursPage, ancre, pagination } = usePagination(visibles, { reinitialiser: [filtre, cible] });
   const filtres = (
     <div className="fournisseurs-filtres px-3 pb-3" role="group" aria-label="Filtrer les fournisseurs">
       {FILTRES.map(({ cle, libelle }) => (
@@ -323,7 +326,7 @@ export function FournisseursPage() {
               </p>
               {visibles.length === 0 && aucun}
               <ul className="max-h-[calc(100vh-17rem)] overflow-y-auto">
-                {visibles.map((fournisseur) => (
+                {fournisseursPage.map((fournisseur) => (
                   <li key={fournisseur.id}>
                     <button
                       type="button"
@@ -348,6 +351,7 @@ export function FournisseursPage() {
                   </li>
                 ))}
               </ul>
+              <Pagination etat={pagination} compact className="border-t border-rule px-4" />
             </Card>
 
             <div className="min-w-0 flex-1">
@@ -368,8 +372,9 @@ export function FournisseursPage() {
               {filtres}
             </div>
             {visibles.length === 0 && aucun}
+            <div ref={ancre} className="scroll-mt-20" />
             <ul className="divide-y divide-rule">
-              {visibles.map((fournisseur) => (
+              {fournisseursPage.map((fournisseur) => (
                 <li key={fournisseur.id}>
                   <Link
                     to={`/fournisseurs/${fournisseur.id}`}
@@ -390,6 +395,7 @@ export function FournisseursPage() {
                 </li>
               ))}
             </ul>
+            <Pagination etat={pagination} className="border-t border-rule" />
           </Card>
         </>
       ) : (
