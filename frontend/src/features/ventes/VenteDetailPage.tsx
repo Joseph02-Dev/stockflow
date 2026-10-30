@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useLocation, useParams } from 'react-router-dom';
-import { Ban, Download, Plus, Printer, Undo2 } from 'lucide-react';
+import { useLocation, useParams } from 'react-router-dom';
+import { Ban, Download, Printer, Undo2 } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { dateCourte, dateHeure, gnf } from '@/lib/montant';
 import { formatNombre, pluriel } from '@/lib/format';
@@ -22,6 +22,7 @@ import { telechargerExport } from '@/lib/exporterCsv';
 import { MODES } from './modes';
 import type { EtatRetourClient, ModeReglement, VenteDetail } from './types';
 import { boutonClasses } from '@/components/ui/boutonClasses';
+import { BoutonNouvelleVente } from '@/components/patterns/BoutonNouvelleVente';
 
 const ETATS_RETOUR: Record<EtatRetourClient, string> = {
   REMISE_EN_STOCK: 'remise en stock',
@@ -120,10 +121,7 @@ export function VenteDetailPage() {
           <>
             {vente.aRegulariser && !annulee && <Badge variant="faible">À régulariser</Badge>}
             {annulee ? <Badge variant="rupture">Annulée</Badge> : vente.resteDu > 0 ? <Badge variant="faible">À crédit</Badge> : <Badge variant="ok">Réglée</Badge>}
-            <Link to="/ventes/nouvelle" className={boutonClasses('primary')}>
-              <Plus className="size-4" aria-hidden="true" />
-              Nouvelle vente
-            </Link>
+            <BoutonNouvelleVente />
           </>
         }
       />

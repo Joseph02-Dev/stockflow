@@ -704,6 +704,8 @@ export class MouvementsService {
             prixDemiGros: true,
             tauxTva: true,
             archive: true,
+            // Pastilles de catégorie de l'écran de vente.
+            categorie: { select: { id: true, nom: true } },
           },
         },
         emplacement: { select: { id: true, nom: true } },

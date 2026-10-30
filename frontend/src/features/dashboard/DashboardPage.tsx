@@ -7,7 +7,6 @@ import {
   ClipboardCheck,
   MapPin,
   Package,
-  Plus,
   ShoppingCart,
   TrendingDown,
   TrendingUp,
@@ -36,6 +35,7 @@ import { VentesSemaine } from './VentesSemaine';
 import './dashboard.css';
 import { FlecheLien } from '@/components/ui/LienAction';
 import { lienActionClasses } from '@/components/ui/lienActionClasses';
+import { BoutonNouvelleVente } from '@/components/patterns/BoutonNouvelleVente';
 
 interface Overview {
   kpi: {
@@ -253,10 +253,7 @@ export function DashboardPage() {
           <Link to="/statistiques" className={cn(boutonClasses('secondary'), 'flex-1 sm:flex-none')}>
             Statistiques
           </Link>
-          <Link to="/ventes/nouvelle" className={cn(boutonClasses('primary'), 'flex-1 sm:flex-none')}>
-            <Plus className="size-4" aria-hidden="true" />
-            Nouvelle vente
-          </Link>
+          <BoutonNouvelleVente />
         </div>
       </header>
 

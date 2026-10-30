@@ -1,7 +1,7 @@
 import { useState, useSyncExternalStore } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Plus, TrendingDown, TrendingUp } from 'lucide-react';
+import { ChevronRight, TrendingDown, TrendingUp } from 'lucide-react';
 import { api, messageErreur } from '@/lib/api';
 import { pageSuivante, urlPage } from '@/lib/pagination';
 import { Pagination } from '@/components/patterns/Pagination';
@@ -18,6 +18,7 @@ import { Card, PageHeader } from '@/components/patterns/Page';
 import { Compteur } from '@/components/patterns/Compteur';
 import { boutonClasses } from '@/components/ui/boutonClasses';
 import { EmptyState, ErrorState, LoadingState } from '@/components/patterns/States';
+import { BoutonNouvelleVente } from '@/components/patterns/BoutonNouvelleVente';
 import { MODES } from './modes';
 import type { ModePaiement, VenteResume } from './types';
 import { debutPeriode } from '@/lib/periode';
@@ -311,12 +312,7 @@ export function VentesPage() {
       <PageHeader
         titre="Ventes"
         description="Chaque vente, son client, ce qui a été payé et ce qui reste dû."
-        action={
-          <Link to="/ventes/nouvelle" className={LIEN_NOUVELLE}>
-            <Plus className="size-4" aria-hidden="true" />
-            Nouvelle vente
-          </Link>
-        }
+        action={<BoutonNouvelleVente />}
       />
 
       <ResumeVentes />

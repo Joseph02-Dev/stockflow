@@ -19,7 +19,6 @@ import {
   Package,
   PanelLeftClose,
   PanelLeftOpen,
-  Plus,
   Receipt,
   RefreshCw,
   Settings,
@@ -53,6 +52,7 @@ import { OngletsSection, type OngletSection } from '@/components/patterns/Onglet
 import { useIndicateurGlissant } from '@/components/patterns/useIndicateurGlissant';
 import './menuMobile.css';
 import { boutonClasses } from '@/components/ui/boutonClasses';
+import { BoutonNouvelleVente } from '@/components/patterns/BoutonNouvelleVente';
 
 // Navigation en quatre sections : piloter, gérer le stock, s'approvisionner,
 // organiser. Les liens réservés à l'Admin (Paramètres et ses onglets) et
@@ -624,19 +624,12 @@ export function AppLayout() {
                 </span>
               )}
             </div>
-            {/* Action principale : la vente au comptoir, à un clic de partout. */}
-            <Link
-              to="/ventes/nouvelle"
-              aria-label={replie ? 'Nouvelle vente' : undefined}
-              className={cn(
-                boutonClasses('primary', 'focus-visible:outline-white/70'),
-                replie ? 'w-9 px-0' : 'w-full',
-              )}
-              {...propsBulle('Nouvelle vente', replie, setBulle)}
-            >
-              <Plus className="size-[18px]" aria-hidden="true" />
-              {!replie && 'Nouvelle vente'}
-            </Link>
+            {/* Action principale : la vente au comptoir, à un clic de partout (chariot animé). */}
+            <BoutonNouvelleVente
+              className={cn(replie ? 'mx-auto' : 'self-start', 'focus-visible:outline-white/70')}
+              title={undefined}
+              {...propsBulle('Nouvelle vente', true, setBulle)}
+            />
           </div>
 
           {/* Groupes séparés par un filet : les icônes suffisent à les distinguer, sans intitulés. */}
@@ -891,25 +884,27 @@ export function AppLayout() {
           s'élargit en pastille orange avec son libellé, les autres gardent
           l'icône seule (libellé pour les lecteurs d'écran). */}
       <nav className="ile-nav fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+12px)] z-40 mx-auto flex max-w-md items-center gap-1 rounded-full p-1.5 md:hidden" aria-label="Navigation principale">
-        {navMobile.map(({ to, libelle, Icone, exact }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={exact}
-            className={({ isActive }) =>
-              cn(
-                'ile-nav-onglet flex h-12 items-center justify-center gap-2 rounded-full text-meta font-semibold whitespace-nowrap',
-                isActive ? 'ile-nav-actif shrink-0 bg-action px-4 text-sur-couleur' : 'min-w-0 flex-1',
-              )
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <Icone className="size-5 shrink-0" aria-hidden="true" />
-                <span className={isActive ? undefined : 'sr-only'}>{libelle}</span>
-              </>
-            )}
-          </NavLink>
+        {navMobile.map(({ to, libelle, Icone, exact }, rang) => (
+          <Fragment key={to}>
+            {rang === 2 && <BoutonNouvelleVente taille="lg" className="-my-2 shrink-0 ring-4 ring-ink-800" />}
+            <NavLink
+              to={to}
+              end={exact}
+              className={({ isActive }) =>
+                cn(
+                  'ile-nav-onglet flex h-12 items-center justify-center gap-2 rounded-full text-meta font-semibold whitespace-nowrap',
+                  isActive ? 'ile-nav-actif shrink-0 bg-action px-4 text-sur-couleur' : 'min-w-0 flex-1',
+                )
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <Icone className="size-5 shrink-0" aria-hidden="true" />
+                  <span className={isActive ? undefined : 'sr-only'}>{libelle}</span>
+                </>
+              )}
+            </NavLink>
+          </Fragment>
         ))}
       </nav>
 
@@ -961,14 +956,6 @@ export function AppLayout() {
             </div>
 
             <div className="overflow-y-auto px-4 pb-2.5">
-              <Link
-                to="/ventes/nouvelle"
-                onClick={() => setPlusOuvert(false)}
-                className={boutonClasses('primary', 'h-12 w-full text-[15px]')}
-              >
-                <Plus className="size-5" aria-hidden="true" />
-                Nouvelle vente
-              </Link>
               {sectionsMenuMobile.map((section) => (
                 <div key={section.titre} role="group" aria-labelledby={`menu-${section.titre}`}>
                   <h3
